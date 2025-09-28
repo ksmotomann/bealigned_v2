@@ -33,8 +33,8 @@ export default function InAppNavigationHeader({ activeTab }: InAppNavigationHead
     <View style={styles.header}>
       <View style={styles.headerContent}>
         <Pressable style={styles.logo} onPress={() => router.push('/(tabs)/dashboard')}>
-          <Image 
-            source={require('../assets/bealigned_logo.png')} 
+          <Image
+            source={require('../assets/bealigned_logo.avif')}
             style={styles.logoImage}
             resizeMode="contain"
           />

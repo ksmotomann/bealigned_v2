@@ -235,8 +235,8 @@ export default function Contact() {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <Image 
-          source={require('../../assets/bealigned_logo.png')} 
+        <Image
+          source={require('../../assets/bealigned_logo.avif')}
           style={styles.footerLogoImage}
           resizeMode="contain"
         />

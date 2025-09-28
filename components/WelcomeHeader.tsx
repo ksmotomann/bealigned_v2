@@ -18,8 +18,8 @@ export default function WelcomeHeader({ firstName }: WelcomeHeaderProps) {
     <View style={styles.header}>
       <View style={styles.headerContent}>
         <View style={styles.leftSection}>
-          <Image 
-            source={require('../assets/bealigned_logo.png')} 
+          <Image
+            source={require('../assets/bealigned_logo.avif')}
             style={styles.logo}
             resizeMode="contain"
           />

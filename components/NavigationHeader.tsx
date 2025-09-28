@@ -16,8 +16,8 @@ export default function NavigationHeader({ activeLink }: NavigationHeaderProps) 
     <View style={styles.header}>
       <View style={styles.headerContent}>
         <Pressable style={styles.logo} onPress={() => router.push('/(marketing)')}>
-          <Image 
-            source={require('../assets/bealigned_logo.png')} 
+          <Image
+            source={require('../assets/bealigned_logo.avif')}
             style={styles.logoImage}
             resizeMode="contain"
           />
