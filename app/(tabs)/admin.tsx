@@ -39,7 +39,7 @@ export default function AdminPanel() {
     aiModel: DEFAULT_AI_CONFIG.model as AIModel,
     temperature: DEFAULT_AI_CONFIG.temperature,
     maxTokens: DEFAULT_AI_CONFIG.maxTokens,
-    
+
     // Original Settings (renamed for clarity)
     responseStyle: 'balanced', // creative, balanced, focused
     responseLength: 'normal', // brief, normal, detailed
@@ -51,10 +51,35 @@ export default function AdminPanel() {
     allowVoiceInput: false,
   })
 
+  // Alignment codes state
+  const [alignmentCodes, setAlignmentCodes] = useState([])
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newCode, setNewCode] = useState('')
+  const [newTier, setNewTier] = useState('user')
+  const [newDescription, setNewDescription] = useState('')
+  const [newMaxUses, setNewMaxUses] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [migrating, setMigrating] = useState(false)
+
+  // User management state
+  const [users, setUsers] = useState([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [userAlignmentCodes, setUserAlignmentCodes] = useState([])
+  const [updatingUser, setUpdatingUser] = useState(false)
+
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState([])
+  const [topPerformingCodes, setTopPerformingCodes] = useState([])
+  const [recentUsage, setRecentUsage] = useState([])
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+  const [analyticsTab, setAnalyticsTab] = useState('overview')
+
   const adminSections = [
     { id: 'seo', title: 'SEO Management', icon: 'search-outline' },
     { id: 'content', title: 'Content Management', icon: 'document-text-outline' },
     { id: 'config', title: 'App Configuration', icon: 'settings-outline' },
+    { id: 'alignment-codes', title: 'Alignment Codes', icon: 'key-outline' },
     { id: 'ai', title: 'AI Configuration', icon: 'bulb-outline' },
     { id: 'chat', title: 'Chat Settings', icon: 'chatbubbles-outline' },
     { id: 'training', title: 'Training Management', icon: 'school-outline' },
@@ -66,6 +91,12 @@ export default function AdminPanel() {
   useEffect(() => {
     if (activeSection === 'ai') {
       loadAIConfig()
+    } else if (activeSection === 'alignment-codes') {
+      loadAlignmentCodes()
+    } else if (activeSection === 'users') {
+      loadUsers()
+    } else if (activeSection === 'analytics') {
+      loadAnalytics()
     }
   }, [activeSection])
 
@@ -76,7 +107,7 @@ export default function AdminPanel() {
         .select('*')
         .eq('enabled', true)
         .single()
-      
+
       if (data && !error) {
         setChatConfig(prev => ({
           ...prev,
@@ -87,6 +118,333 @@ export default function AdminPanel() {
       }
     } catch (err) {
       console.log('No existing AI config found, using defaults')
+    }
+  }
+
+  const loadAlignmentCodes = async () => {
+    try {
+      console.log('Loading alignment codes...')
+      const { data, error } = await supabase
+        .from('alignment_codes')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      console.log('Alignment codes query result:', { data, error })
+
+      if (error) {
+        console.error('Alignment codes query error:', error)
+        setAlignmentCodes([])
+        return
+      }
+
+      if (data) {
+        console.log(`Loaded ${data.length} alignment codes`)
+        setAlignmentCodes(data)
+      } else {
+        setAlignmentCodes([])
+      }
+    } catch (err) {
+      console.error('Error loading alignment codes:', err)
+      setAlignmentCodes([])
+    }
+  }
+
+  const createAlignmentCode = async () => {
+    if (!newCode.trim() || !newDescription.trim()) {
+      Alert.alert('Error', 'Please fill in all required fields')
+      return
+    }
+
+    setCreating(true)
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError) {
+        Alert.alert('Error', 'Not authenticated')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('alignment_codes')
+        .insert({
+          code: newCode.trim().toUpperCase(),
+          user_type: newTier,
+          description: newDescription.trim(),
+          max_uses: newMaxUses ? parseInt(newMaxUses) : null,
+          created_by: userData.user?.id
+        })
+        .select()
+
+      if (error) {
+        if (error.code === '23505') {
+          Alert.alert('Error', 'This alignment code already exists')
+        } else {
+          Alert.alert('Error', error.message)
+        }
+        return
+      }
+
+      Alert.alert('Success', 'Alignment code created successfully!')
+      setNewCode('')
+      setNewDescription('')
+      setNewMaxUses('')
+      setNewTier('user')
+      setShowCreateForm(false)
+      loadAlignmentCodes()
+    } catch (err) {
+      Alert.alert('Error', 'Failed to create alignment code')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const deactivateAlignmentCode = async (codeId: string) => {
+    Alert.alert(
+      'Deactivate Code',
+      'Are you sure you want to deactivate this alignment code?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deactivate',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('alignment_codes')
+                .update({ is_active: false })
+                .eq('id', codeId)
+
+              if (error) {
+                Alert.alert('Error', error.message)
+                return
+              }
+
+              Alert.alert('Success', 'Alignment code deactivated')
+              loadAlignmentCodes()
+            } catch (err) {
+              Alert.alert('Error', 'Failed to deactivate code')
+            }
+          }
+        }
+      ]
+    )
+  }
+
+  // User management functions
+  const loadUsers = async () => {
+    setLoadingUsers(true)
+    try {
+      console.log('🔍 Starting to load users...')
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          email,
+          user_type,
+          alignment_code_used,
+          created_at,
+          updated_at
+        `)
+        .order('created_at', { ascending: false })
+
+      console.log('📊 Users query result:', { data, error, count: data?.length })
+
+      if (error) {
+        console.error('❌ Error loading users:', error)
+        setUsers([])
+        return
+      }
+
+      console.log(`✅ Successfully loaded ${data?.length || 0} users`)
+      setUsers(data || [])
+    } catch (err) {
+      console.error('💥 Exception loading users:', err)
+      setUsers([])
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const loadUserAlignmentCodes = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_alignment_codes')
+        .select(`
+          *,
+          alignment_codes (
+            code,
+            description,
+            user_type
+          )
+        `)
+        .eq('user_id', userId)
+        .order('used_at', { ascending: false })
+
+      if (error) {
+        console.error('Error loading user alignment codes:', error)
+        return
+      }
+
+      setUserAlignmentCodes(data || [])
+    } catch (err) {
+      console.error('Error loading user alignment codes:', err)
+    }
+  }
+
+  const updateUserType = async (userId: string, newUserType: string) => {
+    setUpdatingUser(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ user_type: newUserType })
+        .eq('id', userId)
+
+      if (error) {
+        Alert.alert('Error', 'Failed to update user type')
+        return
+      }
+
+      Alert.alert('Success', 'User type updated successfully!')
+      loadUsers() // Refresh the user list
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update user type')
+    } finally {
+      setUpdatingUser(false)
+    }
+  }
+
+  // Analytics functions
+  const loadAnalytics = async () => {
+    setLoadingAnalytics(true)
+    try {
+      // Load all analytics data in parallel
+      const [analyticsResult, topCodesResult, recentUsageResult] = await Promise.all([
+        supabase.rpc('get_alignment_code_analytics'),
+        supabase.rpc('get_top_performing_codes', { limit_count: 10 }),
+        supabase.rpc('get_recent_code_usage', { days_back: 30 })
+      ])
+
+      if (analyticsResult.error) {
+        console.error('Analytics error:', analyticsResult.error)
+      } else {
+        setAnalyticsData(analyticsResult.data || [])
+      }
+
+      if (topCodesResult.error) {
+        console.error('Top codes error:', topCodesResult.error)
+      } else {
+        setTopPerformingCodes(topCodesResult.data || [])
+      }
+
+      if (recentUsageResult.error) {
+        console.error('Recent usage error:', recentUsageResult.error)
+      } else {
+        setRecentUsage(recentUsageResult.data || [])
+      }
+
+    } catch (err) {
+      console.error('Error loading analytics:', err)
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }
+
+  const runManualMigration = async () => {
+    setMigrating(true)
+    try {
+      console.log('Starting manual migration...')
+
+      // Create the alignment_codes table
+      const createTableSQL = `
+        -- Create alignment codes table
+        CREATE TABLE IF NOT EXISTS public.alignment_codes (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            code VARCHAR(50) UNIQUE NOT NULL,
+            user_type TEXT NOT NULL,
+            description TEXT,
+            max_uses INTEGER,
+            current_uses INTEGER DEFAULT 0,
+            expires_at TIMESTAMP WITH TIME ZONE,
+            created_by UUID REFERENCES auth.users(id),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            is_active BOOLEAN DEFAULT TRUE
+        );
+
+        -- Create indexes
+        CREATE INDEX IF NOT EXISTS idx_alignment_codes_code ON public.alignment_codes(code);
+        CREATE INDEX IF NOT EXISTS idx_alignment_codes_tier ON public.alignment_codes(user_type);
+        CREATE INDEX IF NOT EXISTS idx_alignment_codes_active ON public.alignment_codes(is_active);
+
+        -- Enable RLS
+        ALTER TABLE public.alignment_codes ENABLE ROW LEVEL SECURITY;
+      `
+
+      const { error: tableError } = await supabase.rpc('exec_sql', { sql: createTableSQL })
+      if (tableError) {
+        console.error('Table creation error:', tableError)
+        Alert.alert('Error', 'Failed to create table: ' + tableError.message)
+        return
+      }
+
+      // Create default codes
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError) {
+        Alert.alert('Error', 'Not authenticated')
+        return
+      }
+
+      const defaultCodes = [
+        {
+          code: 'ADMIN-REQUEST',
+          user_type: 'admin',
+          description: 'Request admin access - requires manual approval',
+          max_uses: null,
+          created_by: userData.user?.id
+        },
+        {
+          code: 'EXPERT-BETA',
+          user_type: 'expert',
+          description: 'Expert access for beta testers',
+          max_uses: 100,
+          created_by: userData.user?.id
+        },
+        {
+          code: 'PILOT-PARTNERS',
+          user_type: 'expert',
+          description: 'Pilot Partners - 45 days free access then $49.95/year conversion',
+          max_uses: 1000,
+          created_by: userData.user?.id
+        },
+        {
+          code: 'GENERAL-ACCESS',
+          user_type: 'user',
+          description: 'General user access',
+          max_uses: null,
+          created_by: userData.user?.id
+        }
+      ]
+
+      for (const code of defaultCodes) {
+        const { error: insertError } = await supabase
+          .from('alignment_codes')
+          .insert(code)
+          .select()
+
+        if (insertError && !insertError.message.includes('duplicate key')) {
+          console.error('Insert error for code', code.code, ':', insertError)
+        }
+      }
+
+      Alert.alert('Success', 'Manual migration completed! Alignment codes table created and default codes added.')
+      loadAlignmentCodes()
+
+    } catch (err) {
+      console.error('Manual migration error:', err)
+      Alert.alert('Error', 'Migration failed: ' + err.message)
+    } finally {
+      setMigrating(false)
     }
   }
 
@@ -342,21 +700,339 @@ export default function AdminPanel() {
 
   const renderAnalyticsSection = () => (
     <View style={styles.sectionContent}>
-      <Text style={styles.sectionTitle}>Analytics Dashboard</Text>
-      <Text style={styles.comingSoon}>Coming Soon</Text>
-      <Text style={styles.comingSoonDescription}>
-        View user analytics, engagement metrics, and app usage statistics.
+      <Text style={styles.sectionTitle}>Alignment Code Analytics</Text>
+      <Text style={styles.subsectionDescription}>
+        Track performance, usage patterns, and effectiveness of your alignment codes
       </Text>
+
+      {/* Analytics Tabs */}
+      <View style={styles.trainingTabs}>
+        <Pressable
+          style={[styles.trainingTab, analyticsTab === 'overview' && styles.trainingTabActive]}
+          onPress={() => setAnalyticsTab('overview')}
+        >
+          <Text style={[styles.trainingTabText, analyticsTab === 'overview' && styles.trainingTabTextActive]}>
+            Overview
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.trainingTab, analyticsTab === 'performance' && styles.trainingTabActive]}
+          onPress={() => setAnalyticsTab('performance')}
+        >
+          <Text style={[styles.trainingTabText, analyticsTab === 'performance' && styles.trainingTabTextActive]}>
+            Performance
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.trainingTab, analyticsTab === 'activity' && styles.trainingTabActive]}
+          onPress={() => setAnalyticsTab('activity')}
+        >
+          <Text style={[styles.trainingTabText, analyticsTab === 'activity' && styles.trainingTabTextActive]}>
+            Recent Activity
+          </Text>
+        </Pressable>
+      </View>
+
+      {loadingAnalytics ? (
+        <Text style={styles.comingSoon}>Loading analytics...</Text>
+      ) : (
+        <View>
+          {analyticsTab === 'overview' && (
+            <View>
+              <Text style={styles.subsectionTitle}>Code Performance Summary</Text>
+              {analyticsData.length === 0 ? (
+                <Text style={styles.comingSoonDescription}>No analytics data available yet</Text>
+              ) : (
+                <View style={styles.codesContainer}>
+                  {analyticsData.map((code: any, index: number) => (
+                    <View key={index} style={styles.codeCard}>
+                      <View style={styles.codeHeader}>
+                        <View>
+                          <Text style={styles.codeText}>{code.code}</Text>
+                          <Text style={styles.codeDescription}>{code.description}</Text>
+                        </View>
+                        <View style={[styles.tierBadge, {
+                          backgroundColor:
+                            code.user_type === 'admin' ? ds.colors.danger :
+                            code.user_type === 'expert' ? ds.colors.warning :
+                            ds.colors.success
+                        }]}>
+                          <Text style={styles.tierText}>{code.user_type.toUpperCase()}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.codeStats}>
+                        <Text style={styles.codeStat}>
+                          Total Users: {code.total_users}
+                        </Text>
+                        <Text style={styles.codeStat}>
+                          Active: {code.active_users} | Trial: {code.trial_users}
+                        </Text>
+                        <Text style={styles.codeStat}>
+                          Converted: {code.converted_users} | Expired: {code.expired_users}
+                        </Text>
+                        {code.conversion_rate > 0 && (
+                          <Text style={[styles.codeStat, { color: ds.colors.success }]}>
+                            Conversion Rate: {code.conversion_rate}%
+                          </Text>
+                        )}
+                        {code.last_used && (
+                          <Text style={styles.codeStat}>
+                            Last Used: {new Date(code.last_used).toLocaleDateString()}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {analyticsTab === 'performance' && (
+            <View>
+              <Text style={styles.subsectionTitle}>Top Performing Codes</Text>
+              {topPerformingCodes.length === 0 ? (
+                <Text style={styles.comingSoonDescription}>No performance data available yet</Text>
+              ) : (
+                <View style={styles.codesContainer}>
+                  {topPerformingCodes.map((code: any, index: number) => (
+                    <View key={index} style={[styles.codeCard, {
+                      borderLeftWidth: 4,
+                      borderLeftColor: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : ds.colors.border
+                    }]}>
+                      <View style={styles.codeHeader}>
+                        <View>
+                          <Text style={styles.codeText}>
+                            #{index + 1} {code.code}
+                          </Text>
+                          <Text style={styles.codeDescription}>
+                            Performance Score: {Math.round(code.performance_score)}
+                          </Text>
+                        </View>
+                        <View style={[styles.tierBadge, {
+                          backgroundColor:
+                            code.user_type === 'admin' ? ds.colors.danger :
+                            code.user_type === 'expert' ? ds.colors.warning :
+                            ds.colors.success
+                        }]}>
+                          <Text style={styles.tierText}>{code.user_type.toUpperCase()}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.codeStats}>
+                        <Text style={styles.codeStat}>
+                          Total Users: {code.total_users}
+                        </Text>
+                        <Text style={[styles.codeStat, { color: ds.colors.success }]}>
+                          Conversion Rate: {code.conversion_rate}%
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {analyticsTab === 'activity' && (
+            <View>
+              <Text style={styles.subsectionTitle}>Recent Code Usage (Last 30 Days)</Text>
+              {recentUsage.length === 0 ? (
+                <Text style={styles.comingSoonDescription}>No recent activity</Text>
+              ) : (
+                <View style={styles.codesContainer}>
+                  {recentUsage.slice(0, 10).map((usage: any, index: number) => (
+                    <View key={index} style={styles.codeCard}>
+                      <View style={styles.codeHeader}>
+                        <View>
+                          <Text style={styles.codeText}>{usage.code}</Text>
+                          <Text style={styles.codeDescription}>
+                            {usage.user_name} ({usage.user_email})
+                          </Text>
+                        </View>
+                        <View style={[styles.tierBadge, {
+                          backgroundColor:
+                            usage.status === 'active' ? ds.colors.success :
+                            usage.status === 'converted' ? ds.colors.primary :
+                            usage.status === 'expired' ? ds.colors.danger :
+                            ds.colors.warning
+                        }]}>
+                          <Text style={styles.tierText}>{usage.status.toUpperCase()}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.codeStats}>
+                        <Text style={styles.codeStat}>
+                          Used: {new Date(usage.used_at).toLocaleDateString()}
+                        </Text>
+                        {usage.trial_ends_at && (
+                          <Text style={styles.codeStat}>
+                            Trial Ends: {new Date(usage.trial_ends_at).toLocaleDateString()}
+                            ({usage.days_in_trial} days used)
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {recentUsage.length > 10 && (
+                <Text style={styles.comingSoonDescription}>
+                  Showing 10 of {recentUsage.length} recent activities
+                </Text>
+              )}
+            </View>
+          )}
+
+          <View style={styles.formGroup}>
+            <Pressable
+              style={styles.saveButton}
+              onPress={loadAnalytics}
+              disabled={loadingAnalytics}
+            >
+              <Text style={styles.saveButtonText}>
+                {loadingAnalytics ? 'Refreshing...' : 'Refresh Analytics'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   )
 
   const renderUsersSection = () => (
     <View style={styles.sectionContent}>
       <Text style={styles.sectionTitle}>User Management</Text>
-      <Text style={styles.comingSoon}>Coming Soon</Text>
-      <Text style={styles.comingSoonDescription}>
-        Manage user accounts, view support requests, and handle user roles.
+      <Text style={styles.subsectionDescription}>
+        Manage user accounts, view alignment codes, and update user roles
       </Text>
+
+      {loadingUsers ? (
+        <Text style={styles.comingSoon}>Loading users...</Text>
+      ) : (
+        <View>
+          <Text style={styles.subsectionTitle}>All Users ({users.length})</Text>
+
+          {users.length === 0 ? (
+            <Text style={styles.comingSoonDescription}>No users found</Text>
+          ) : (
+            <View style={styles.codesContainer}>
+              {users.map((user: any) => (
+                <View key={user.id} style={styles.codeCard}>
+                  <View style={styles.codeHeader}>
+                    <View>
+                      <Text style={styles.codeText}>
+                        {user.first_name} {user.last_name}
+                      </Text>
+                      <Text style={styles.codeDescription}>{user.email}</Text>
+                    </View>
+                    <View style={[styles.tierBadge, {
+                      backgroundColor:
+                        user.user_type === 'admin' ? ds.colors.danger :
+                        user.user_type === 'expert' ? ds.colors.warning :
+                        ds.colors.success
+                    }]}>
+                      <Text style={styles.tierText}>{(user.user_type || 'user').toUpperCase()}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.codeStats}>
+                    <Text style={styles.codeStat}>
+                      Alignment Code: {user.alignment_code_used || 'None'}
+                    </Text>
+                    <Text style={styles.codeStat}>
+                      Joined: {new Date(user.created_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+
+                  <View style={styles.codeActions}>
+                    <Pressable
+                      style={[styles.deactivateButton, { backgroundColor: '#007AFF', marginRight: 8 }]}
+                      onPress={() => {
+                        setSelectedUser(user)
+                        loadUserAlignmentCodes(user.id)
+                      }}
+                    >
+                      <Text style={[styles.deactivateButtonText, { color: 'white' }]}>View Details</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={[styles.deactivateButton, { backgroundColor: ds.colors.warning }]}
+                      onPress={() => {
+                        Alert.alert(
+                          'Update User Type',
+                          `Change ${user.first_name} ${user.last_name} to:`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'User', onPress: () => updateUserType(user.id, 'user') },
+                            { text: 'Expert', onPress: () => updateUserType(user.id, 'expert') },
+                            { text: 'Admin', onPress: () => updateUserType(user.id, 'admin') },
+                          ]
+                        )
+                      }}
+                      disabled={updatingUser}
+                    >
+                      <Text style={styles.deactivateButtonText}>
+                        {updatingUser ? 'Updating...' : 'Change Type'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* User Details Modal/Panel */}
+          {selectedUser && (
+            <View style={[styles.codeCard, { marginTop: 20, backgroundColor: ds.colors.background.secondary }]}>
+              <View style={styles.codeHeader}>
+                <Text style={styles.sectionTitle}>
+                  {selectedUser.first_name} {selectedUser.last_name} Details
+                </Text>
+                <Pressable
+                  style={styles.deactivateButton}
+                  onPress={() => {
+                    setSelectedUser(null)
+                    setUserAlignmentCodes([])
+                  }}
+                >
+                  <Text style={styles.deactivateButtonText}>Close</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Email: {selectedUser.email}</Text>
+                <Text style={styles.label}>User Type: {selectedUser.user_type || 'user'}</Text>
+                <Text style={styles.label}>Current Code: {selectedUser.alignment_code_used || 'None'}</Text>
+                <Text style={styles.label}>Joined: {new Date(selectedUser.created_at).toLocaleDateString()}</Text>
+              </View>
+
+              <Text style={styles.subsectionTitle}>Alignment Code History</Text>
+              {userAlignmentCodes.length === 0 ? (
+                <Text style={styles.comingSoonDescription}>No alignment codes used</Text>
+              ) : (
+                <View>
+                  {userAlignmentCodes.map((userCode: any) => (
+                    <View key={userCode.id} style={[styles.codeCard, { marginBottom: 8 }]}>
+                      <Text style={styles.codeText}>{userCode.code}</Text>
+                      <Text style={styles.codeDescription}>
+                        Status: {userCode.status} | Used: {new Date(userCode.used_at).toLocaleDateString()}
+                      </Text>
+                      {userCode.trial_ends_at && (
+                        <Text style={styles.codeStat}>
+                          Trial Ends: {new Date(userCode.trial_ends_at).toLocaleDateString()}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      )}
     </View>
   )
 
@@ -708,13 +1384,164 @@ export default function AdminPanel() {
 
   const [trainingTab, setTrainingTab] = useState<'transcripts' | 'settings'>('transcripts')
 
+  const renderAlignmentCodesSection = () => (
+    <View style={styles.sectionContent}>
+      <Text style={styles.sectionTitle}>Alignment Codes Management</Text>
+      <Text style={styles.subsectionDescription}>
+        Create and manage alignment codes for user tiers (admin, expert, user)
+      </Text>
+
+      {/* Create New Code Button */}
+      <Pressable
+        style={styles.saveButton}
+        onPress={() => setShowCreateForm(!showCreateForm)}
+      >
+        <Ionicons name={showCreateForm ? "close" : "add"} size={20} color="#FFFFFF" />
+        <Text style={styles.saveButtonText}>
+          {showCreateForm ? 'Cancel' : 'Create New Code'}
+        </Text>
+      </Pressable>
+
+      {/* Create Form */}
+      {showCreateForm && (
+        <View style={styles.createForm}>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Code</Text>
+            <TextInput
+              style={styles.input}
+              value={newCode}
+              onChangeText={setNewCode}
+              placeholder="Enter unique code (e.g., ADMIN2024)"
+              autoCapitalize="characters"
+              editable={!creating}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>User Tier</Text>
+            <View style={styles.radioGroup}>
+              {[
+                { value: 'admin', label: 'Admin', description: 'Full access to all features' },
+                { value: 'expert', label: 'Expert', description: 'Advanced features and content' },
+                { value: 'user', label: 'User', description: 'Standard user access' },
+              ].map((option) => (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.radioOption,
+                    newTier === option.value && styles.radioOptionActive
+                  ]}
+                  onPress={() => setNewTier(option.value)}
+                >
+                  <View style={styles.radioButton}>
+                    {newTier === option.value && (
+                      <View style={styles.radioButtonInner} />
+                    )}
+                  </View>
+                  <View style={styles.radioContent}>
+                    <Text style={styles.radioLabel}>{option.label}</Text>
+                    <Text style={styles.radioDescription}>{option.description}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={newDescription}
+              onChangeText={setNewDescription}
+              placeholder="Describe this alignment code's purpose"
+              multiline
+              numberOfLines={3}
+              editable={!creating}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Max Uses (Optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={newMaxUses}
+              onChangeText={setNewMaxUses}
+              placeholder="Leave empty for unlimited uses"
+              keyboardType="numeric"
+              editable={!creating}
+            />
+          </View>
+
+          <Pressable
+            style={[styles.saveButton, creating && styles.buttonDisabled]}
+            onPress={createAlignmentCode}
+            disabled={creating}
+          >
+            <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+            <Text style={styles.saveButtonText}>
+              {creating ? 'Creating...' : 'Create Code'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Existing Codes */}
+      <Text style={styles.subsectionTitle}>Existing Codes</Text>
+
+      {alignmentCodes.length === 0 ? (
+        <Text style={styles.comingSoonDescription}>
+          No alignment codes created yet. Create your first code above.
+        </Text>
+      ) : (
+        <View style={styles.codesList}>
+          {alignmentCodes.map((code: any) => (
+            <View key={code.id} style={styles.codeCard}>
+              <View style={styles.codeHeader}>
+                <Text style={styles.codeText}>{code.code}</Text>
+                <View style={[styles.tierBadge, {
+                  backgroundColor:
+                    code.user_type === 'admin' ? ds.colors.danger :
+                    code.user_type === 'expert' ? ds.colors.warning :
+                    ds.colors.success
+                }]}>
+                  <Text style={styles.tierText}>{code.user_type.toUpperCase()}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.codeDescription}>{code.description}</Text>
+
+              <View style={styles.codeStats}>
+                <Text style={styles.codeStat}>
+                  Uses: {code.used_count || 0}
+                  {code.max_uses ? ` / ${code.max_uses}` : ' (unlimited)'}
+                </Text>
+                <Text style={styles.codeStat}>
+                  Status: {code.is_active ? 'Active' : 'Inactive'}
+                </Text>
+              </View>
+
+              {code.is_active && (
+                <Pressable
+                  style={styles.deactivateButton}
+                  onPress={() => deactivateAlignmentCode(code.id)}
+                >
+                  <Text style={styles.deactivateButtonText}>Deactivate</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  )
+
   const renderTrainingSection = () => (
     <View style={styles.sectionContent}>
       <Text style={styles.sectionTitle}>Training Management</Text>
       <Text style={styles.subsectionDescription}>
         Manage AI training data and improve response patterns through feedback
       </Text>
-      
+
       {/* Tabs for Training sections */}
       <View style={styles.trainingTabs}>
         <Pressable
@@ -734,7 +1561,7 @@ export default function AdminPanel() {
           </Text>
         </Pressable>
       </View>
-      
+
       {/* Content based on selected tab */}
       <View style={styles.trainingContent}>
         {trainingTab === 'transcripts' ? (
@@ -751,6 +1578,7 @@ export default function AdminPanel() {
       case 'seo': return renderSeoSection()
       case 'content': return renderContentSection()
       case 'config': return renderConfigSection()
+      case 'alignment-codes': return renderAlignmentCodesSection()
       case 'ai': return renderAISection()
       case 'chat': return renderChatSection()
       case 'training': return renderTrainingSection()
@@ -1201,5 +2029,79 @@ const styles = StyleSheet.create({
   },
   trainingContent: {
     flex: 1,
+  },
+  createForm: {
+    backgroundColor: ds.colors.background.primary,
+    padding: ds.spacing[4],
+    borderRadius: ds.borderRadius.md,
+    marginVertical: ds.spacing[4],
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  codesList: {
+    gap: ds.spacing[3],
+  },
+  codeCard: {
+    backgroundColor: ds.colors.background.primary,
+    padding: ds.spacing[4],
+    borderRadius: ds.borderRadius.md,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+    marginBottom: ds.spacing[3],
+  },
+  codeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: ds.spacing[2],
+  },
+  codeText: {
+    fontSize: ds.typography.fontSize.lg.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  tierBadge: {
+    paddingHorizontal: ds.spacing[2],
+    paddingVertical: ds.spacing[1],
+    borderRadius: ds.borderRadius.sm,
+  },
+  tierText: {
+    fontSize: ds.typography.fontSize.xs.size,
+    color: ds.colors.text.inverse,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  codeDescription: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    marginBottom: ds.spacing[3],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  codeStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: ds.spacing[3],
+  },
+  codeStat: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.tertiary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  deactivateButton: {
+    backgroundColor: ds.colors.danger,
+    paddingVertical: ds.spacing[2],
+    paddingHorizontal: ds.spacing[3],
+    borderRadius: ds.borderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  deactivateButtonText: {
+    color: ds.colors.text.inverse,
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
   },
 })

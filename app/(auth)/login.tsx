@@ -29,18 +29,29 @@ export default function Login() {
 
   async function signInWithEmail() {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     })
 
     if (error) {
       setMessage({ type: 'error', text: error.message })
-    } else {
-      setMessage({ type: 'success', text: 'Login successful! Redirecting...' })
-      setTimeout(() => {
-        router.replace('/(tabs)/dashboard')
-      }, 1000)
+    } else if (data?.user) {
+      // Check if email is confirmed
+      if (!data.user.email_confirmed_at) {
+        // Email not confirmed - sign out and show error
+        await supabase.auth.signOut()
+        setMessage({
+          type: 'error',
+          text: 'Please confirm your email address before signing in. Check your inbox for the confirmation link.'
+        })
+      } else {
+        // Email confirmed - proceed with login
+        setMessage({ type: 'success', text: 'Login successful! Redirecting...' })
+        setTimeout(() => {
+          router.replace('/(tabs)/dashboard')
+        }, 1000)
+      }
     }
     setLoading(false)
   }

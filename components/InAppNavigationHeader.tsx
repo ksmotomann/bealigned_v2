@@ -7,7 +7,7 @@ import UserMenu from './UserMenu'
 import ds from '../styles/design-system'
 
 interface InAppNavigationHeaderProps {
-  activeTab?: 'dashboard' | 'chat' | 'history' | 'profile' | 'admin'
+  activeTab?: 'dashboard' | 'chat' | 'history' | 'settings' | 'admin'
 }
 
 export default function InAppNavigationHeader({ activeTab }: InAppNavigationHeaderProps) {

@@ -23,9 +23,10 @@ export default function SignUp() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [promoCode, setPromoCode] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [registrationCode, setRegistrationCode] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, showPasswordReset?: boolean } | null>(null)
   const router = useRouter()
   const { width } = useWindowDimensions()
   const isDesktop = width >= 768
@@ -33,25 +34,137 @@ export default function SignUp() {
   async function signUpWithEmail() {
     setLoading(true)
 
-    const { data, error } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          promo_code: promoCode,
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match' })
+      setLoading(false)
+      return
+    }
+
+    // Basic password validation
+    if (password.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters long' })
+      setLoading(false)
+      return
+    }
+
+    let data, error
+    let alignmentCodeResult = null
+
+    // Validate alignment code if provided
+    if (registrationCode) {
+      try {
+        const { data: codeData, error: codeError } = await supabase.rpc('validate_alignment_code', {
+          p_code: registrationCode
+        })
+
+        if (codeError) {
+          console.error('Alignment code validation error:', codeError)
+          setMessage({ type: 'error', text: 'Error validating alignment code' })
+          setLoading(false)
+          return
+        }
+
+        // Check first result for validation
+        if (codeData && codeData.length > 0) {
+          alignmentCodeResult = codeData[0]
+          if (!alignmentCodeResult.success) {
+            setMessage({ type: 'error', text: alignmentCodeResult.message })
+            setLoading(false)
+            return
+          }
+        } else {
+          setMessage({ type: 'error', text: 'Invalid alignment code' })
+          setLoading(false)
+          return
+        }
+      } catch (codeException) {
+        console.error('Alignment code validation exception:', codeException)
+        setMessage({ type: 'error', text: 'Error validating alignment code' })
+        setLoading(false)
+        return
+      }
+    }
+
+    try {
+      const response = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            registration_code: registrationCode,
+          },
+          emailRedirectTo: `${window.location.origin}/(auth)/email-verified`,
+        }
+      })
+      data = response.data
+      error = response.error
+
+      // Apply alignment code after successful user creation
+      if (!error && data?.user && registrationCode && alignmentCodeResult) {
+        try {
+          await supabase.rpc('use_alignment_code', {
+            p_code: registrationCode,
+            p_user_id: data.user.id
+          })
+        } catch (applyError) {
+          console.warn('Failed to apply alignment code after signup:', applyError)
         }
       }
+    } catch (exception) {
+      error = { message: `Signup failed: ${exception.message}` }
+    }
+
+    if (error) {
+      // Check if this is a duplicate email error
+      if (error.message?.includes('already registered') || error.message?.includes('User already exists')) {
+        setMessage({
+          type: 'error',
+          text: 'An account with this email already exists. You can sign in or reset your password.',
+          showPasswordReset: true
+        })
+      } else {
+        setMessage({ type: 'error', text: error.message })
+      }
+    } else if (data?.user) {
+      // Check if email confirmation is required
+      if (data.user.email_confirmed_at) {
+        // Email already confirmed, redirect to welcome
+        setMessage({ type: 'success', text: 'Account created successfully!' })
+        setTimeout(() => {
+          router.replace('/(auth)/welcome')
+        }, 1500)
+      } else {
+        // Email confirmation required - redirect to confirmation page
+        setMessage({ type: 'success', text: 'Account created successfully!' })
+        setTimeout(() => {
+          router.replace(`/(auth)/confirm-email?email=${encodeURIComponent(email)}`)
+        }, 1000)
+      }
+    }
+    setLoading(false)
+  }
+
+  async function resetPassword() {
+    if (!email) {
+      setMessage({ type: 'error', text: 'Please enter your email address first' })
+      return
+    }
+
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/(auth)/reset-password`,
     })
 
     if (error) {
       setMessage({ type: 'error', text: error.message })
-    } else if (data?.user) {
-      setMessage({ type: 'success', text: 'Account created successfully!' })
-      setTimeout(() => {
-        router.replace('/(auth)/welcome')
-      }, 1500)
+    } else {
+      setMessage({
+        type: 'success',
+        text: 'Password reset email sent! Check your inbox for instructions.'
+      })
     }
     setLoading(false)
   }
@@ -78,6 +191,17 @@ export default function SignUp() {
                 <Text style={[styles.messageText, message.type === 'success' ? styles.successText : styles.errorText]}>
                   {message.text}
                 </Text>
+                {message.showPasswordReset && (
+                  <Pressable
+                    style={styles.resetPasswordButton}
+                    onPress={resetPassword}
+                    disabled={loading}
+                  >
+                    <Text style={styles.resetPasswordButtonText}>
+                      Reset Password
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             )}
 
@@ -132,9 +256,21 @@ export default function SignUp() {
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Promo Code (optional)"
-                value={promoCode}
-                onChangeText={setPromoCode}
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                editable={!loading}
+                placeholderTextColor={ds.colors.text.tertiary}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Alignment Pass (optional)"
+                value={registrationCode}
+                onChangeText={setRegistrationCode}
                 autoCapitalize="characters"
                 editable={!loading}
                 placeholderTextColor={ds.colors.text.tertiary}
@@ -336,6 +472,20 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: ds.colors.error,
+  },
+  resetPasswordButton: {
+    backgroundColor: ds.colors.primary.main,
+    paddingVertical: ds.spacing[2],
+    paddingHorizontal: ds.spacing[4],
+    borderRadius: ds.borderRadius.sm,
+    marginTop: ds.spacing[3],
+    alignSelf: 'center',
+  },
+  resetPasswordButtonText: {
+    color: ds.colors.text.inverse,
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
   },
   footer: {
     backgroundColor: ds.colors.neutral[800],

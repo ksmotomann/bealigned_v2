@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, Pressable, StyleSheet, Platform, Alert, Modal } from 'react-native'
+import { View, Text, Pressable, StyleSheet, Modal } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
@@ -22,6 +22,7 @@ export default function UserMenu({ user }: UserMenuProps) {
   const { adminViewEnabled, setAdminViewEnabled, setIsActualAdmin } = useAdmin()
   const [showDropdown, setShowDropdown] = useState(false)
   const [profile, setProfile] = useState<any>(null)
+  const [showSignOutModal, setShowSignOutModal] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
@@ -39,7 +40,7 @@ export default function UserMenu({ user }: UserMenuProps) {
       
       if (!error && data) {
         setProfile(data)
-        setIsActualAdmin(data.role === 'admin')
+        setIsActualAdmin(data.user_type === 'admin' || data.user_type === 'super_admin')
       }
     } catch (error) {
       console.error('Error loading profile:', error)
@@ -63,31 +64,14 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   async function handleSignOut() {
     setShowDropdown(false)
-    
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Thank you for your reflection journey with BeH2O. Are you ready to sign out and continue growing differently?')
-      if (!confirmed) return
-    } else {
-      Alert.alert(
-        'Continue Growing Differently',
-        'Thank you for your reflection journey with BeH2O. Are you ready to sign out and continue this growth in your daily life?',
-        [
-          { text: 'Stay Longer', style: 'cancel' },
-          {
-            text: 'Continue Growing',
-            style: 'default',
-            onPress: performSignOut,
-          },
-        ]
-      )
-      return
-    }
-    
-    performSignOut()
+    setShowSignOutModal(true)
   }
 
   async function performSignOut() {
     try {
+      // Close the modal first
+      setShowSignOutModal(false)
+
       const { error } = await supabase.auth.signOut()
       if (!error) {
         router.replace('/(auth)/login')
@@ -98,12 +82,34 @@ export default function UserMenu({ user }: UserMenuProps) {
     }
   }
 
+  // Get role-specific sign-out content
+  const getSignOutContent = () => {
+    const userType = profile?.user_type || 'user'
+    const isSpecialRole = ['admin', 'super_admin', 'expert'].includes(userType)
+
+    if (isSpecialRole) {
+      return {
+        title: 'Continue Supporting Families',
+        message: `Thank you for your dedicated work supporting users on their BeAligned journeys. Your guidance and expertise help families navigate conflict with wisdom and create safer spaces for children.`,
+        subMessage: `As ${userType === 'super_admin' ? 'a super admin' : userType === 'admin' ? 'an admin' : 'an expert'}, you're the backbone of this platform. Ready to continue supporting families beyond these digital walls?`,
+        buttonText: 'Continue Supporting'
+      }
+    } else {
+      return {
+        title: 'Continue Growing Differently',
+        message: 'Thank you for your reflection journey with BeH2O®. The insights you\'ve discovered and the growth you\'ve experienced are yours to carry forward.',
+        subMessage: 'Are you ready to sign out and continue this growth in your daily life?',
+        buttonText: 'Continue Growing'
+      }
+    }
+  }
+
   const handleMenuAction = (action: string) => {
     setShowDropdown(false)
     
     switch (action) {
       case 'profile':
-        router.push('/(tabs)/profile')
+        router.push('/(tabs)/settings')
         break
       case 'settings':
         router.push('/(tabs)/settings')
@@ -120,7 +126,7 @@ export default function UserMenu({ user }: UserMenuProps) {
     }
   }
 
-  const isAdmin = profile?.role === 'admin' || user?.role === 'admin'
+  const isAdmin = profile?.user_type === 'admin' || profile?.user_type === 'super_admin'
 
   return (
     <View style={styles.container}>
@@ -168,15 +174,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
               {/* Menu Items */}
               <View style={styles.menuSection}>
-                <Pressable 
-                  style={styles.menuItem}
-                  onPress={() => handleMenuAction('profile')}
-                >
-                  <Ionicons name="person-outline" size={20} color={ds.colors.text.secondary} />
-                  <Text style={styles.menuText}>Profile</Text>
-                </Pressable>
-
-                <Pressable 
+                <Pressable
                   style={styles.menuItem}
                   onPress={() => handleMenuAction('settings')}
                 >
@@ -237,6 +235,65 @@ export default function UserMenu({ user }: UserMenuProps) {
           </Pressable>
         </Modal>
       )}
+
+      {/* Sign Out Modal */}
+      <Modal
+        visible={showSignOutModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowSignOutModal(false)}
+      >
+        <View style={styles.signOutOverlay}>
+          <View style={styles.signOutModal}>
+            <View style={styles.signOutHeader}>
+              <View style={styles.signOutIconContainer}>
+                <Ionicons name="heart" size={32} color={ds.colors.primary.main} />
+              </View>
+              <Text style={styles.signOutTitle}>{getSignOutContent().title}</Text>
+            </View>
+
+            <View style={styles.signOutContent}>
+              <Text style={styles.signOutMessage}>
+                {getSignOutContent().message}
+              </Text>
+
+              <Text style={styles.signOutSubMessage}>
+                {getSignOutContent().subMessage}
+              </Text>
+
+              <View style={styles.signOutQuote}>
+                <Text style={styles.quote}>
+                  "In between every stimulus and response there is a space. In that space is the power to choose..."
+                </Text>
+                <Text style={styles.quoteAuthor}>- Victor Frankl</Text>
+              </View>
+
+              <View style={styles.beAlignedMessage}>
+                <Text style={styles.beText}>Be</Text>
+                <Text style={styles.beSubtext}>Be strong. Be grounded. BeAligned.</Text>
+              </View>
+            </View>
+
+            <View style={styles.signOutActions}>
+              <Pressable
+                style={[styles.signOutButton, styles.stayButton]}
+                onPress={() => setShowSignOutModal(false)}
+              >
+                <Ionicons name="time" size={20} color={ds.colors.primary.main} />
+                <Text style={styles.stayButtonText}>Stay a Little Longer</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.signOutButton, styles.continueButton]}
+                onPress={performSignOut}
+              >
+                <Ionicons name="arrow-forward" size={20} color="white" />
+                <Text style={styles.continueButtonText}>{getSignOutContent().buttonText}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -388,5 +445,139 @@ const styles = StyleSheet.create({
   },
   toggleHandleActive: {
     transform: [{ translateX: 20 }],
+  },
+  signOutOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: ds.spacing[6],
+  },
+  signOutModal: {
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.xl,
+    width: '100%',
+    maxWidth: 480,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  signOutHeader: {
+    alignItems: 'center',
+    paddingTop: ds.spacing[8],
+    paddingHorizontal: ds.spacing[6],
+    paddingBottom: ds.spacing[4],
+  },
+  signOutIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: ds.colors.primary.lightest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: ds.spacing[4],
+  },
+  signOutTitle: {
+    fontSize: ds.typography.fontSize['2xl'].size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.text.primary,
+    textAlign: 'center',
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  signOutContent: {
+    paddingHorizontal: ds.spacing[6],
+    paddingBottom: ds.spacing[6],
+  },
+  signOutMessage: {
+    fontSize: ds.typography.fontSize.lg.size,
+    color: ds.colors.text.primary,
+    textAlign: 'center',
+    lineHeight: ds.typography.fontSize.lg.lineHeight + 4,
+    marginBottom: ds.spacing[4],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  signOutSubMessage: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: ds.typography.fontSize.base.lineHeight + 2,
+    marginBottom: ds.spacing[6],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  signOutQuote: {
+    backgroundColor: ds.colors.neutral[50],
+    borderLeftWidth: 4,
+    borderLeftColor: ds.colors.primary.main,
+    padding: ds.spacing[4],
+    borderRadius: ds.borderRadius.md,
+    marginBottom: ds.spacing[6],
+  },
+  quote: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontStyle: 'italic',
+    color: ds.colors.text.secondary,
+    lineHeight: ds.typography.fontSize.base.lineHeight + 4,
+    marginBottom: ds.spacing[2],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  quoteAuthor: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.tertiary,
+    textAlign: 'right',
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  beAlignedMessage: {
+    alignItems: 'center',
+    marginBottom: ds.spacing[4],
+  },
+  beText: {
+    fontSize: ds.typography.fontSize['3xl'].size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.primary.main,
+    fontFamily: ds.typography.fontFamily.heading,
+    marginBottom: ds.spacing[1],
+  },
+  beSubtext: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  signOutActions: {
+    flexDirection: 'row',
+    gap: ds.spacing[3],
+    paddingHorizontal: ds.spacing[6],
+    paddingBottom: ds.spacing[6],
+  },
+  signOutButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ds.spacing[2],
+    paddingVertical: ds.spacing[4],
+    paddingHorizontal: ds.spacing[4],
+    borderRadius: ds.borderRadius.lg,
+  },
+  stayButton: {
+    backgroundColor: ds.colors.background.secondary,
+    borderWidth: 2,
+    borderColor: ds.colors.primary.main,
+  },
+  stayButtonText: {
+    color: ds.colors.primary.main,
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  continueButton: {
+    backgroundColor: ds.colors.primary.main,
+  },
+  continueButtonText: {
+    color: ds.colors.text.inverse,
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
   },
 })

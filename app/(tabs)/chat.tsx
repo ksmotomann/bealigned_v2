@@ -118,10 +118,10 @@ export default function Chat() {
     if (user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('user_type')
         .eq('id', user.id)
         .single()
-      setIsActualAdmin(profile?.role === 'admin')
+      setIsActualAdmin(profile?.user_type === 'admin' || profile?.user_type === 'super_admin')
     }
   }
 

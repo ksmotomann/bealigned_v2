@@ -18,6 +18,12 @@ interface SEOData {
   loginTitle: string
   loginDescription: string
   loginKeywords: string
+  signupTitle: string
+  signupDescription: string
+  signupKeywords: string
+  confirmEmailTitle: string
+  confirmEmailDescription: string
+  confirmEmailKeywords: string
   
   // Open Graph / Social Media
   siteName: string
@@ -67,6 +73,12 @@ const defaultSEOData: SEOData = {
   loginTitle: 'Login - BeAligned™ Co-Parenting Platform',
   loginDescription: 'Sign in to your BeAligned™ account to access your personalized 7-step reflection process for transforming co-parenting conflict into child-centered solutions.',
   loginKeywords: 'BeAligned login, co-parenting platform access, family communication tools, parenting reflection dashboard',
+  signupTitle: 'Sign Up - BeAligned™ Co-Parenting Platform',
+  signupDescription: 'Create your BeAligned™ account to start transforming co-parenting conflict into child-centered solutions using our evidence-based 7-step reflection process.',
+  signupKeywords: 'BeAligned signup, co-parenting registration, family communication platform, parenting conflict resolution tools',
+  confirmEmailTitle: 'Confirm Your Email - BeAligned™',
+  confirmEmailDescription: 'Please check your email and click the confirmation link to complete your BeAligned™ account setup and begin your child-centered co-parenting journey.',
+  confirmEmailKeywords: 'email confirmation, BeAligned activation, account verification, co-parenting platform setup',
   
   siteName: 'BeAligned™',
   siteUrl: 'https://bealigned.app',
@@ -140,6 +152,16 @@ export function SEOProvider({ children }: { children: React.ReactNode }) {
         title: seoData.loginTitle,
         description: seoData.loginDescription,
         keywords: seoData.loginKeywords
+      },
+      'signup': {
+        title: seoData.signupTitle,
+        description: seoData.signupDescription,
+        keywords: seoData.signupKeywords
+      },
+      'confirm-email': {
+        title: seoData.confirmEmailTitle,
+        description: seoData.confirmEmailDescription,
+        keywords: seoData.confirmEmailKeywords
       }
     }
     

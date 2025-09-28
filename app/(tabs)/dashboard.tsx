@@ -7,6 +7,7 @@ import { Session } from '@supabase/supabase-js'
 import { Ionicons } from '@expo/vector-icons'
 import InAppNavigationHeader from '../../components/InAppNavigationHeader'
 import WelcomeHeader from '../../components/WelcomeHeader'
+import TrialStatus from '../../components/TrialStatus'
 import ds from '../../styles/design-system'
 
 interface ReflectionPattern {
@@ -141,6 +142,11 @@ export default function Dashboard() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Welcome Header */}
         <WelcomeHeader firstName={firstName} />
+
+        {/* Trial Status */}
+        {session?.user?.id && (
+          <TrialStatus userId={session.user.id} />
+        )}
 
         <View style={styles.content}>
           {/* Main Action Buttons */}
