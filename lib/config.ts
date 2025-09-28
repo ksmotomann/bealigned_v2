@@ -3,7 +3,7 @@ export const config = {
   // Supabase
   supabase: {
     url: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
-    anonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
+    anonKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '',
   },
   
   // AI Providers
