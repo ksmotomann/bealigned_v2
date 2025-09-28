@@ -37,7 +37,65 @@ serve(async (req) => {
       throw new Error('Not authenticated')
     }
 
-    const { action, successUrl, cancelUrl } = await req.json()
+    const { action, successUrl, cancelUrl, amount, description, customer_email } = await req.json()
+
+    if (action === 'create-payment-intent') {
+      // Validate required parameters
+      if (!amount || !description) {
+        throw new Error('Amount and description are required for payment intent')
+      }
+
+      // Check if user already has a Stripe customer ID
+      const { data: existingCustomer } = await supabaseClient
+        .from('profiles')
+        .select('stripe_customer_id')
+        .eq('id', user.id)
+        .single()
+
+      let customerId = existingCustomer?.stripe_customer_id
+
+      // Create customer if they don't exist
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            supabase_user_id: user.id,
+          },
+        })
+        customerId = customer.id
+
+        // Store customer ID in profiles
+        await supabaseClient
+          .from('profiles')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', user.id)
+      }
+
+      // Create payment intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount), // Amount should already be in cents
+        currency: 'usd',
+        customer: customerId,
+        description: description,
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        metadata: {
+          supabase_user_id: user.id,
+        },
+      })
+
+      return new Response(
+        JSON.stringify({
+          client_secret: paymentIntent.client_secret,
+          payment_intent_id: paymentIntent.id,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      )
+    }
 
     if (action === 'create-checkout-session') {
       // Get user's trial status

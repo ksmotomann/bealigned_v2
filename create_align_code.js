@@ -19,7 +19,6 @@ async function createAlignCode() {
       .insert([
         {
           code: 'ALIGN',
-          user_tier: 'premium',
           max_uses: null, // Unlimited uses
           expires_at: expiresAt.toISOString(),
           is_active: true,

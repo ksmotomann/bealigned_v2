@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, Modal } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import CreditCardForm from '../../components/CreditCardForm';
+import { Ionicons } from '@expo/vector-icons';
 
 interface SubscriptionProduct {
   id: string;
@@ -24,6 +26,8 @@ export default function SubscriptionScreen() {
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<SubscriptionProduct | null>(null);
 
   useEffect(() => {
     loadSubscriptionData();
@@ -71,28 +75,32 @@ export default function SubscriptionScreen() {
       return;
     }
 
-    setCheckoutLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-        body: {
-          priceId,
-          successUrl: 'bealigned://subscription/success',
-          cancelUrl: 'bealigned://subscription'
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        // Open Stripe checkout in browser
-        await Linking.openURL(data.url);
-      }
-    } catch (error) {
-      console.error('Error creating checkout:', error);
-      Alert.alert('Error', 'Failed to start checkout process');
-    } finally {
-      setCheckoutLoading(false);
+    // Find the selected product
+    const product = products.find(p => p.stripe_price_id === priceId);
+    if (!product) {
+      Alert.alert('Error', 'Product not found');
+      return;
     }
+
+    setSelectedProduct(product);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
+    try {
+      Alert.alert('Success!', 'Your subscription has been activated successfully');
+      setShowPaymentModal(false);
+      setSelectedProduct(null);
+
+      // Reload subscription data
+      await loadSubscriptionData();
+    } catch (error) {
+      console.error('Error handling payment success:', error);
+    }
+  };
+
+  const handlePaymentError = (error: string) => {
+    Alert.alert('Payment Failed', error);
   };
 
   const handleManageSubscription = async () => {
@@ -221,6 +229,49 @@ export default function SubscriptionScreen() {
           ))}
         </View>
       )}
+
+      {/* Payment Modal */}
+      <Modal
+        visible={showPaymentModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPaymentModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Complete Your Subscription</Text>
+            <TouchableOpacity
+              onPress={() => setShowPaymentModal(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+
+          {selectedProduct && (
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              <View style={styles.productSummary}>
+                <Text style={styles.productSummaryTitle}>{selectedProduct.name}</Text>
+                <Text style={styles.productSummaryPrice}>
+                  ${selectedProduct.price}/{selectedProduct.interval}
+                </Text>
+                <Text style={styles.productSummaryDescription}>
+                  {selectedProduct.description}
+                </Text>
+              </View>
+
+              <CreditCardForm
+                amount={selectedProduct.price}
+                description={`${selectedProduct.name} - ${selectedProduct.description}`}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+                loading={checkoutLoading}
+                setLoading={setCheckoutLoading}
+              />
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -337,5 +388,59 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingTop: 60, // Account for status bar
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalContent: {
+    padding: 20,
+  },
+  productSummary: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  productSummaryTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  productSummaryPrice: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#4A90E2',
+    marginBottom: 12,
+  },
+  productSummaryDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
   },
 });

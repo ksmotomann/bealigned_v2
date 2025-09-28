@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@stripe/react-stripe-js": "^4.0.2",
+    "@stripe/stripe-js": "^7.9.0",
     "@stripe/stripe-react-native": "^0.53.1",
     "@supabase/supabase-js": "^2.57.4",
     "date-fns": "^4.1.0",

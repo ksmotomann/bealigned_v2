@@ -8,6 +8,7 @@ import {
   Switch,
   Modal,
   TextInput,
+  Linking,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -64,6 +65,10 @@ export default function Settings() {
   const [showTrainingTranscripts, setShowTrainingTranscripts] = useState(false)
   const [showSignOutModal, setShowSignOutModal] = useState(false)
 
+  // Subscription state
+  const [subscription, setSubscription] = useState<any>(null)
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false)
+
   // Admin management state
   const [showUserManagement, setShowUserManagement] = useState(false)
   const [showApprovals, setShowApprovals] = useState(false)
@@ -78,14 +83,15 @@ export default function Settings() {
     const baseSections = [
       { id: 'profile', title: 'Profile', icon: 'person-outline' },
       { id: 'notifications', title: 'Notifications', icon: 'notifications-outline' },
-      { id: 'reflection', title: 'Reflection Settings', icon: 'chatbubbles-outline' },
       { id: 'privacy', title: 'Privacy & Data', icon: 'shield-checkmark-outline' },
       { id: 'account', title: 'Account', icon: 'card-outline' },
       { id: 'connected', title: 'Connected Services', icon: 'link-outline' },
       { id: 'support', title: 'Support', icon: 'help-circle-outline' },
     ]
 
+    // Only show Reflection Settings for admins
     if (isActualAdmin) {
+      baseSections.splice(2, 0, { id: 'reflection', title: 'Reflection Settings', icon: 'chatbubbles-outline' })
       baseSections.push({ id: 'admin', title: 'Administration', icon: 'settings-outline' })
       console.log('✅ Administration section added to sidebar')
     } else {
@@ -97,6 +103,7 @@ export default function Settings() {
 
   useEffect(() => {
     loadProfile()
+    loadSubscription()
   }, [])
 
   async function loadProfile() {
@@ -162,6 +169,58 @@ export default function Settings() {
       setProfile(prev => ({ ...prev, settings: newSettings }))
     } catch (error) {
       console.error('Error updating preference:', error)
+    }
+  }
+
+  async function loadSubscription() {
+    setSubscriptionLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Load user's subscription
+      const { data: subData } = await supabase
+        .from('subscriptions')
+        .select('status, current_period_end, cancel_at_period_end')
+        .eq('user_id', user.id)
+        .single()
+
+      if (subData) {
+        setSubscription(subData)
+      }
+    } catch (error) {
+      console.error('Error loading subscription:', error)
+    } finally {
+      setSubscriptionLoading(false)
+    }
+  }
+
+  async function handleManageSubscription() {
+    try {
+      const { data, error } = await supabase.functions.invoke('manage-subscription', {
+        body: { action: 'get_portal_link' }
+      })
+
+      if (error) throw error
+
+      if (data?.url) {
+        await Linking.openURL(data.url)
+      }
+    } catch (error) {
+      console.error('Error opening customer portal:', error)
+      setSaveMessage({ type: 'error', text: 'Failed to open subscription management' })
+    }
+  }
+
+  async function handleCancelSubscription() {
+    try {
+      await supabase.functions.invoke('manage-subscription', {
+        body: { action: 'cancel' }
+      })
+      setSaveMessage({ type: 'success', text: 'Subscription will cancel at period end' })
+      loadSubscription() // Refresh
+    } catch (error) {
+      setSaveMessage({ type: 'error', text: 'Failed to cancel subscription' })
     }
   }
 
@@ -708,19 +767,80 @@ export default function Settings() {
     </View>
   )
 
-  const renderAccountSection = () => (
-    <View style={styles.sectionContent}>
-      <Text style={styles.sectionTitle}>Account</Text>
+  const renderAccountSection = () => {
+    const hasActiveSubscription = subscription?.status === 'active' || subscription?.status === 'trialing'
 
-      <Pressable
-        style={styles.preferenceRow}
-        onPress={() => router.push('/(tabs)/subscription')}
-      >
-        <Text style={styles.preferenceText}>Manage Subscription</Text>
-        <Text style={styles.chevron}>›</Text>
-      </Pressable>
-    </View>
-  )
+    return (
+      <View style={styles.sectionContent}>
+        <Text style={styles.sectionTitle}>Account</Text>
+
+        <View style={styles.infoSection}>
+          <Text style={styles.subsectionTitle}>Subscription</Text>
+
+          {subscriptionLoading ? (
+            <Text style={styles.loadingText}>Loading subscription...</Text>
+          ) : hasActiveSubscription ? (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Status</Text>
+                <View style={styles.statusContainer}>
+                  <View style={styles.activeStatusBadge}>
+                    <Text style={styles.statusBadgeText}>Active</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Plan Status</Text>
+                <Text style={styles.value}>{subscription.status}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Renews</Text>
+                <Text style={styles.value}>
+                  {subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'N/A'}
+                </Text>
+              </View>
+
+              {subscription.cancel_at_period_end && (
+                <View style={styles.cancelNoticeContainer}>
+                  <Text style={styles.cancelNotice}>
+                    Your subscription will cancel at the end of this period
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.subscriptionActions}>
+                <Pressable style={styles.manageSubscriptionButton} onPress={handleManageSubscription}>
+                  <Text style={styles.manageSubscriptionText}>Manage Billing</Text>
+                </Pressable>
+
+                {!subscription.cancel_at_period_end && (
+                  <Pressable style={styles.cancelSubscriptionButton} onPress={handleCancelSubscription}>
+                    <Text style={styles.cancelSubscriptionText}>Cancel Subscription</Text>
+                  </Pressable>
+                )}
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.label}>Status</Text>
+                <Text style={styles.value}>No Active Subscription</Text>
+              </View>
+
+              <Pressable
+                style={styles.upgradeButton}
+                onPress={() => router.push('/(tabs)/subscription')}
+              >
+                <Text style={styles.upgradeButtonText}>View Plans & Subscribe</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      </View>
+    )
+  }
 
   const renderConnectedServicesSection = () => (
     <View style={styles.sectionContent}>
@@ -1907,5 +2027,80 @@ const styles = StyleSheet.create({
     paddingVertical: ds.spacing[2],
     borderRadius: ds.borderRadius.md,
     alignItems: 'center',
+  },
+  // Subscription styles
+  statusContainer: {
+    alignItems: 'flex-end',
+  },
+  activeStatusBadge: {
+    backgroundColor: ds.colors.success,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    color: 'white',
+    fontSize: ds.typography.fontSize.xs.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  cancelNoticeContainer: {
+    backgroundColor: ds.colors.warning + '20',
+    padding: ds.spacing[3],
+    borderRadius: ds.borderRadius.md,
+    marginTop: ds.spacing[3],
+  },
+  cancelNotice: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.warning,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+    textAlign: 'center',
+  },
+  subscriptionActions: {
+    marginTop: ds.spacing[4],
+    gap: ds.spacing[2],
+  },
+  manageSubscriptionButton: {
+    backgroundColor: ds.colors.primary.main,
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    borderRadius: ds.borderRadius.md,
+    alignItems: 'center',
+  },
+  manageSubscriptionText: {
+    color: 'white',
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  cancelSubscriptionButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: ds.colors.danger,
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    borderRadius: ds.borderRadius.md,
+    alignItems: 'center',
+  },
+  cancelSubscriptionText: {
+    color: ds.colors.danger,
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  upgradeButton: {
+    backgroundColor: ds.colors.primary.main,
+    paddingVertical: ds.spacing[4],
+    paddingHorizontal: ds.spacing[6],
+    borderRadius: ds.borderRadius.lg,
+    alignItems: 'center',
+    marginTop: ds.spacing[4],
+  },
+  upgradeButtonText: {
+    color: 'white',
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
   },
 });

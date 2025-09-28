@@ -63,14 +63,14 @@ export function useReflectionSession(
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isCreatingSession, setIsCreatingSession] = useState(false)
 
-  // Check if user is admin and load/create session on mount
+  // Check if user is admin on mount
   useEffect(() => {
     checkAdminStatus()
-    loadOrCreateSession()
   }, [])
 
-  // Load specific session when selectedSessionId changes
+  // Load or create session when sessionId changes (including initial mount)
   useEffect(() => {
     if (sessionId) {
       loadSpecificSession(sessionId)
@@ -208,7 +208,14 @@ export function useReflectionSession(
   }, [])
 
   const startSession = async () => {
+    // Prevent duplicate session creation
+    if (isCreatingSession) {
+      console.log('🚫 Session creation already in progress, skipping...')
+      return
+    }
+
     try {
+      setIsCreatingSession(true)
       setLoading(true)
       setError(null)
       
@@ -320,6 +327,7 @@ export function useReflectionSession(
       setError(err.message)
     } finally {
       setLoading(false)
+      setIsCreatingSession(false)
     }
   }
 
