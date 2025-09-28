@@ -63,10 +63,22 @@ export default function AdminPanel() {
 
   // User management state
   const [users, setUsers] = useState([])
+  const [filteredUsers, setFilteredUsers] = useState([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
   const [userAlignmentCodes, setUserAlignmentCodes] = useState([])
   const [updatingUser, setUpdatingUser] = useState(false)
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userTypeFilter, setUserTypeFilter] = useState('all')
+  const [selectedUsers, setSelectedUsers] = useState([])
+  const [userStats, setUserStats] = useState({
+    total: 0,
+    admins: 0,
+    experts: 0,
+    users: 0,
+    activeToday: 0,
+    newThisWeek: 0
+  })
 
   // Analytics state
   const [analyticsData, setAnalyticsData] = useState([])
@@ -229,11 +241,35 @@ export default function AdminPanel() {
     )
   }
 
+  // Enhanced search and filtering functionality
+  const filterUsers = (usersData, searchQuery, typeFilter) => {
+    let filtered = usersData || []
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(user =>
+        `${user.first_name} ${user.last_name}`.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query) ||
+        user.alignment_code_used?.toLowerCase().includes(query)
+      )
+    }
+
+    // Apply type filter
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(user => (user.user_type || 'user') === typeFilter)
+    }
+
+    return filtered
+  }
+
   // User management functions
   const loadUsers = async () => {
     setLoadingUsers(true)
     try {
       console.log('🔍 Starting to load users...')
+
+      // Load users with additional session data
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -242,9 +278,11 @@ export default function AdminPanel() {
           last_name,
           email,
           user_type,
+          role,
           alignment_code_used,
           created_at,
-          updated_at
+          updated_at,
+          last_login_at
         `)
         .order('created_at', { ascending: false })
 
@@ -253,14 +291,42 @@ export default function AdminPanel() {
       if (error) {
         console.error('❌ Error loading users:', error)
         setUsers([])
+        setFilteredUsers([])
         return
       }
 
       console.log(`✅ Successfully loaded ${data?.length || 0} users`)
-      setUsers(data || [])
+      const usersData = data || []
+      setUsers(usersData)
+
+      // Apply current filters
+      const filtered = filterUsers(usersData, userSearchQuery, userTypeFilter)
+      setFilteredUsers(filtered)
+
+      // Calculate user statistics
+      const stats = {
+        total: usersData.length,
+        admins: usersData.filter(u => (u.user_type || u.role) === 'admin').length,
+        experts: usersData.filter(u => (u.user_type || u.role) === 'expert').length,
+        users: usersData.filter(u => (u.user_type || u.role || 'user') === 'user').length,
+        activeToday: usersData.filter(u => {
+          if (!u.last_login_at) return false
+          const today = new Date()
+          const loginDate = new Date(u.last_login_at)
+          return loginDate.toDateString() === today.toDateString()
+        }).length,
+        newThisWeek: usersData.filter(u => {
+          const weekAgo = new Date()
+          weekAgo.setDate(weekAgo.getDate() - 7)
+          return new Date(u.created_at) > weekAgo
+        }).length
+      }
+      setUserStats(stats)
+
     } catch (err) {
       console.error('💥 Exception loading users:', err)
       setUsers([])
+      setFilteredUsers([])
     } finally {
       setLoadingUsers(false)
     }
@@ -312,6 +378,59 @@ export default function AdminPanel() {
     } finally {
       setUpdatingUser(false)
     }
+  }
+
+  // Enhanced search and filter handlers
+  const handleSearch = (query: string) => {
+    setUserSearchQuery(query)
+    const filtered = filterUsers(users, query, userTypeFilter)
+    setFilteredUsers(filtered)
+  }
+
+  const handleTypeFilter = (type: string) => {
+    setUserTypeFilter(type)
+    const filtered = filterUsers(users, userSearchQuery, type)
+    setFilteredUsers(filtered)
+  }
+
+  // Bulk user actions
+  const handleBulkUserTypeUpdate = async (userIds: string[], newUserType: string) => {
+    setUpdatingUser(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ user_type: newUserType })
+        .in('id', userIds)
+
+      if (error) {
+        Alert.alert('Error', 'Failed to update user types')
+        return
+      }
+
+      Alert.alert('Success', `Updated ${userIds.length} users to ${newUserType} type`)
+      setSelectedUsers([])
+      loadUsers()
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update user types')
+    } finally {
+      setUpdatingUser(false)
+    }
+  }
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    )
+  }
+
+  const selectAllUsers = () => {
+    setSelectedUsers(filteredUsers.map(user => user.id))
+  }
+
+  const clearSelection = () => {
+    setSelectedUsers([])
   }
 
   // Analytics functions
@@ -913,53 +1032,192 @@ export default function AdminPanel() {
         <Text style={styles.comingSoon}>Loading users...</Text>
       ) : (
         <View>
-          <Text style={styles.subsectionTitle}>All Users ({users.length})</Text>
+          {/* User Statistics Dashboard */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{userStats.total}</Text>
+              <Text style={styles.statLabel}>Total Users</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{userStats.admins}</Text>
+              <Text style={styles.statLabel}>Admins</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{userStats.experts}</Text>
+              <Text style={styles.statLabel}>Experts</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{userStats.users}</Text>
+              <Text style={styles.statLabel}>Regular Users</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{userStats.activeToday}</Text>
+              <Text style={styles.statLabel}>Active Today</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{userStats.newThisWeek}</Text>
+              <Text style={styles.statLabel}>New This Week</Text>
+            </View>
+          </View>
 
-          {users.length === 0 ? (
-            <Text style={styles.comingSoonDescription}>No users found</Text>
+          {/* Search and Filter Controls */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color={ds.colors.text.secondary} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                value={userSearchQuery}
+                onChangeText={handleSearch}
+                placeholder="Search by name, email, or alignment code..."
+                placeholderTextColor={ds.colors.text.secondary}
+              />
+            </View>
+
+            <View style={styles.filterContainer}>
+              {['all', 'admin', 'expert', 'user'].map((type) => (
+                <Pressable
+                  key={type}
+                  style={[
+                    styles.filterButton,
+                    userTypeFilter === type && styles.filterButtonActive
+                  ]}
+                  onPress={() => handleTypeFilter(type)}
+                >
+                  <Text style={[
+                    styles.filterButtonText,
+                    userTypeFilter === type && styles.filterButtonTextActive
+                  ]}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Bulk Actions */}
+          {selectedUsers.length > 0 && (
+            <View style={styles.bulkActionsContainer}>
+              <Text style={styles.bulkActionsText}>
+                {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
+              </Text>
+              <View style={styles.bulkActionsButtons}>
+                <Pressable
+                  style={[styles.bulkActionButton, { backgroundColor: ds.colors.success }]}
+                  onPress={() => {
+                    Alert.alert(
+                      'Bulk Update User Types',
+                      'Update selected users to:',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'User', onPress: () => handleBulkUserTypeUpdate(selectedUsers, 'user') },
+                        { text: 'Expert', onPress: () => handleBulkUserTypeUpdate(selectedUsers, 'expert') },
+                        { text: 'Admin', onPress: () => handleBulkUserTypeUpdate(selectedUsers, 'admin') },
+                      ]
+                    )
+                  }}
+                >
+                  <Text style={styles.bulkActionButtonText}>Change Type</Text>
+                </Pressable>
+                <Pressable style={styles.bulkActionButton} onPress={clearSelection}>
+                  <Text style={styles.bulkActionButtonText}>Clear Selection</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* Users List Header */}
+          <View style={styles.userListHeader}>
+            <View style={styles.userListHeaderLeft}>
+              <Pressable
+                style={styles.selectAllButton}
+                onPress={selectedUsers.length === filteredUsers.length ? clearSelection : selectAllUsers}
+              >
+                <Ionicons
+                  name={selectedUsers.length === filteredUsers.length ? "checkbox" : "square-outline"}
+                  size={20}
+                  color={ds.colors.primary.main}
+                />
+              </Pressable>
+              <Text style={styles.subsectionTitle}>
+                Users ({filteredUsers.length}{filteredUsers.length !== users.length ? ` of ${users.length}` : ''})
+              </Text>
+            </View>
+            <Pressable style={styles.refreshButton} onPress={loadUsers}>
+              <Ionicons name="refresh" size={20} color={ds.colors.primary.main} />
+              <Text style={styles.refreshButtonText}>Refresh</Text>
+            </Pressable>
+          </View>
+
+          {filteredUsers.length === 0 ? (
+            <Text style={styles.comingSoonDescription}>
+              {users.length === 0 ? 'No users found' : 'No users match your search criteria'}
+            </Text>
           ) : (
             <View style={styles.codesContainer}>
-              {users.map((user: any) => (
-                <View key={user.id} style={styles.codeCard}>
-                  <View style={styles.codeHeader}>
-                    <View>
-                      <Text style={styles.codeText}>
-                        {user.first_name} {user.last_name}
-                      </Text>
-                      <Text style={styles.codeDescription}>{user.email}</Text>
-                    </View>
-                    <View style={[styles.tierBadge, {
-                      backgroundColor:
-                        user.user_type === 'admin' ? ds.colors.danger :
-                        user.user_type === 'expert' ? ds.colors.warning :
-                        ds.colors.success
-                    }]}>
-                      <Text style={styles.tierText}>{(user.user_type || 'user').toUpperCase()}</Text>
-                    </View>
-                  </View>
+              {filteredUsers.map((user: any) => (
+                <View key={user.id} style={[
+                  styles.codeCard,
+                  selectedUsers.includes(user.id) && styles.selectedUserCard
+                ]}>
+                  <View style={styles.userCardHeader}>
+                    <Pressable
+                      style={styles.userCheckbox}
+                      onPress={() => toggleUserSelection(user.id)}
+                    >
+                      <Ionicons
+                        name={selectedUsers.includes(user.id) ? "checkbox" : "square-outline"}
+                        size={20}
+                        color={ds.colors.primary.main}
+                      />
+                    </Pressable>
+                    <View style={styles.userInfo}>
+                      <View style={styles.codeHeader}>
+                        <View>
+                          <Text style={styles.codeText}>
+                            {user.first_name} {user.last_name}
+                          </Text>
+                          <Text style={styles.codeDescription}>{user.email}</Text>
+                        </View>
+                        <View style={[styles.tierBadge, {
+                          backgroundColor:
+                            (user.user_type || user.role) === 'admin' ? ds.colors.danger :
+                            (user.user_type || user.role) === 'expert' ? ds.colors.warning :
+                            ds.colors.success
+                        }]}>
+                          <Text style={styles.tierText}>{((user.user_type || user.role) || 'user').toUpperCase()}</Text>
+                        </View>
+                      </View>
 
-                  <View style={styles.codeStats}>
-                    <Text style={styles.codeStat}>
-                      Alignment Code: {user.alignment_code_used || 'None'}
-                    </Text>
-                    <Text style={styles.codeStat}>
-                      Joined: {new Date(user.created_at).toLocaleDateString()}
-                    </Text>
+                      <View style={styles.userStats}>
+                        <Text style={styles.codeStat}>
+                          Code: {user.alignment_code_used || 'None'}
+                        </Text>
+                        <Text style={styles.codeStat}>
+                          Joined: {new Date(user.created_at).toLocaleDateString()}
+                        </Text>
+                        {user.last_login_at && (
+                          <Text style={styles.codeStat}>
+                            Last Login: {new Date(user.last_login_at).toLocaleDateString()}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
                   </View>
 
                   <View style={styles.codeActions}>
                     <Pressable
-                      style={[styles.deactivateButton, { backgroundColor: '#007AFF', marginRight: 8 }]}
+                      style={[styles.userActionButton, { backgroundColor: ds.colors.primary.main }]}
                       onPress={() => {
                         setSelectedUser(user)
                         loadUserAlignmentCodes(user.id)
                       }}
                     >
-                      <Text style={[styles.deactivateButtonText, { color: 'white' }]}>View Details</Text>
+                      <Ionicons name="person-outline" size={16} color="white" />
+                      <Text style={styles.userActionButtonText}>Details</Text>
                     </Pressable>
 
                     <Pressable
-                      style={[styles.deactivateButton, { backgroundColor: ds.colors.warning }]}
+                      style={[styles.userActionButton, { backgroundColor: ds.colors.warning }]}
                       onPress={() => {
                         Alert.alert(
                           'Update User Type',
@@ -974,7 +1232,8 @@ export default function AdminPanel() {
                       }}
                       disabled={updatingUser}
                     >
-                      <Text style={styles.deactivateButtonText}>
+                      <Ionicons name="settings-outline" size={16} color="white" />
+                      <Text style={styles.userActionButtonText}>
                         {updatingUser ? 'Updating...' : 'Change Type'}
                       </Text>
                     </Pressable>
@@ -998,15 +1257,34 @@ export default function AdminPanel() {
                     setUserAlignmentCodes([])
                   }}
                 >
+                  <Ionicons name="close" size={16} color="white" />
                   <Text style={styles.deactivateButtonText}>Close</Text>
                 </Pressable>
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Email: {selectedUser.email}</Text>
-                <Text style={styles.label}>User Type: {selectedUser.user_type || 'user'}</Text>
-                <Text style={styles.label}>Current Code: {selectedUser.alignment_code_used || 'None'}</Text>
-                <Text style={styles.label}>Joined: {new Date(selectedUser.created_at).toLocaleDateString()}</Text>
+              <View style={styles.userDetailsGrid}>
+                <View style={styles.userDetailItem}>
+                  <Text style={styles.userDetailLabel}>Email</Text>
+                  <Text style={styles.userDetailValue}>{selectedUser.email}</Text>
+                </View>
+                <View style={styles.userDetailItem}>
+                  <Text style={styles.userDetailLabel}>User Type</Text>
+                  <Text style={styles.userDetailValue}>{(selectedUser.user_type || selectedUser.role) || 'user'}</Text>
+                </View>
+                <View style={styles.userDetailItem}>
+                  <Text style={styles.userDetailLabel}>Alignment Code</Text>
+                  <Text style={styles.userDetailValue}>{selectedUser.alignment_code_used || 'None'}</Text>
+                </View>
+                <View style={styles.userDetailItem}>
+                  <Text style={styles.userDetailLabel}>Joined</Text>
+                  <Text style={styles.userDetailValue}>{new Date(selectedUser.created_at).toLocaleDateString()}</Text>
+                </View>
+                {selectedUser.last_login_at && (
+                  <View style={styles.userDetailItem}>
+                    <Text style={styles.userDetailLabel}>Last Login</Text>
+                    <Text style={styles.userDetailValue}>{new Date(selectedUser.last_login_at).toLocaleDateString()}</Text>
+                  </View>
+                )}
               </View>
 
               <Text style={styles.subsectionTitle}>Alignment Code History</Text>
@@ -1015,7 +1293,7 @@ export default function AdminPanel() {
               ) : (
                 <View>
                   {userAlignmentCodes.map((userCode: any) => (
-                    <View key={userCode.id} style={[styles.codeCard, { marginBottom: 8 }]}>
+                    <View key={userCode.id} style={[styles.codeCard, { marginBottom: 8, padding: ds.spacing[3] }]}>
                       <Text style={styles.codeText}>{userCode.code}</Text>
                       <Text style={styles.codeDescription}>
                         Status: {userCode.status} | Used: {new Date(userCode.used_at).toLocaleDateString()}
@@ -2103,5 +2381,210 @@ const styles = StyleSheet.create({
     fontSize: ds.typography.fontSize.sm.size,
     fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
+  },
+  // User Management Styles
+  statsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: ds.spacing[3],
+    marginBottom: ds.spacing[6],
+  },
+  statCard: {
+    flex: 1,
+    minWidth: 120,
+    backgroundColor: ds.colors.background.primary,
+    padding: ds.spacing[4],
+    borderRadius: ds.borderRadius.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+  },
+  statNumber: {
+    fontSize: ds.typography.fontSize['2xl'].size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.primary.main,
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  statLabel: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    textAlign: 'center',
+    marginTop: ds.spacing[1],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  searchContainer: {
+    marginBottom: ds.spacing[4],
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ds.colors.background.primary,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[300],
+    borderRadius: ds.borderRadius.md,
+    paddingHorizontal: ds.spacing[3],
+    marginBottom: ds.spacing[3],
+  },
+  searchIcon: {
+    marginRight: ds.spacing[2],
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: ds.spacing[3],
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    gap: ds.spacing[2],
+    flexWrap: 'wrap',
+  },
+  filterButton: {
+    paddingHorizontal: ds.spacing[4],
+    paddingVertical: ds.spacing[2],
+    borderRadius: ds.borderRadius.md,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[300],
+    backgroundColor: ds.colors.background.primary,
+  },
+  filterButtonActive: {
+    backgroundColor: ds.colors.primary.main,
+    borderColor: ds.colors.primary.main,
+  },
+  filterButtonText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  filterButtonTextActive: {
+    color: ds.colors.text.inverse,
+    fontWeight: ds.typography.fontWeight.medium,
+  },
+  bulkActionsContainer: {
+    backgroundColor: ds.colors.primary.lightest,
+    padding: ds.spacing[3],
+    borderRadius: ds.borderRadius.md,
+    marginBottom: ds.spacing[4],
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bulkActionsText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  bulkActionsButtons: {
+    flexDirection: 'row',
+    gap: ds.spacing[2],
+  },
+  bulkActionButton: {
+    paddingHorizontal: ds.spacing[3],
+    paddingVertical: ds.spacing[2],
+    borderRadius: ds.borderRadius.sm,
+    backgroundColor: ds.colors.primary.main,
+  },
+  bulkActionButtonText: {
+    color: ds.colors.text.inverse,
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  userListHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: ds.spacing[3],
+  },
+  userListHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+  },
+  selectAllButton: {
+    padding: ds.spacing[1],
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[1],
+    paddingHorizontal: ds.spacing[3],
+    paddingVertical: ds.spacing[2],
+    borderRadius: ds.borderRadius.sm,
+    backgroundColor: ds.colors.background.primary,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[300],
+  },
+  refreshButtonText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  codesContainer: {
+    gap: ds.spacing[3],
+  },
+  selectedUserCard: {
+    borderColor: ds.colors.primary.main,
+    backgroundColor: ds.colors.primary.lightest,
+    borderWidth: 2,
+  },
+  userCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: ds.spacing[3],
+  },
+  userCheckbox: {
+    padding: ds.spacing[1],
+    marginTop: ds.spacing[1],
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userStats: {
+    flexDirection: 'column',
+    gap: ds.spacing[1],
+  },
+  userActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[1],
+    paddingHorizontal: ds.spacing[3],
+    paddingVertical: ds.spacing[2],
+    borderRadius: ds.borderRadius.sm,
+    marginRight: ds.spacing[2],
+  },
+  userActionButtonText: {
+    color: ds.colors.text.inverse,
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  userDetailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: ds.spacing[4],
+    marginBottom: ds.spacing[4],
+  },
+  userDetailItem: {
+    flex: 1,
+    minWidth: 200,
+  },
+  userDetailLabel: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    color: ds.colors.text.secondary,
+    marginBottom: ds.spacing[1],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  userDetailValue: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  codeActions: {
+    flexDirection: 'row',
+    marginTop: ds.spacing[2],
   },
 })
