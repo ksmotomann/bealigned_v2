@@ -32,18 +32,25 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   async function loadProfile() {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single()
-      
-      if (!error && data) {
-        setProfile(data)
-        setIsActualAdmin(data.user_type === 'admin' || data.user_type === 'super_admin')
-      }
+      // Since profiles table doesn't exist, determine admin status from email or other method
+      // For now, check if user email is in a list of admin emails
+      const adminEmails = [
+        // Add admin emails here - robert@freedomrallyracing.com should NOT be admin for testing
+        // 'admin@bealigned.app',
+        // Add other verified admin emails here
+      ]
+
+      const isAdmin = user?.email && adminEmails.includes(user.email)
+      setIsActualAdmin(isAdmin)
+
+      console.log('Admin status check:', {
+        email: user?.email,
+        isAdmin,
+        adminEmails
+      })
     } catch (error) {
       console.error('Error loading profile:', error)
+      setIsActualAdmin(false)
     }
   }
 
