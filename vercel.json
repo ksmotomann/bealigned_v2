@@ -5,6 +5,26 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/",
+      "destination": "https://bealigned.figma.site/"
+    },
+    {
+      "source": "/about",
+      "destination": "https://bealigned.figma.site/about"
+    },
+    {
+      "source": "/pricing",
+      "destination": "https://bealigned.figma.site/pricing"
+    },
+    {
+      "source": "/contact",
+      "destination": "https://bealigned.figma.site/contact"
+    },
+    {
+      "source": "/features",
+      "destination": "https://bealigned.figma.site/features"
+    },
+    {
       "source": "/login",
       "destination": "/index.html"
     },
