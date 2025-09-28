@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "BeAligned",
+    "slug": "bealigned",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "bealigned",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#7C3AED"
+    },
+    "owner": "bealigned",
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bealigned.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to capture photos for your profile.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select photos for your profile."
+      },
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#7C3AED"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.bealigned.app",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "name": "BeAligned",
+      "shortName": "BeAligned",
+      "description": "Transform conflict into clarity with BeAligned's guided reflection process",
+      "backgroundColor": "#ffffff",
+      "themeColor": "#7C3AED"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}

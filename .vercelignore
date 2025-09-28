@@ -1,0 +1,52 @@
+# Vercel ignore file
+# Files and directories to exclude from deployment
+
+# Backend (using Supabase Edge Functions instead)
+/backend
+/api
+
+# Documentation
+/docs
+README.md
+CONTRIBUTING.md
+LICENSE
+
+# Development files
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+
+# Git
+.git
+.gitignore
+.github
+
+# Node modules (Vercel installs these)
+node_modules
+/frontend/node_modules
+/backend/node_modules
+
+# Test files
+/frontend/src/**/*.test.js
+/frontend/src/**/*.test.tsx
+/frontend/src/**/*.spec.js
+/frontend/src/**/*.spec.tsx
+/frontend/coverage
+
+# Development scripts
+/scripts
+
+# Supabase local files
+/supabase/.branches
+/supabase/.temp
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Source files not needed for deployment
+/source_docs

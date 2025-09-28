@@ -1,0 +1,173 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+
+// GPT-Enhanced Phase Prompt Interface
+export interface GPTPhasePrompt {
+  id: string
+  semantic_id: string
+  title: string
+  welcome_prompt: string
+  follow_ups: string[]
+  expected_intent: string
+  ai_guidance: string
+  transition_rules: Record<string, any>
+  reflection_goal: string
+  validation_keywords: string[]
+  example_response: string
+  order: number
+  is_active: boolean
+}
+
+// Legacy compatibility interface
+export interface ReflectionStep {
+  number: number
+  title: string
+  description: string
+  prompts: string[]
+  validationCriteria: string[]
+  helpText: string
+}
+
+interface UsePhasePromptsGPTReturn {
+  phases: ReflectionStep[]
+  gptPhases: GPTPhasePrompt[]
+  loading: boolean
+  error: string | null
+  refreshPhases: () => Promise<void>
+  getPhaseBySemanticId: (semanticId: string) => GPTPhasePrompt | undefined
+  getValidationKeywords: (phaseNumber: number) => string[]
+  getAIGuidance: (phaseNumber: number) => string
+  getExpectedIntent: (phaseNumber: number) => string
+}
+
+// Fallback data (same as original)
+const FALLBACK_PHASES: ReflectionStep[] = [
+  {
+    number: 1,
+    title: "🌿 PHASE 1: LET'S NAME IT",
+    description: "What's the situation that's been sticking with you lately?",
+    prompts: ['What specific situation would you like to reflect on?'],
+    validationCriteria: ['Issue is stated clearly and briefly'],
+    helpText: 'Start by expressing what\'s weighing on you, even if it feels messy.'
+  },
+  // ... other phases as fallback
+]
+
+export function usePhasePromptsGPT(): UsePhasePromptsGPTReturn {
+  const [phases, setPhases] = useState<ReflectionStep[]>(FALLBACK_PHASES)
+  const [gptPhases, setGptPhases] = useState<GPTPhasePrompt[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const transformGPTToLegacy = (gptPhases: GPTPhasePrompt[]): ReflectionStep[] => {
+    return gptPhases.map(gptPhase => ({
+      number: gptPhase.order,
+      title: gptPhase.title,
+      description: gptPhase.welcome_prompt,
+      prompts: [
+        gptPhase.welcome_prompt,
+        ...(Array.isArray(gptPhase.follow_ups) ? gptPhase.follow_ups : [])
+      ],
+      validationCriteria: [
+        gptPhase.expected_intent
+      ],
+      helpText: gptPhase.reflection_goal || gptPhase.ai_guidance.substring(0, 200) + '...'
+    }))
+  }
+
+  const loadPhases = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      console.log('🔍 Loading GPT-enhanced phase prompts from database...')
+
+      // Query the new GPT-enhanced view
+      const { data: gptPhasesData, error: dbError } = await supabase
+        .from('phase_prompts_gpt')
+        .select('*')
+        .eq('is_active', true)
+        .order('order')
+
+      if (dbError) {
+        console.error('❌ Database error loading GPT phases:', dbError)
+        throw dbError
+      }
+
+      if (!gptPhasesData || gptPhasesData.length === 0) {
+        console.warn('⚠️ No active GPT phases found, using fallback')
+        setPhases(FALLBACK_PHASES)
+        return
+      }
+
+      console.log(`✅ Loaded ${gptPhasesData.length} GPT-enhanced phases from database`)
+      setGptPhases(gptPhasesData)
+
+      // Transform for legacy compatibility
+      const legacyPhases = transformGPTToLegacy(gptPhasesData)
+      setPhases(legacyPhases)
+
+      console.log('✅ GPT-enhanced phase prompts successfully loaded')
+
+    } catch (err) {
+      console.error('❌ Failed to load GPT phases from database:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load GPT phases')
+
+      // Fallback to hardcoded phases
+      console.log('🔄 Using fallback phases due to database error')
+      setPhases(FALLBACK_PHASES)
+      setGptPhases([])
+
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const refreshPhases = async () => {
+    await loadPhases()
+  }
+
+  const getPhaseBySemanticId = (semanticId: string): GPTPhasePrompt | undefined => {
+    return gptPhases.find(phase => phase.semantic_id === semanticId)
+  }
+
+  const getValidationKeywords = (phaseNumber: number): string[] => {
+    const phase = gptPhases.find(p => p.order === phaseNumber)
+    return phase?.validation_keywords || []
+  }
+
+  const getAIGuidance = (phaseNumber: number): string => {
+    const phase = gptPhases.find(p => p.order === phaseNumber)
+    return phase?.ai_guidance || ''
+  }
+
+  const getExpectedIntent = (phaseNumber: number): string => {
+    const phase = gptPhases.find(p => p.order === phaseNumber)
+    return phase?.expected_intent || ''
+  }
+
+  useEffect(() => {
+    loadPhases()
+  }, [])
+
+  return {
+    phases,
+    gptPhases,
+    loading,
+    error,
+    refreshPhases,
+    getPhaseBySemanticId,
+    getValidationKeywords,
+    getAIGuidance,
+    getExpectedIntent
+  }
+}
+
+// Helper functions
+export function getGPTPhaseByNumber(phases: GPTPhasePrompt[], phaseNumber: number): GPTPhasePrompt | undefined {
+  return phases.find(phase => phase.order === phaseNumber)
+}
+
+export function getGPTPhaseBySemanticId(phases: GPTPhasePrompt[], semanticId: string): GPTPhasePrompt | undefined {
+  return phases.find(phase => phase.semantic_id === semanticId)
+}

@@ -1,0 +1,29 @@
+# CODEOWNERS file for BeAligned
+# These owners will be requested for review when someone opens a pull request
+
+# Global owners for all files
+* @robertmann
+
+# Frontend code
+/frontend/ @robertmann
+
+# Backend code
+/backend/ @robertmann
+
+# Database and migrations
+/backend/migrations/ @robertmann
+/supabase/ @robertmann
+
+# Documentation
+/docs/ @robertmann
+*.md @robertmann
+
+# Configuration files
+/.github/ @robertmann
+package.json @robertmann
+.env.example @robertmann
+
+# Add your collaborator's GitHub username to relevant sections
+# Example:
+# /frontend/src/components/ @robertmann @collaborator-username
+# /backend/src/services/ @robertmann @collaborator-username

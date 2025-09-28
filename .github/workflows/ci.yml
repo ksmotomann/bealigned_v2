@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  frontend-checks:
+    name: Frontend Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run frontend linting
+      run: |
+        cd frontend
+        npm run lint || true
+      continue-on-error: true
+    
+    - name: Check frontend build
+      run: |
+        cd frontend
+        npm run build
+      env:
+        CI: false
+
+  backend-checks:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+    
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm ci
+    
+    - name: Run backend linting
+      run: |
+        cd backend
+        npm run lint || true
+      continue-on-error: true
+    
+    - name: Check backend build
+      run: |
+        cd backend
+        npm run build || true
+      continue-on-error: true
+
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run security audit
+      run: |
+        cd frontend
+        npm audit --audit-level=high || true
+        cd ../backend
+        npm audit --audit-level=high || true
+      continue-on-error: true

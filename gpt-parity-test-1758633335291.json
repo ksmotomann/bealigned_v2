@@ -1,0 +1,328 @@
+[
+  {
+    "testCase": 1,
+    "phase": 1,
+    "phaseQuestion": "What’s the situation that’s been sticking with you lately?",
+    "userInput": "I'm really struggling with feeling like my attorney is not advocating for \"my why\".",
+    "gptResponse": "Thank you for naming that. It sounds like you’re carrying a heavy mix of frustration and maybe even disappointment — not just because of legal strategy, but because something deeper isn’t being seen or supported.",
+    "appResponse": "🌱 Thank you for naming that. That sounds really challenging and heavy to carry. It's understandable to feel frustrated when it seems like your core values or reasons aren't being represented. *What's the situation that's been sticking with you lately?*",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 212,
+        "app": 253,
+        "ratio": "1.19"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [
+          "acknowledgment",
+          "reflective_mirroring"
+        ],
+        "appPhrases": [
+          "acknowledgment",
+          "reflective_mirroring"
+        ]
+      },
+      "similarityScore": "23.2%"
+    }
+  },
+  {
+    "testCase": 2,
+    "phase": 2,
+    "phaseQuestion": "What feelings come up when you think about this? Sometimes anger masks hurt, or control masks fear. What might be underneath that for you?",
+    "userInput": "I feel a bit trapped in the process. A bit unseen but simultaneously grateful for the progress that's being made. I don't want to discount that individuals are advocating in good faith but wrestling with the feeling and the natural human tendency to exploit a vulnerable family like mine.",
+    "gptResponse": "You’re holding multiple truths at once — feeling trapped, unseen, grateful, and protective. That mix says a lot about what matters to you. What do you think these feelings are pointing to?",
+    "appResponse": "That's such a tender truth — thank you for letting it out. You're holding the complexity of feeling both *trapped* and *unseen*, while also carrying *gratitude* for the progress being made. \n\n*If you sit with those feelings for a moment — what might be underneath?* Is there an underlying worry or fear that these feelings are pointing to? Your perspective is important, and I'm here to explore this with you. 🌱",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 188,
+        "app": 412,
+        "ratio": "2.19"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": true,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [
+          "emotion_exploration"
+        ],
+        "appPhrases": [
+          "emotion_exploration"
+        ]
+      },
+      "similarityScore": "21.1%"
+    }
+  },
+  {
+    "testCase": 3,
+    "phase": 2,
+    "phaseQuestion": "You’re holding multiple truths at once — feeling trapped, unseen, grateful, and protective. That mix says a lot about what matters to you. What do you think these feelings are pointing to?",
+    "userInput": "I can armour up for this battle and fight and advocate for my family if I know long-term I'll have the financial resources and security to support them down the road when the need will inevitably arise. I can do the battle but I don't want to do the battle and come out depleted.",
+    "gptResponse": "You’re not just reacting — you’re protecting the future. You’re willing to do the hard work, but only if it doesn’t deplete the very foundation your family will need. That’s a strong and loving boundary.",
+    "appResponse": "It sounds like you're carrying a lot of weight with the thought of needing to fight for your family's future. *That mix of determination and concern says a lot about what truly matters to you*. Does this sound right, or is something else coming up? \n\nI'm curious, *what feelings come up when you think about this?* Sometimes feelings like anger can mask deeper emotions like hurt, or the need for control can be tied to fear. *What might be underneath for you?*",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 203,
+        "app": 461,
+        "ratio": "2.27"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": false,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [],
+        "appPhrases": [
+          "reflective_mirroring",
+          "emotion_exploration",
+          "purpose_exploration"
+        ]
+      },
+      "similarityScore": "15.9%"
+    }
+  },
+  {
+    "testCase": 4,
+    "phase": 3,
+    "phaseQuestion": "What is it about this that feels important to you? What are you hoping for — for your child, for yourself, or for the relationship?",
+    "userInput": "My \"main why\" is rooted in my faith — for the world to see Christ through my sons’ lives in a way that brings others closer to the kingdom of heaven.",
+    "gptResponse": "Your “why” is sacred — not just about outcomes, but about",
+    "appResponse": "🌿 Thank you for sharing that with me. Your faith is clearly a profound and guiding force in your life, shaping your hopes for your sons and their impact on the world. That's your why — a deeply meaningful vision that goes beyond everyday parenting. \n\n*What is it about this vision that feels most important to you? Are there specific hopes you hold for your sons in this journey?*",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 57,
+        "app": 381,
+        "ratio": "6.68"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [],
+        "appPhrases": [
+          "acknowledgment",
+          "child_centered"
+        ]
+      },
+      "similarityScore": "7.5%"
+    }
+  },
+  {
+    "testCase": 5,
+    "phase": 4,
+    "phaseQuestion": "If your co-parent described this, how might they see it? What do you imagine they’re feeling or needing?",
+    "userInput": "At the core, we share our faith and purpose. On the surface, it manifests quite differently — based on the loss of our son last fall and where we are in our faith journeys. Sue is also still struggling with addiction, trauma, and grief. On a good day, we could align. But now it’s all processed through an adversarial lens.  \n That’s not my heart — I ache for her. But I know her needs go beyond what I can support. We both love our sons. We both grieve deeply. We’re just a world apart in how we do it.",
+    "gptResponse": "You’re holding a beautiful tension — acknowledging disconnection without erasing shared love or pain. You’re not just seeing behavior; you’re holding space for her humanity, even when it hurts. That’s the Third Side in action.",
+    "appResponse": "🌿 Thank you for sharing such a deeply personal reflection. It sounds like you're navigating a profoundly challenging situation with compassion and awareness of both your own limits and the shared love and grief you have for your son.\n\n*If your co-parent described this situation, how might they see it?* I understand this might be difficult, and it's okay if it feels impossible right now. You don’t have to agree, just consider what she might be feeling or needing. This isn’t about fixing things immediately but about opening a space to understand each other's perspectives, even from afar.\n\nYour shared faith and love for your sons are significant threads connecting you both, despite the differences in how you express and manage grief. Recognizing that Sue's journey through addiction and trauma is a separate path can be vital in understanding where she might be coming from.\n\nDoes this resonate with you, or is there something else coming up as you reflect on her potential perspective? 🌱",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 226,
+        "app": 997,
+        "ratio": "4.41"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [],
+        "appPhrases": [
+          "acknowledgment",
+          "reflective_mirroring",
+          "emotion_exploration",
+          "child_centered",
+          "purpose_exploration"
+        ]
+      },
+      "similarityScore": "12.2%"
+    }
+  },
+  {
+    "testCase": 6,
+    "phase": 5,
+    "phaseQuestion": "What might your sons be noticing? How might they be feeling? What might they need right now — not from either parent, but in general?",
+    "userInput": "Even at 16 and 18, I believe our sons are still looking to us for answers and guidance. They want to know how to respond under adversity. They’re seeking grounding, assurance, and to be seen through the chaos. I think they just want to know that it’s going to be okay — for them, and for their mom and dad.",
+    "gptResponse": "Yes. Even teens watch their parents for emotional guidance. They need grounding, truth, hope — not perfection, but presence. And you’re already offering that by showing up in this reflection.",
+    "appResponse": "It sounds like you're really attuned to your sons' needs right now, and recognizing that *even at their ages, they still look to you for **guidance** and **reassurance*** is so important. As teenagers, they're at a developmental stage where they're learning to navigate complex emotions and situations, often seeking stability amidst change.\n\n*What might your sons be noticing about the current situation?* They might be picking up on the emotional climate at home, sensing any unspoken tensions or changes. At this age, they’re likely refining their skills to manage **adversity**, looking to you both as models for handling challenges with resilience.\n\nIn terms of what they may need, it's often that grounding presence — knowing that you're there for them, no matter what. They might be needing that **assurance** that, regardless of the chaos, there is a foundation of stability and love that they can rely on. This can be incredibly reassuring as they navigate their own emotions and the world around them.\n\nDoes this resonate with what you're noticing, or is there something else that's been on your mind? 🌱",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 191,
+        "app": 1114,
+        "ratio": "5.83"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [],
+        "appPhrases": [
+          "reflective_mirroring",
+          "child_centered",
+          "purpose_exploration"
+        ]
+      },
+      "similarityScore": "12.8%"
+    }
+  },
+  {
+    "testCase": 7,
+    "phase": 6,
+    "phaseQuestion": "Given everything we’ve explored — your why, your co-parent’s possible why, your child’s needs — what ideas come to mind?",
+    "userInput": "To purposefully and fervently fight for connection with the boys. To affirm it’s been rough, that we haven’t always gotten it right — but every day is a new chance to grow.  \n As a father, I want to show resilience in despair. To model that God’s grace doesn’t run on our timeline, but if we’re patient, grounded, and faithful — this too shall pass.  \n Ultimately, to help my sons learn what it means to put on",
+    "gptResponse": "What a stunning vision. Not just to protect, but to",
+    "appResponse": "🌿 It's truly inspiring to see your commitment to building a strong connection with your sons, even amidst challenges. This ongoing journey of growth and resilience is foundational to their understanding of life and grace.\n\nGiven everything we've explored — your **why**, your co-parent's possible perspective, and your child's needs — let's explore some aligned options. Would you like me to suggest a few paths? Here are some thoughts on how to align your actions with your intentions:\n\n✅ **Option 1: Direct Communication with Co-Parent**  \n*Title: Shared Growth and Resilience*  \nBy communicating this commitment to your co-parent, you can both support and reinforce this message for your sons. It fosters a unified front that focuses on growth and resilience.  \n**Script Example:**  \n\"Hi [Co-Parent's Name], I've been reflecting on the importance of showing our boys how to grow through challenges. I believe it's crucial for us to model resilience and grace together. How do you feel about us collaborating on this approach?\"\n\n✅ **Option 2: Self-Focused Boundary**  \n*Title: Personal Resilience Practice*  \nYou have control over how you model resilience for your sons. This is about setting an example through your actions and mindset.  \n**Action Example:**  \nEstablish a personal practice, such as journaling or meditation, to maintain your patience and grounding. Your sons will notice the peace and strength this brings you, which subtly teaches them about resilience.\n\n✅ **Option 3: Child-Centered Modeling**  \n*Title: Daily Grace Ritual*  \nCreate a simple ritual with your sons that embodies the values of patience and grace you wish to impart.  \n**Activity Example:**  \nEvery evening, take a moment with your sons to share something that challenged you that day and how you found a small piece of grace or hope through it. Encourage them to share theirs too, creating a space for open dialogue and reflection.\n\nEach of these options ties back to your desire to teach your sons resilience and grace, rooted in patience and faith. *How do these resonate with you, or is there something else you'd like to explore?*",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 51,
+        "app": 2123,
+        "ratio": "41.63"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [],
+        "appPhrases": [
+          "child_centered",
+          "collaborative"
+        ]
+      },
+      "similarityScore": "1.1%"
+    }
+  },
+  {
+    "testCase": 8,
+    "phase": 7,
+    "phaseQuestion": "Would you like help crafting a message that reflects this shared purpose — either for yourself, your sons, or your co-parent?",
+    "userInput": "Yes, that would be great. I may just hold the note for my own reflection or for journaling, but I’d love to see what ideas you have.",
+    "gptResponse": "Here’s a message you could hold, share, or pray through:",
+    "appResponse": "🌿 Thank you for sharing that. It's wonderful that you're considering how best to use these reflections. Let's explore some message ideas that align with the CLEAR framework, which can guide you in communicating effectively with a co-parent.\n\nHere are a few structures you could consider:\n\n#### **Text Message Example** 🌿\n✅ **Option 1: Concise & Listener-Ready**\n\"Hi [Co-Parent's Name], I wanted to touch base about our upcoming plans for [Child's Name]. Could we find a time to discuss what works best for both of us? I'm committed to ensuring it supports [Child's Name]'s needs.\"\n\n#### **Email Example** 🌿\n✅ **Option 2: Formal & Essential**\nSubject: Planning for [Child's Name]'s Benefit\n\n\"Hello [Co-Parent's Name],\n\nI hope this message finds you well. As we continue to navigate our co-parenting journey, I believe it's important for us to align on our upcoming plans for [Child's Name]. Could we schedule a time to discuss our shared goals and how we can best support them together?\n\nThank you for your collaboration.\n\nBest,  \n[Your Name]\"\n\n#### **Conversation Starter** 🌿\n✅ **Option 3: Appropriate & Relevant**\n\"Hey, I've been reflecting on how we can best support [Child's Name]. When you have a moment, I'd love to chat about our approach to our plans. I think working together could really benefit them.\"\n\n*Which option feels most aligned for you? Would you like help crafting a message that reflects this?* Your approach is about creating a collaborative atmosphere that centers on your child's needs, maintaining a positive tone and clear intent. 🌱",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 56,
+        "app": 1562,
+        "ratio": "27.89"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [],
+        "appPhrases": [
+          "acknowledgment",
+          "child_centered",
+          "purpose_exploration",
+          "collaborative"
+        ]
+      },
+      "similarityScore": "4.2%"
+    }
+  },
+  {
+    "testCase": 9,
+    "phase": 7,
+    "phaseQuestion": "Here’s a message you could hold, share, or pray through:",
+    "userInput": "This is enough for now. Truth is, I don’t know what to do with this.",
+    "gptResponse": "That’s okay. You’re not supposed to know yet.  \n Sometimes just",
+    "appResponse": "*Thank you for sharing that.* It sounds like there might be a lot swirling around right now. Let’s explore this together. 🌿\n\nWhen you're ready, we can think about ways to communicate what’s on your mind. Using the CLEAR framework can help create a message that’s concise and listener-ready. *Which option feels most aligned for you? Would you like help crafting a message that reflects this?*\n\nHere are some ways we could proceed:\n\n✅ **Option 1: Text Message**  \n- **Concise**: Keep it to 2-3 sentences.\n- **Listener-Ready**: Focus on your core need.\n- Would you like to try drafting one?\n\n✅ **Option 2: Email**  \n- **Formal**: Allows for more detail.\n- **Essential**: Focus on what's most important.\n- I can help structure it if you'd like.\n\n✅ **Option 3: Conversation Starter**  \n- **Appropriate**: Fits your relationship.\n- **Relevant**: Center the child's needs.\n- We can brainstorm an opening together.\n\n*Does one of these options resonate with you, or is there something else you’d like to explore?*",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 63,
+        "app": 1006,
+        "ratio": "15.97"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [],
+        "appPhrases": [
+          "acknowledgment",
+          "reflective_mirroring",
+          "child_centered",
+          "collaborative"
+        ]
+      },
+      "similarityScore": "4.5%"
+    }
+  },
+  {
+    "testCase": 10,
+    "phase": 7,
+    "phaseQuestion": "That’s okay. You’re not supposed to know yet.  \n Sometimes just",
+    "userInput": "My wife allowed my 15 year old to drop his AP science class without asking me.",
+    "gptResponse": "Thanks for sharing that. That sounds like a big moment — one that may have felt sudden or left you out of the loop. I appreciate you naming it here. You’ve already taken the first step toward reflection instead of reaction.",
+    "appResponse": "It sounds like this situation has left you feeling left out or possibly concerned about the decision-making process. *Does this sound right, or is something else coming up for you?*\n\nLet's explore how you might approach this conversation with your wife in a way that aligns with your values and centers the needs of your child. We can create a message that is both clear and constructive using the CLEAR framework. Here are a few options for how you might express your thoughts and open up a dialogue:\n\n✅ **Option 1: Text Message**\n- Concise and direct, suitable for quick communication.\n\n#### **Message for Your Wife** 🌿\n\"Hey, I noticed that our son dropped his AP science class. I’d love to understand the reasoning behind this decision. Can we chat about it? I want to make sure we're both on the same page for his educational path.\"\n\n✅ **Option 2: Email**\n- Allows for more detail and thoughtfulness.\n\n#### **Email to Your Wife** 🌿\n\"Hi [Wife’s Name],\n\nI’ve learned that our son has decided to drop his AP science class. It caught me by surprise, and I’d like to discuss how we arrived at this decision. Understanding your perspective will help us support him together. Let’s find a time to talk about how we can ensure his educational needs are met.\"\n\n✅ **Option 3: Conversation Starter**\n- For a face-to-face discussion.\n\n*“I found out about the decision to drop the AP class and felt a bit out of the loop. I’d really like to hear your thoughts on the decision and discuss how we can work together to support his academic journey.”*\n\nWhich option feels most aligned for you? Would you like help crafting a message that reflects this? 🌱",
+    "analysis": {
+      "lengthComparison": {
+        "gpt": 223,
+        "app": 1644,
+        "ratio": "7.37"
+      },
+      "toneAnalysis": {
+        "gptHasEmoji": false,
+        "appHasEmoji": true,
+        "gptHasItalics": false,
+        "appHasItalics": true,
+        "gptHasQuestion": false,
+        "appHasQuestion": true
+      },
+      "keyPhrases": {
+        "gptPhrases": [
+          "reflective_mirroring"
+        ],
+        "appPhrases": [
+          "reflective_mirroring",
+          "child_centered",
+          "collaborative"
+        ]
+      },
+      "similarityScore": "10.1%"
+    }
+  }
+]

@@ -1,0 +1,192 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+
+export interface DatabasePhasePrompt {
+  phase_number: number
+  phase_name: string
+  phase_header: string
+  primary_prompt: string
+  followup_prompts: string[]
+  response_guidance: string
+  response_handling: string
+}
+
+export interface ReflectionStep {
+  number: number
+  title: string
+  description: string
+  prompts: string[]
+  validationCriteria: string[]
+  helpText: string
+}
+
+interface UsePhasePromptsReturn {
+  phases: ReflectionStep[]
+  loading: boolean
+  error: string | null
+  databasePhases: DatabasePhasePrompt[]
+  refreshPhases: () => Promise<void>
+}
+
+// Fallback data from existing lib/chat.ts in case database fails
+const FALLBACK_PHASES: ReflectionStep[] = [
+  {
+    number: 1,
+    title: "🌿 PHASE 1: LET'S NAME IT",
+    description: "What's the situation that's been sticking with you lately?",
+    prompts: [
+      'What specific situation would you like to reflect on?',
+      'Can we phrase this in a way that focuses on the situation, not the person?'
+    ],
+    validationCriteria: ['Issue is stated clearly and briefly'],
+    helpText: 'Start by expressing what\'s weighing on you, even if it feels messy.'
+  },
+  {
+    number: 2,
+    title: "🌊 PHASE 2: WHAT'S BENEATH THAT?",
+    description: 'What feelings come up when you think about this?',
+    prompts: ['What feelings are coming up for you?'],
+    validationCriteria: ['Names specific emotions'],
+    helpText: 'Strong emotions like anger often sit on the surface.'
+  },
+  {
+    number: 3,
+    title: '💫 PHASE 3: YOUR WHY',
+    description: 'What is it about this that feels important to you?',
+    prompts: ['Why does this matter to you?'],
+    validationCriteria: ['Identifies core values or needs'],
+    helpText: 'Your Why is about values, vision, and purpose.'
+  },
+  {
+    number: 4,
+    title: "👥 PHASE 4: STEP INTO YOUR CO-PARENT'S SHOES",
+    description: 'If your co-parent described this, how might they see it?',
+    prompts: ['If you were in their shoes, what might they be worried about?'],
+    validationCriteria: ['Shows genuine attempt to understand other perspectives'],
+    helpText: 'This isn\'t about agreement; it\'s about awareness.'
+  },
+  {
+    number: 5,
+    title: "👁️ PHASE 5: SEE THROUGH YOUR CHILD'S EYES",
+    description: 'What might your child be noticing about this?',
+    prompts: ['What might your child be noticing about this situation?'],
+    validationCriteria: ['Generates at least 3 different options'],
+    helpText: 'Having multiple possibilities reframes from rigid positions to creative collaboration.'
+  },
+  {
+    number: 6,
+    title: '💡 PHASE 6: EXPLORE ALIGNED OPTIONS',
+    description: "Given everything we've explored, what ideas come to mind?",
+    prompts: ['Given everything we\'ve explored — what ideas come to mind?'],
+    validationCriteria: ['Recognizes preference for specific option'],
+    helpText: 'Rather than asking you to generate ideas from scratch, I\'ll present concrete options.'
+  },
+  {
+    number: 7,
+    title: '✉️ PHASE 7: CHOOSE + COMMUNICATE',
+    description: 'Which of these feels most aligned with everyone\'s needs?',
+    prompts: ['Based on your choice, I\'ll help you draft a CLEAR message.'],
+    validationCriteria: ['Approves message draft'],
+    helpText: 'The CLEAR framework ensures your message is powerful yet appropriate.'
+  }
+]
+
+export function usePhasePrompts(): UsePhasePromptsReturn {
+  const [phases, setPhases] = useState<ReflectionStep[]>(FALLBACK_PHASES)
+  const [databasePhases, setDatabasePhases] = useState<DatabasePhasePrompt[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const transformDatabaseToUI = (dbPhases: DatabasePhasePrompt[]): ReflectionStep[] => {
+    return dbPhases.map(dbPhase => ({
+      number: dbPhase.phase_number,
+      title: dbPhase.phase_header,
+      description: dbPhase.primary_prompt,
+      prompts: [
+        dbPhase.primary_prompt,
+        ...(Array.isArray(dbPhase.followup_prompts) ? dbPhase.followup_prompts : [])
+      ],
+      validationCriteria: [
+        `Phase ${dbPhase.phase_number} completion criteria`
+      ],
+      helpText: dbPhase.response_guidance ?
+        dbPhase.response_guidance.substring(0, 200) + '...' :
+        `Guidance for ${dbPhase.phase_name}`
+    }))
+  }
+
+  const loadPhases = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      console.log('🔍 Loading phase prompts from database...')
+
+      const { data: dbPhases, error: dbError } = await supabase
+        .from('phase_prompts')
+        .select(`
+          phase_number,
+          phase_name,
+          phase_header,
+          primary_prompt,
+          followup_prompts,
+          response_guidance,
+          response_handling
+        `)
+        .eq('is_active', true)
+        .order('phase_number')
+
+      if (dbError) {
+        console.error('❌ Database error loading phases:', dbError)
+        throw dbError
+      }
+
+      if (!dbPhases || dbPhases.length === 0) {
+        console.warn('⚠️ No active phases found in database, using fallback')
+        setPhases(FALLBACK_PHASES)
+        return
+      }
+
+      console.log(`✅ Loaded ${dbPhases.length} phases from database`)
+      setDatabasePhases(dbPhases)
+
+      const uiPhases = transformDatabaseToUI(dbPhases)
+      setPhases(uiPhases)
+
+      console.log('✅ Phase prompts successfully loaded from database')
+
+    } catch (err) {
+      console.error('❌ Failed to load phases from database:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load phases')
+
+      // Fallback to hardcoded phases
+      console.log('🔄 Using fallback phases due to database error')
+      setPhases(FALLBACK_PHASES)
+      setDatabasePhases([])
+
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const refreshPhases = async () => {
+    await loadPhases()
+  }
+
+  useEffect(() => {
+    loadPhases()
+  }, [])
+
+  return {
+    phases,
+    loading,
+    error,
+    databasePhases,
+    refreshPhases
+  }
+}
+
+// Helper function to get a specific phase
+export function getPhaseByNumber(phases: ReflectionStep[], phaseNumber: number): ReflectionStep | undefined {
+  return phases.find(phase => phase.number === phaseNumber)
+}

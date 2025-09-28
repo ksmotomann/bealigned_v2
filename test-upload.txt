@@ -1,0 +1,8 @@
+This is a test document for debugging the file upload issue.
+
+Content includes:
+- Basic text
+- Multiple lines
+- Simple content for testing
+
+This should be saved to the database successfully.

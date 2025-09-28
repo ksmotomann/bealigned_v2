@@ -1,0 +1,244 @@
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { promisify } from 'util';
+import { authenticate, AuthRequest } from '../middleware/auth';
+import { DocumentProcessor } from '../services/documentProcessor';
+import { RAGIngestion } from '../services/ragIngestion';
+import { supabaseAdmin } from '../services/supabase';
+
+const router = express.Router();
+const unlinkFile = promisify(fs.unlink);
+
+// Configure multer for file upload
+const upload = multer({
+  dest: 'uploads/',
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (DocumentProcessor.isSupportedType(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Unsupported file type'));
+    }
+  }
+});
+
+// Upload and process documents
+router.post('/upload', authenticate, upload.array('documents', 10), async (req: AuthRequest, res) => {
+  try {
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    const { categoryId } = req.body;
+    const userId = req.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const processedDocuments = [];
+    const createdArticles = [];
+
+    for (const file of req.files) {
+      try {
+        // Process the document
+        const processed = await DocumentProcessor.processDocument(
+          file.path,
+          file.originalname,
+          file.mimetype,
+          file.size
+        );
+
+        // Store document metadata in database
+        const { data: documentData, error: docError } = await supabaseAdmin
+          .from('knowledge_documents')
+          .insert({
+            user_id: userId,
+            original_name: processed.originalName,
+            file_type: processed.fileType,
+            file_size: processed.fileSize,
+            extracted_text: processed.extractedText,
+            metadata: processed.metadata,
+            category_id: categoryId || null,
+            processed: true
+          })
+          .select()
+          .single();
+
+        // Trigger RAG ingestion asynchronously
+        RAGIngestion.ingestDocument(
+          userId,
+          file.path,
+          processed.originalName,
+          processed.fileType,
+          processed.fileSize,
+          processed.extractedText,
+          ['imported'] // Default tags
+        ).catch(error => {
+          console.error('RAG ingestion failed for', processed.originalName, ':', error);
+        });
+
+        if (docError) {
+          console.error('Database error storing document:', docError);
+          throw new Error('Failed to store document metadata');
+        }
+
+        processedDocuments.push({
+          id: documentData.id,
+          originalName: processed.originalName,
+          fileType: processed.fileType,
+          fileSize: processed.fileSize,
+          processed: true,
+          uploadDate: documentData.created_at
+        });
+
+        // If categoryId provided, auto-create article
+        if (categoryId) {
+          const articleData = await DocumentProcessor.createArticleFromDocument(processed);
+          
+          // Store article in database (you'll need to create this table structure)
+          const { data: article, error: articleError } = await supabaseAdmin
+            .from('knowledge_articles')
+            .insert({
+              user_id: userId,
+              category_id: categoryId,
+              title: articleData.title,
+              content: articleData.content,
+              tags: articleData.tags,
+              source_document_id: documentData.id,
+              source_document: articleData.sourceDocument
+            })
+            .select()
+            .single();
+
+          if (!articleError && article) {
+            createdArticles.push({
+              id: article.id,
+              title: articleData.title,
+              content: articleData.content,
+              tags: articleData.tags,
+              lastUpdated: article.updated_at,
+              sourceDocument: articleData.sourceDocument
+            });
+          }
+        }
+
+        // Clean up uploaded file
+        await unlinkFile(file.path);
+      } catch (error) {
+        console.error('Error processing file:', file.originalname, error);
+        // Clean up file even if processing failed
+        try {
+          await unlinkFile(file.path);
+        } catch (cleanupError) {
+          console.error('Error cleaning up file:', cleanupError);
+        }
+        // Continue with other files
+      }
+    }
+
+    res.json({
+      success: true,
+      processedDocuments,
+      createdArticles,
+      message: `Successfully processed ${processedDocuments.length} documents`
+    });
+
+  } catch (error: any) {
+    console.error('Document upload error:', error);
+    res.status(500).json({ 
+      error: 'Failed to process documents',
+      details: error.message 
+    });
+  }
+});
+
+// Get user's documents
+router.get('/', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { data: documents, error } = await supabaseAdmin
+      .from('knowledge_documents')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.json({
+      success: true,
+      documents: documents.map(doc => ({
+        id: doc.id,
+        originalName: doc.original_name,
+        fileType: doc.file_type,
+        fileSize: doc.file_size,
+        processed: doc.processed,
+        uploadDate: doc.created_at,
+        categoryId: doc.category_id,
+        extractedText: doc.extracted_text
+      }))
+    });
+
+  } catch (error: any) {
+    console.error('Get documents error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch documents',
+      details: error.message 
+    });
+  }
+});
+
+// Delete document
+router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
+    const documentId = req.params.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Delete associated articles first
+    await supabaseAdmin
+      .from('knowledge_articles')
+      .delete()
+      .eq('source_document_id', documentId)
+      .eq('user_id', userId);
+
+    // Delete document
+    const { error } = await supabaseAdmin
+      .from('knowledge_documents')
+      .delete()
+      .eq('id', documentId)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Document deleted successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Delete document error:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete document',
+      details: error.message 
+    });
+  }
+});
+
+export default router;

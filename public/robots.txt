@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Important pages
+Allow: /our-story
+Allow: /faq
+Allow: /contact
+
+# Disallow admin and private areas
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /history
+Disallow: /chat
+
+# Sitemap location
+Sitemap: https://bealigned.app/sitemap.xml

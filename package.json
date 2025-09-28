@@ -1,0 +1,51 @@
+{
+  "name": "bealigned_v2",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "start:fresh": "./clear-cache.sh",
+    "start:clear": "expo start --clear",
+    "clear-cache": "./clear-cache.sh",
+    "reset": "rm -rf node_modules/.cache .expo && npm start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:web": "expo export --platform web",
+    "build:preview": "eas build --platform all --profile preview",
+    "build:production": "eas build --platform all --profile production",
+    "submit:ios": "eas submit --platform ios",
+    "submit:android": "eas submit --platform android",
+    "update": "eas update --auto"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.57.4",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.2",
+    "expo": "54.0.3",
+    "expo-clipboard": "^8.0.7",
+    "expo-constants": "~18.0.8",
+    "expo-linear-gradient": "~15.0.7",
+    "expo-linking": "~8.0.8",
+    "expo-router": "~6.0.1",
+    "expo-status-bar": "~3.0.8",
+    "nativewind": "^4.1.23",
+    "node-fetch": "^3.3.2",
+    "openai": "^5.20.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-native": "0.81.4",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-url-polyfill": "^2.0.0",
+    "react-native-web": "^0.21.0",
+    "tailwindcss": "^3.4.17"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}

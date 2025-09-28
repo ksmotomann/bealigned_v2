@@ -1,0 +1,399 @@
+import fs from 'fs';
+import path from 'path';
+import { promisify } from 'util';
+import pdf from 'pdf-parse';
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+import { marked } from 'marked';
+import * as cheerio from 'cheerio';
+
+const readFile = promisify(fs.readFile);
+
+export interface ProcessedDocument {
+  id: string;
+  originalName: string;
+  fileType: string;
+  fileSize: number;
+  extractedText: string;
+  metadata?: {
+    pages?: number;
+    wordCount?: number;
+    encoding?: string;
+  };
+}
+
+export class DocumentProcessor {
+  private static readonly SUPPORTED_TYPES = [
+    // Text formats
+    'text/plain',
+    'text/markdown',
+    'text/html',
+    'text/csv',
+    // PDF
+    'application/pdf',
+    // Microsoft Word
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    // Microsoft Excel
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // Microsoft PowerPoint
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    // OpenDocument formats
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.oasis.opendocument.spreadsheet',
+    'application/vnd.oasis.opendocument.presentation',
+    // Rich Text Format
+    'application/rtf',
+    // JSON
+    'application/json'
+  ];
+
+  static isSupportedType(fileType: string): boolean {
+    return this.SUPPORTED_TYPES.includes(fileType);
+  }
+
+  static async processDocument(
+    filePath: string, 
+    originalName: string, 
+    fileType: string, 
+    fileSize: number
+  ): Promise<ProcessedDocument> {
+    const id = Date.now().toString();
+    
+    try {
+      let extractedText = '';
+      let metadata: any = {};
+
+      switch (fileType) {
+        // Text formats
+        case 'text/plain':
+          extractedText = await this.processTextFile(filePath);
+          metadata.encoding = 'utf-8';
+          break;
+        
+        case 'text/markdown':
+          extractedText = await this.processMarkdownFile(filePath);
+          metadata.encoding = 'utf-8';
+          break;
+        
+        case 'text/html':
+          extractedText = await this.processHtmlFile(filePath);
+          metadata.encoding = 'utf-8';
+          break;
+        
+        case 'text/csv':
+          extractedText = await this.processCsvFile(filePath);
+          metadata.encoding = 'utf-8';
+          break;
+        
+        // PDF
+        case 'application/pdf':
+          const pdfResult = await this.processPdfFile(filePath);
+          extractedText = pdfResult.text;
+          metadata.pages = pdfResult.pages;
+          break;
+        
+        // Microsoft Word
+        case 'application/msword':
+        case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+          extractedText = await this.processWordFile(filePath);
+          break;
+        
+        // Microsoft Excel
+        case 'application/vnd.ms-excel':
+        case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+          const excelResult = await this.processExcelFile(filePath);
+          extractedText = excelResult.text;
+          metadata.sheets = excelResult.sheets;
+          metadata.rows = excelResult.rows;
+          break;
+        
+        // Microsoft PowerPoint  
+        case 'application/vnd.ms-powerpoint':
+        case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+          extractedText = await this.processPowerPointFile(filePath);
+          break;
+        
+        // JSON
+        case 'application/json':
+          extractedText = await this.processJsonFile(filePath);
+          metadata.encoding = 'utf-8';
+          break;
+        
+        // RTF and other formats
+        case 'application/rtf':
+          extractedText = await this.processRtfFile(filePath);
+          break;
+        
+        // OpenDocument formats (basic text extraction)
+        case 'application/vnd.oasis.opendocument.text':
+        case 'application/vnd.oasis.opendocument.spreadsheet':
+        case 'application/vnd.oasis.opendocument.presentation':
+          extractedText = await this.processOdtFile(filePath);
+          break;
+        
+        default:
+          throw new Error(`Unsupported file type: ${fileType}`);
+      }
+
+      metadata.wordCount = extractedText.split(/\s+/).length;
+
+      return {
+        id,
+        originalName,
+        fileType,
+        fileSize,
+        extractedText,
+        metadata
+      };
+    } catch (error) {
+      console.error('Document processing error:', error);
+      throw new Error(`Failed to process document: ${error.message}`);
+    }
+  }
+
+  private static async processTextFile(filePath: string): Promise<string> {
+    const buffer = await readFile(filePath);
+    return buffer.toString('utf-8');
+  }
+
+  private static async processMarkdownFile(filePath: string): Promise<string> {
+    const buffer = await readFile(filePath);
+    const markdownText = buffer.toString('utf-8');
+    // Convert markdown to HTML then extract text while preserving structure
+    const html = marked(markdownText);
+    const $ = cheerio.load(html);
+    return $.text();
+  }
+
+  private static async processHtmlFile(filePath: string): Promise<string> {
+    const buffer = await readFile(filePath);
+    const html = buffer.toString('utf-8');
+    const $ = cheerio.load(html);
+    // Remove script and style elements
+    $('script, style').remove();
+    return $.text().replace(/\s+/g, ' ').trim();
+  }
+
+  private static async processCsvFile(filePath: string): Promise<string> {
+    const buffer = await readFile(filePath);
+    const csvText = buffer.toString('utf-8');
+    
+    // Convert CSV to readable format
+    const lines = csvText.split('\n');
+    const result = [];
+    
+    if (lines.length > 0) {
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      result.push(`CSV Data with columns: ${headers.join(', ')}\n`);
+      
+      for (let i = 1; i < Math.min(lines.length, 101); i++) { // Limit to first 100 rows
+        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+        if (values.length === headers.length) {
+          const row = headers.map((header, index) => `${header}: ${values[index]}`).join(', ');
+          result.push(`Row ${i}: ${row}`);
+        }
+      }
+    }
+    
+    return result.join('\n');
+  }
+
+  private static async processPdfFile(filePath: string): Promise<{text: string, pages: number}> {
+    try {
+      const buffer = await readFile(filePath);
+      const data = await pdf(buffer);
+      return {
+        text: data.text,
+        pages: data.numpages
+      };
+    } catch (error) {
+      console.error('Error processing PDF:', error);
+      return {
+        text: `[PDF Document - Error processing: ${error.message}]`,
+        pages: 0
+      };
+    }
+  }
+
+  private static async processWordFile(filePath: string): Promise<string> {
+    try {
+      const result = await mammoth.extractRawText({path: filePath});
+      return result.value;
+    } catch (error) {
+      console.error('Error processing Word document:', error);
+      return `[Word Document - Error processing: ${error.message}]`;
+    }
+  }
+
+  private static async processExcelFile(filePath: string): Promise<{text: string, sheets: number, rows: number}> {
+    try {
+      const workbook = XLSX.readFile(filePath);
+      const sheets = workbook.SheetNames;
+      let totalRows = 0;
+      const result = [];
+
+      sheets.forEach(sheetName => {
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
+        totalRows += jsonData.length;
+        
+        result.push(`Sheet: ${sheetName}`);
+        
+        // Process first few rows for content preview
+        jsonData.slice(0, 10).forEach((row: any[], index) => {
+          if (row.length > 0) {
+            result.push(`Row ${index + 1}: ${row.join(' | ')}`);
+          }
+        });
+        
+        if (jsonData.length > 10) {
+          result.push(`... and ${jsonData.length - 10} more rows`);
+        }
+        result.push('---');
+      });
+
+      return {
+        text: result.join('\n'),
+        sheets: sheets.length,
+        rows: totalRows
+      };
+    } catch (error) {
+      console.error('Error processing Excel file:', error);
+      return {
+        text: `[Excel Document - Error processing: ${error.message}]`,
+        sheets: 0,
+        rows: 0
+      };
+    }
+  }
+
+  private static async processPowerPointFile(filePath: string): Promise<string> {
+    // PowerPoint processing is complex and would require additional libraries
+    // For now, return a placeholder that indicates the file type
+    return `[PowerPoint Presentation - Advanced processing not yet implemented for: ${path.basename(filePath)}]`;
+  }
+
+  private static async processJsonFile(filePath: string): Promise<string> {
+    const buffer = await readFile(filePath);
+    const jsonText = buffer.toString('utf-8');
+    
+    try {
+      const jsonData = JSON.parse(jsonText);
+      // Convert JSON to readable text format
+      return this.jsonToReadableText(jsonData);
+    } catch (error) {
+      return `Invalid JSON file: ${error.message}`;
+    }
+  }
+
+  private static async processRtfFile(filePath: string): Promise<string> {
+    // RTF processing would require additional libraries
+    // For now, attempt basic text extraction
+    const buffer = await readFile(filePath);
+    const rtfText = buffer.toString('utf-8');
+    
+    // Basic RTF text extraction (removes most RTF formatting codes)
+    return rtfText
+      .replace(/\\[a-z]+\d*\s?/g, '') // Remove RTF control words
+      .replace(/[{}]/g, '') // Remove braces
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+  }
+
+  private static async processOdtFile(filePath: string): Promise<string> {
+    // OpenDocument processing would require additional libraries like 'odt2txt'
+    // For now, return a placeholder
+    return `[OpenDocument file - Advanced processing not yet implemented for: ${path.basename(filePath)}]`;
+  }
+
+  private static jsonToReadableText(obj: any, depth: number = 0, maxDepth: number = 3): string {
+    if (depth > maxDepth) return '[Object too deep]';
+    
+    const indent = '  '.repeat(depth);
+    
+    if (Array.isArray(obj)) {
+      const items = obj.slice(0, 10).map(item => 
+        typeof item === 'object' ? 
+          this.jsonToReadableText(item, depth + 1, maxDepth) : 
+          String(item)
+      );
+      if (obj.length > 10) items.push('...');
+      return `[\n${items.map(item => `${indent}  ${item}`).join('\n')}\n${indent}]`;
+    } else if (typeof obj === 'object' && obj !== null) {
+      const entries = Object.entries(obj).slice(0, 20);
+      const result = entries.map(([key, value]) => {
+        const valueStr = typeof value === 'object' ? 
+          this.jsonToReadableText(value, depth + 1, maxDepth) : 
+          String(value);
+        return `${indent}${key}: ${valueStr}`;
+      });
+      if (Object.keys(obj).length > 20) result.push(`${indent}... and ${Object.keys(obj).length - 20} more properties`);
+      return result.join('\n');
+    } else {
+      return String(obj);
+    }
+  }
+
+  static async createArticleFromDocument(
+    document: ProcessedDocument,
+    maxContentLength: number = 2000
+  ): Promise<{
+    title: string;
+    content: string;
+    tags: string[];
+    sourceDocument: {
+      filename: string;
+      fileSize: number;
+      uploadDate: string;
+      fileType: string;
+    };
+  }> {
+    // Extract title from filename (remove extension)
+    const title = document.originalName.replace(/\.[^/.]+$/, '');
+    
+    // Truncate content if too long
+    let content = document.extractedText;
+    if (content.length > maxContentLength) {
+      content = content.substring(0, maxContentLength) + '...';
+    }
+
+    // Auto-generate tags based on file type and content analysis
+    const tags = ['imported', 'document'];
+    
+    // Add file type specific tags
+    if (document.fileType.includes('pdf')) tags.push('pdf');
+    if (document.fileType.includes('word')) tags.push('word');
+    if (document.fileType.includes('text')) tags.push('text');
+    if (document.fileType.includes('markdown')) tags.push('markdown');
+
+    // Simple keyword extraction for additional tags
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('legal') || lowerContent.includes('custody') || lowerContent.includes('court')) {
+      tags.push('legal');
+    }
+    if (lowerContent.includes('communication') || lowerContent.includes('message') || lowerContent.includes('talk')) {
+      tags.push('communication');
+    }
+    if (lowerContent.includes('schedule') || lowerContent.includes('time') || lowerContent.includes('visit')) {
+      tags.push('schedule');
+    }
+    if (lowerContent.includes('medical') || lowerContent.includes('health') || lowerContent.includes('doctor')) {
+      tags.push('medical');
+    }
+
+    return {
+      title,
+      content,
+      tags,
+      sourceDocument: {
+        filename: document.originalName,
+        fileSize: document.fileSize,
+        uploadDate: new Date().toISOString(),
+        fileType: document.fileType
+      }
+    };
+  }
+}
