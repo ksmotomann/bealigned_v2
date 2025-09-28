@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to BeAligned™</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(91, 173, 207, 0.05) 0%, rgba(123, 195, 232, 0.08) 100%);
+            color: #333333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, rgba(91, 173, 207, 0.05) 0%, rgba(123, 195, 232, 0.08) 100%);
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .logo {
+            width: 64px;
+            height: 64px;
+            background: #5BADCF;
+            border-radius: 16px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .header h1 {
+            color: #333333;
+            font-size: 28px;
+            margin: 0 0 10px;
+            font-weight: 700;
+        }
+
+        .header .subtitle {
+            color: #5BADCF;
+            font-size: 18px;
+            margin: 0 0 20px;
+            font-weight: 500;
+        }
+
+        .welcome-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .welcome-card h2 {
+            color: #333333;
+            font-size: 20px;
+            margin: 0 0 10px;
+            font-weight: 600;
+        }
+
+        .welcome-card p {
+            color: #6B7280;
+            margin: 0;
+        }
+
+        /* Main content */
+        .content {
+            padding: 40px 20px;
+        }
+
+        .content > p {
+            color: #6B7280;
+            margin: 0 0 15px;
+            font-size: 16px;
+        }
+
+        .content h3 {
+            color: #333333;
+            font-size: 18px;
+            margin: 20px 0 15px;
+            font-weight: 600;
+        }
+
+        /* Steps */
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(91, 173, 207, 0.05);
+            border-radius: 12px;
+            border-left: 4px solid #5BADCF;
+        }
+
+        .step-number {
+            background: #5BADCF;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .step strong {
+            color: #333333;
+            font-weight: 600;
+        }
+
+        .step p {
+            color: #6B7280;
+            margin: 5px 0 0 34px;
+            font-size: 14px;
+        }
+
+        .step .btn-container {
+            margin: 10px 0 0 34px;
+        }
+
+        .btn {
+            background: #5BADCF;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #4A90E2;
+            transform: translateY(-1px);
+        }
+
+        .step-meta {
+            margin: 5px 0 0 34px;
+            font-size: 12px;
+            color: #6B7280;
+        }
+
+        /* Note section */
+        .note {
+            background: rgba(123, 195, 232, 0.08);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 1px solid rgba(91, 173, 207, 0.2);
+        }
+
+        .note strong {
+            color: #333333;
+        }
+
+        .note p {
+            color: #6B7280;
+            margin: 0;
+        }
+
+        .badge {
+            background: rgba(91, 173, 207, 0.1);
+            color: #5BADCF;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline;
+        }
+
+        /* Links */
+        .legal-links {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .legal-links a {
+            color: #5BADCF;
+            text-decoration: none;
+        }
+
+        .legal-links a:hover {
+            text-decoration: underline;
+        }
+
+        /* Footer */
+        .footer {
+            background: #f8fafc;
+            padding: 30px 20px;
+            text-align: center;
+            border-top: 1px solid #E5E7EB;
+        }
+
+        .footer .motto {
+            font-size: 18px;
+            color: #333333;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .footer .primary-text {
+            color: #5BADCF;
+            font-weight: 600;
+        }
+
+        .footer .signature {
+            font-size: 14px;
+            margin: 0;
+            color: #6B7280;
+        }
+
+        /* Alternative text for link */
+        .link-text {
+            font-size: 14px;
+            color: #9CA3AF;
+            margin-top: 16px;
+            word-break: break-all;
+            text-align: center;
+        }
+
+        /* Responsive design */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                border-radius: 12px;
+            }
+
+            .header,
+            .content,
+            .footer {
+                padding-left: 15px;
+                padding-right: 15px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .header .subtitle {
+                font-size: 16px;
+            }
+
+            .step {
+                padding: 15px;
+            }
+
+            .btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">❤️</div>
+            <h1>Welcome to BeAligned™</h1>
+            <p class="subtitle">Your first step toward clarity</p>
+
+            <div class="welcome-card">
+                <h2>You're in. Let's get aligned.</h2>
+                <p>Hi there,</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <p>Welcome to BeAligned™ — your space to pause, reflect, and realign before responding.</p>
+
+            <h3>Here's what to do first:</h3>
+
+            <!-- Step 1: Activate Account -->
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>Activate your account</strong>
+                <div class="btn-container">
+                    <a href="{{ .ConfirmationURL }}" class="btn">Confirm Email & Sign In →</a>
+                </div>
+            </div>
+
+            <!-- Step 2: Take Tour -->
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>Take a short tour</strong>
+                <p>We'll walk you through how it works.</p>
+            </div>
+
+            <!-- Step 3: First Reflection -->
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>Start your first reflection</strong>
+                <p>Seven guided steps; just a few minutes, real relief.</p>
+                <p class="step-meta">🕒 10-15 min • 🛡️ Private & secure</p>
+            </div>
+
+            <!-- Trial & Pricing Note -->
+            <div class="note">
+                <p><strong>💡 Note:</strong> Your free trial begins today. After that, BeAligned™ is
+                <span class="badge">$79.95/year</span> —
+                you must input your payment information before your trial expires to continue.</p>
+            </div>
+
+            <!-- Legal Links -->
+            <div class="legal-links">
+                <p>Before getting started, please review our
+                <a href="https://bealigned.app/privacy">Privacy Policy</a> and
+                <a href="https://bealigned.app/terms">Terms & Conditions</a></p>
+            </div>
+
+            <!-- Alternative Link Text -->
+            <p class="link-text">
+                If the button doesn't work, copy and paste this link into your browser:<br>
+                {{ .ConfirmationURL }}
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p class="motto">
+                Be strong. Be grounded. <span class="primary-text">BeAligned.™</span>
+            </p>
+            <p class="signature">— The BeAligned™ Team</p>
+        </div>
+    </div>
+</body>
+</html>
