@@ -37,6 +37,7 @@ export default function Chat() {
   const [adminFeedbackText, setAdminFeedbackText] = useState('')
   const [showAdminInput, setShowAdminInput] = useState(false)
   const [isSubmittingAdminFeedback, setIsSubmittingAdminFeedback] = useState(false)
+  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null)
   const scrollViewRef = useRef<ScrollView>(null)
   const progressScrollViewRef = useRef<ScrollView>(null)
 
@@ -134,6 +135,7 @@ export default function Chat() {
       const query = supabase
         .from('reflection_sessions')
         .select('*')
+        .neq('status', 'archived')
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -491,8 +493,8 @@ export default function Chat() {
               <Text style={styles.userMessageText}>
                 {message.content || 'No content'}
               </Text>
-              {adminViewEnabled && (
-                <Pressable 
+              {isActualAdmin && (
+                <Pressable
                   style={styles.copyButton}
                   onPress={() => copyToClipboard(message.content || '')}
                 >
@@ -565,7 +567,7 @@ export default function Chat() {
                     {message.content || 'No content'}
                   </MarkdownText>
                 )}
-                {adminViewEnabled && (
+                {isActualAdmin && (
                   <>
                     <Pressable
                       style={styles.copyButton}
@@ -627,47 +629,53 @@ export default function Chat() {
                     setSelectedSessionId(sessionItem.id)
                     if (!isTablet) setShowMobileHistory(false)
                   }}
+                  onMouseEnter={() => setHoveredSessionId(sessionItem.id)}
+                  onMouseLeave={() => setHoveredSessionId(null)}
                 >
-                  <View style={styles.sessionInfo}>
-                    {sessionItem.title ? (
-                      <Text style={[styles.sessionTitle, isActive && styles.activeText]} numberOfLines={2}>
-                        {isActive ? '▶ ' : ''}{sessionItem.title}
+                  <View style={styles.sessionContent}>
+                    <View style={styles.sessionInfo}>
+                      {sessionItem.title ? (
+                        <Text style={[styles.sessionTitle, isActive && styles.activeText]} numberOfLines={2}>
+                          {isActive ? '▶ ' : ''}{sessionItem.title}
+                        </Text>
+                      ) : (
+                        <Text style={[styles.sessionTitle, styles.untitledSession, isActive && styles.activeText]}>
+                          {isActive ? '▶ ' : ''}{sessionItem.status === 'in_progress' ? '✨ New Reflection' : '📝 Untitled Session'}
+                        </Text>
+                      )}
+                      <Text style={[styles.sessionDate, isActive && styles.activeText]}>
+                        {createdDate.toLocaleDateString()} {createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Text>
-                    ) : (
-                      <Text style={[styles.sessionTitle, styles.untitledSession, isActive && styles.activeText]}>
-                        {isActive ? '▶ ' : ''}{sessionItem.status === 'in_progress' ? '✨ New Reflection' : '📝 Untitled Session'}
+                      <Text style={[styles.sessionStatus, isActive && styles.activeText]}>
+                        🌊 Step {sessionItem.current_step}/7 • {sessionItem.status === 'in_progress' ? 'Active' : sessionItem.status}
                       </Text>
-                    )}
-                    <Text style={[styles.sessionDate, isActive && styles.activeText]}>
-                      {createdDate.toLocaleDateString()} {createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                    <Text style={[styles.sessionStatus, isActive && styles.activeText]}>
-                      🌊 Step {sessionItem.current_step}/7 • {sessionItem.status === 'in_progress' ? 'Active' : sessionItem.status}
-                    </Text>
-                    {sessionItem.owner_name && (
-                      <Text style={styles.sessionOwner}>{sessionItem.owner_name}</Text>
-                    )}
-                    {adminViewEnabled && isActualAdmin && (
-                      <Text style={styles.sessionId}>ID: {sessionItem.id}</Text>
+                      {sessionItem.owner_name && (
+                        <Text style={styles.sessionOwner}>{sessionItem.owner_name}</Text>
+                      )}
+                      {adminViewEnabled && isActualAdmin && (
+                        <Text style={styles.sessionId}>ID: {sessionItem.id}</Text>
+                      )}
+                    </View>
+
+                    {!isArchived && (
+                      <View style={styles.sessionControls}>
+                        <Pressable
+                          onPress={() => handleArchiveSession(sessionItem.id)}
+                          style={styles.archiveButton}
+                        >
+                          <Ionicons name="archive-outline" size={18} color={ds.colors.primary.main} />
+                        </Pressable>
+                        {isActualAdmin && adminViewEnabled && (
+                          <Pressable
+                            onPress={() => handleDeleteSession(sessionItem.id)}
+                            style={styles.adminButton}
+                          >
+                            <Ionicons name="trash-outline" size={18} color={ds.colors.danger} />
+                          </Pressable>
+                        )}
+                      </View>
                     )}
                   </View>
-                  
-                  {isActualAdmin && adminViewEnabled && (
-                    <View style={styles.adminControls}>
-                      <Pressable 
-                        onPress={() => handleArchiveSession(sessionItem.id)}
-                        style={styles.adminButton}
-                      >
-                        <Ionicons name="archive-outline" size={18} color={ds.colors.warning} />
-                      </Pressable>
-                      <Pressable 
-                        onPress={() => handleDeleteSession(sessionItem.id)}
-                        style={styles.adminButton}
-                      >
-                        <Ionicons name="trash-outline" size={18} color={ds.colors.danger} />
-                      </Pressable>
-                    </View>
-                  )}
                 </Pressable>
               )
             })}
@@ -774,7 +782,7 @@ export default function Chat() {
             <Text style={[styles.reflectionTitle, !isTablet && styles.mobileReflectionTitle]}>
               {session && messages.length > 1 ? '💭 Continue Reflection' : '✨ Start New Reflection'}
             </Text>
-            {session && session.id && (
+            {session && session.id && isActualAdmin && (
               <Text style={styles.sessionIdDisplay}>
                 Session ID: {session.id.slice(-8)}
               </Text>
@@ -869,7 +877,7 @@ export default function Chat() {
             )}
           </ScrollView>
 
-          {adminViewEnabled && (
+          {isActualAdmin && (
             <View style={styles.adminToggleContainer}>
               <Pressable
                 style={styles.adminToggleButton}
@@ -890,7 +898,7 @@ export default function Chat() {
             </View>
           )}
           
-          {adminViewEnabled && showAdminInput && (
+          {isActualAdmin && showAdminInput && (
             <View style={styles.adminInputContainer}>
               <TextInput
                 style={styles.adminInput}
@@ -1323,8 +1331,24 @@ const styles = StyleSheet.create({
   archivedSessionItem: {
     opacity: 0.6,
   },
+  sessionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
   sessionInfo: {
     flex: 1,
+  },
+  sessionControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+    paddingLeft: ds.spacing[2],
+  },
+  archiveButton: {
+    padding: ds.spacing[2],
+    borderRadius: ds.borderRadius.sm,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   sessionDate: {
     fontSize: ds.typography.fontSize.sm.size,
