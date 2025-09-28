@@ -5,6 +5,58 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/login",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/signup",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/welcome",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/chat",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/profile",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/history",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/subscription",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/session/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/_expo/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/static/(.*)",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "https://bealigned.figma.site/:path*"
     }
