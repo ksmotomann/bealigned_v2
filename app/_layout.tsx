@@ -7,11 +7,17 @@ import { useRouter, useSegments } from 'expo-router'
 import { Platform } from 'react-native'
 import { SEOProvider } from '../context/SEOContext'
 import { AdminProvider } from '../contexts/AdminContext'
+import LegalAcknowledgmentModal from '../components/LegalAcknowledgmentModal'
+import AppTourModal from '../components/AppTourModal'
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isProxyContext, setIsProxyContext] = useState(false)
+  const [requiresLegalAcknowledgment, setRequiresLegalAcknowledgment] = useState(false)
+  const [showLegalModal, setShowLegalModal] = useState(false)
+  const [requiresTour, setRequiresTour] = useState(false)
+  const [showTourModal, setShowTourModal] = useState(false)
   const router = useRouter()
   const segments = useSegments()
 
@@ -39,14 +45,52 @@ export default function RootLayout() {
     }
   }, [])
 
+  // Check user's legal acknowledgment and tour status
+  const checkUserOnboardingStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('requires_legal_acknowledgment, terms_acknowledged_at, privacy_acknowledged_at, tour_completed_at')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('Error checking user onboarding status:', error)
+        return
+      }
+
+      const needsAcknowledgment = data?.requires_legal_acknowledgment ||
+                                 !data?.terms_acknowledged_at ||
+                                 !data?.privacy_acknowledged_at
+
+      const needsTour = !data?.tour_completed_at
+
+      setRequiresLegalAcknowledgment(needsAcknowledgment)
+      setRequiresTour(needsTour)
+    } catch (error) {
+      console.error('Error checking user onboarding status:', error)
+    }
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
+      if (session?.user?.id) {
+        checkUserOnboardingStatus(session.user.id)
+      }
       setIsLoading(false)
     })
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      if (session?.user?.id) {
+        checkUserOnboardingStatus(session.user.id)
+      } else {
+        setRequiresLegalAcknowledgment(false)
+        setShowLegalModal(false)
+        setRequiresTour(false)
+        setShowTourModal(false)
+      }
     })
 
     return () => {
@@ -69,9 +113,41 @@ export default function RootLayout() {
     if (!session && inTabsGroup) {
       router.replace('/(auth)/login')
     } else if (session && inAuthGroup) {
+      // Check if user needs legal acknowledgment before proceeding
+      if (requiresLegalAcknowledgment) {
+        setShowLegalModal(true)
+      } else if (requiresTour) {
+        setShowTourModal(true)
+      } else {
+        router.replace('/(tabs)/dashboard')
+      }
+    } else if (session && inTabsGroup) {
+      // Show modals if user is in tabs but hasn't completed onboarding
+      if (requiresLegalAcknowledgment) {
+        setShowLegalModal(true)
+      } else if (requiresTour) {
+        setShowTourModal(true)
+      }
+    }
+  }, [session, segments, isLoading, isProxyContext, requiresLegalAcknowledgment, requiresTour])
+
+  const handleLegalAcknowledgmentComplete = () => {
+    setShowLegalModal(false)
+    setRequiresLegalAcknowledgment(false)
+
+    // After legal acknowledgment, check if tour is needed
+    if (requiresTour) {
+      setShowTourModal(true)
+    } else {
       router.replace('/(tabs)/dashboard')
     }
-  }, [session, segments, isLoading, isProxyContext])
+  }
+
+  const handleTourComplete = () => {
+    setShowTourModal(false)
+    setRequiresTour(false)
+    router.replace('/(tabs)/dashboard')
+  }
 
   return (
     <SafeAreaProvider>
@@ -82,6 +158,20 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />
           </Stack>
+          {session?.user?.id && (
+            <>
+              <LegalAcknowledgmentModal
+                visible={showLegalModal}
+                onComplete={handleLegalAcknowledgmentComplete}
+                userId={session.user.id}
+              />
+              <AppTourModal
+                visible={showTourModal}
+                onComplete={handleTourComplete}
+                userId={session.user.id}
+              />
+            </>
+          )}
         </SEOProvider>
       </AdminProvider>
     </SafeAreaProvider>

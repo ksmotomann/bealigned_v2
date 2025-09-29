@@ -113,7 +113,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   const handleMenuAction = (action: string) => {
     setShowDropdown(false)
-    
+
     switch (action) {
       case 'profile':
         router.push('/(tabs)/settings')
@@ -123,6 +123,12 @@ export default function UserMenu({ user }: UserMenuProps) {
         break
       case 'help':
         router.push('/(marketing)/faq')
+        break
+      case 'terms':
+        router.push('/(legal)/terms')
+        break
+      case 'privacy':
+        router.push('/(legal)/privacy')
         break
       case 'admin':
         router.push('/(tabs)/admin')
@@ -189,7 +195,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                   <Text style={styles.menuText}>Settings</Text>
                 </Pressable>
 
-                <Pressable 
+                <Pressable
                   style={styles.menuItem}
                   onPress={() => handleMenuAction('help')}
                 >
@@ -197,6 +203,21 @@ export default function UserMenu({ user }: UserMenuProps) {
                   <Text style={styles.menuText}>Help & Support</Text>
                 </Pressable>
 
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={() => handleMenuAction('terms')}
+                >
+                  <Ionicons name="document-text-outline" size={20} color={ds.colors.text.secondary} />
+                  <Text style={styles.menuText}>Terms & Conditions</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.menuItem}
+                  onPress={() => handleMenuAction('privacy')}
+                >
+                  <Ionicons name="shield-outline" size={20} color={ds.colors.text.secondary} />
+                  <Text style={styles.menuText}>Privacy Policy</Text>
+                </Pressable>
 
                 {isAdmin && (
                   <>
