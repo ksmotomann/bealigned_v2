@@ -63,11 +63,16 @@ export default function Dashboard() {
       if (session?.user) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, your_why')
           .eq('id', session.user.id)
           .single()
 
         setIsAdmin(profileData?.role === 'admin')
+
+        // Set user's Your Why or use default
+        if (profileData?.your_why) {
+          setYourWhy(profileData.your_why)
+        }
 
         // Get user registration date to calculate week number
         const { data: userData } = await supabase
@@ -272,7 +277,7 @@ export default function Dashboard() {
                 <Text style={styles.sectionTitle}>Your Why</Text>
                 <Text style={styles.sectionSubtitle}>{yourWhy}</Text>
               </View>
-              <Pressable style={styles.sectionAction}>
+              <Pressable style={styles.sectionAction} onPress={() => router.push('/(tabs)/settings')}>
                 <Text style={styles.actionLinkText}>View / Update</Text>
                 <Ionicons name="chevron-forward" size={16} color={ds.colors.primary.main} />
               </Pressable>
@@ -537,16 +542,17 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     gap: ds.spacing[3],
-    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: ds.spacing[3],
+    paddingVertical: ds.spacing[2],
     paddingHorizontal: ds.spacing[4],
-    borderRadius: ds.borderRadius.lg,
+    borderRadius: ds.borderRadius.md,
+    minWidth: 140,
   },
   primaryButton: {
     backgroundColor: ds.colors.primary.main,
@@ -558,13 +564,13 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: ds.colors.text.inverse,
-    fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.semibold,
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
   },
   secondaryButtonText: {
     color: ds.colors.primary.main,
-    fontSize: ds.typography.fontSize.base.size,
+    fontSize: ds.typography.fontSize.sm.size,
     fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
   },

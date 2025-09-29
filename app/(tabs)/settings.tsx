@@ -43,6 +43,7 @@ export default function Settings() {
     first_name: '',
     last_name: '',
     email: '',
+    your_why: '',
   })
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -141,6 +142,7 @@ export default function Settings() {
           first_name: data?.first_name || '',
           last_name: data?.last_name || '',
           email: session.user.email || '',
+          your_why: data?.your_why || '',
         })
       }
     } catch (error) {
@@ -270,6 +272,7 @@ export default function Settings() {
         .update({
           first_name: editProfileData.first_name.trim(),
           last_name: editProfileData.last_name.trim(),
+          your_why: editProfileData.your_why.trim(),
         })
         .eq('id', session.user.id)
 
@@ -528,6 +531,13 @@ export default function Settings() {
         <View style={styles.infoRow}>
           <Text style={styles.label}>Role</Text>
           <Text style={styles.value}>{profile?.role || 'User'}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.label}>Your Why</Text>
+          <Text style={styles.value}>
+            {profile?.your_why ? profile.your_why : 'Not set'}
+          </Text>
         </View>
       </View>
 
@@ -1143,6 +1153,22 @@ export default function Settings() {
                 />
                 <Text style={styles.formHelperText}>
                   Changing your email will require confirmation
+                </Text>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Your Why</Text>
+                <TextInput
+                  style={[styles.formInput, styles.textArea]}
+                  value={editProfileData.your_why}
+                  onChangeText={(text) => setEditProfileData(prev => ({ ...prev, your_why: text }))}
+                  placeholder="What drives your co-parenting journey? What's your deeper purpose?"
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.formHelperText}>
+                  Share the deeper purpose that guides your co-parenting decisions
                 </Text>
               </View>
 
@@ -2102,5 +2128,9 @@ const styles = StyleSheet.create({
     fontSize: ds.typography.fontSize.base.size,
     fontWeight: ds.typography.fontWeight.semibold,
     fontFamily: ds.typography.fontFamily.base,
+  },
+  textArea: {
+    height: 80,
+    paddingTop: ds.spacing[3],
   },
 });
