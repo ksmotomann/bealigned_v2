@@ -1868,7 +1868,7 @@ export default function AdminPanel() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader activeTab="admin" />
+      <InAppNavigationHeader />
       
       {/* Success/Error Message Toast */}
       {saveMessage && (

@@ -1,22 +1,13 @@
-import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from 'react-native'
+import React, { useEffect, useState, useRef } from 'react'
+import { View, Text, ScrollView, Pressable, StyleSheet, Platform, Share, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { Session } from '@supabase/supabase-js'
 import { Ionicons } from '@expo/vector-icons'
 import InAppNavigationHeader from '../../components/InAppNavigationHeader'
-import WelcomeHeader from '../../components/WelcomeHeader'
 import TrialStatus from '../../components/TrialStatus'
 import ds from '../../styles/design-system'
-
-interface ReflectionPattern {
-  id: string
-  label: string
-  value: number
-  color: string
-  description: string
-}
 
 interface RecentReflection {
   id: string
@@ -26,24 +17,35 @@ interface RecentReflection {
   current_step: number
 }
 
+interface NavigationTab {
+  id: string
+  label: string
+  icon: keyof typeof Ionicons.glyphMap
+}
+
 export default function Dashboard() {
   const router = useRouter()
+  const scrollViewRef = useRef<ScrollView>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [firstName, setFirstName] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [recentReflections, setRecentReflections] = useState<RecentReflection[]>([])
   const [inProgressSession, setInProgressSession] = useState<RecentReflection | null>(null)
-  const [streakCount, setStreakCount] = useState(0)
+  const [streakCount, setStreakCount] = useState(5)
   const [loading, setLoading] = useState(true)
+  const [yourWhy, setYourWhy] = useState('Your Child\'s Stability = Your North Star')
+  const [completedReflections, setCompletedReflections] = useState(12)
+  const [currentWeekNumber, setCurrentWeekNumber] = useState(1)
+  const [userCreatedAt, setUserCreatedAt] = useState<string | null>(null)
 
-  const [reflectionPatterns] = useState([
-    { id: '1', label: 'Overwhelmed', value: 80, color: ds.colors.primary.main, description: 'Most Common Feeling' },
-    { id: '2', label: 'Frustrated', value: 60, color: ds.colors.primary.light, description: '' },
-    { id: '3', label: 'Concerned', value: 40, color: ds.colors.primary.light, description: '' },
-    { id: '4', label: 'Child stability', value: 95, color: ds.colors.primary.main, description: 'Most Important Needs' },
-    { id: '5', label: 'Child communication', value: 70, color: ds.colors.primary.light, description: '' },
-    { id: '6', label: 'Respect', value: 60, color: ds.colors.primary.light, description: '' },
-  ])
+  const navigationTabs: NavigationTab[] = [
+    { id: 'reflection', label: 'Start Reflection', icon: 'play-circle-outline' },
+    { id: 'why', label: 'Your Why', icon: 'heart-outline' },
+    { id: 'streak', label: 'Streak', icon: 'flame-outline' },
+    { id: 'proof', label: 'Proof', icon: 'document-outline' },
+    { id: 'grounding', label: 'Grounding', icon: 'leaf-outline' },
+    { id: 'resources', label: 'Resources', icon: 'library-outline' },
+  ]
 
   useEffect(() => {
     loadDashboardData()
@@ -67,6 +69,19 @@ export default function Dashboard() {
 
         setIsAdmin(profileData?.role === 'admin')
 
+        // Get user registration date to calculate week number
+        const { data: userData } = await supabase
+          .from('users')
+          .select('created_at')
+          .eq('id', session.user.id)
+          .single()
+
+        if (userData?.created_at) {
+          setUserCreatedAt(userData.created_at)
+          const weekNumber = calculateWeekNumber(userData.created_at)
+          setCurrentWeekNumber(weekNumber)
+        }
+
         const { data: sessionsData } = await supabase
           .from('reflection_sessions')
           .select('id, title, status, current_step, created_at')
@@ -76,11 +91,11 @@ export default function Dashboard() {
 
         if (sessionsData) {
           setRecentReflections(sessionsData)
-
           const inProgress = sessionsData.find(s => s.status === 'in_progress')
           setInProgressSession(inProgress || null)
         }
 
+        // Calculate streak count
         const { data: completedData } = await supabase
           .from('reflection_sessions')
           .select('completed_at')
@@ -90,6 +105,9 @@ export default function Dashboard() {
           .order('completed_at', { ascending: false })
 
         if (completedData && completedData.length > 0) {
+          // Set the actual completed reflections count
+          setCompletedReflections(completedData.length)
+
           let streak = 0
           let currentDate = new Date()
           currentDate.setHours(0, 0, 0, 0)
@@ -109,6 +127,9 @@ export default function Dashboard() {
           }
 
           setStreakCount(streak)
+        } else {
+          // No completed reflections yet
+          setCompletedReflections(0)
         }
       }
     } catch (error) {
@@ -118,238 +139,299 @@ export default function Dashboard() {
     }
   }
 
-  function formatDate(dateString: string) {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
+  const calculateWeekNumber = (createdAt: string): number => {
+    const registrationDate = new Date(createdAt)
+    const currentDate = new Date()
+    const diffTime = Math.abs(currentDate.getTime() - registrationDate.getTime())
+    const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7))
+
+    // Cycle through weeks 1-12, starting from week 1
+    return ((diffWeeks % 12) + 1)
   }
 
-  function getStatusDisplay(status: string) {
-    const statusMap = {
-      'completed': { label: 'Completed', color: ds.colors.success },
-      'in_progress': { label: 'In Progress', color: ds.colors.warning },
-      'archived': { label: 'Archived', color: ds.colors.neutral[500] },
+  const getGroundingImageSource = () => {
+    // Static mapping of week numbers to image sources
+    const groundingImages = {
+      1: require('../../assets/grounding/WK1.png'),
+      2: require('../../assets/grounding/WK2.png'),
+      3: require('../../assets/grounding/WK3.png'),
+      4: require('../../assets/grounding/WK4.png'),
+      5: require('../../assets/grounding/WK5.png'),
+      6: require('../../assets/grounding/WK6.png'),
+      7: require('../../assets/grounding/WK7.png'),
+      8: require('../../assets/grounding/WK8.png'),
+      9: require('../../assets/grounding/WK9.png'),
+      10: require('../../assets/grounding/WK10.png'),
+      11: require('../../assets/grounding/WK11.png'),
+      12: require('../../assets/grounding/WK12.png'),
     }
-    return statusMap[status as keyof typeof statusMap] || { label: status, color: ds.colors.neutral[500] }
+
+    return groundingImages[currentWeekNumber as keyof typeof groundingImages] || groundingImages[1]
+  }
+
+  const scrollToSection = (sectionId: string) => {
+    // In a production app, this would implement smooth scrolling to sections
+    console.log(`Scrolling to ${sectionId}`)
+  }
+
+  const shareGroundingImage = async () => {
+    try {
+      // For now, share a message about the grounding image
+      // In production, you'd want to share the actual image file
+      const message = `Week ${currentWeekNumber} Grounding from BeAligned™\n\nBe grounded. Be clear. BeAligned.™\n\n#BeAligned #Mindfulness #CoParenting`
+
+      await Share.share({
+        message: message,
+        title: `Week ${currentWeekNumber} Grounding - BeAligned™`
+      })
+    } catch (error) {
+      console.error('Error sharing grounding image:', error)
+    }
+  }
+
+  const downloadReflectionSummary = () => {
+    // Implementation for downloading reflection summary
+    console.log('Downloading reflection summary...')
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader activeTab="dashboard" />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Welcome Header */}
-        <WelcomeHeader firstName={firstName} />
+      <InAppNavigationHeader />
 
+      {/* Navigation Tabs */}
+      <View style={styles.tabNavigation}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScrollView}>
+          {navigationTabs.map((tab) => (
+            <Pressable
+              key={tab.id}
+              style={styles.tabItem}
+              onPress={() => scrollToSection(tab.id)}
+            >
+              <Ionicons name={tab.icon} size={16} color={ds.colors.primary.main} />
+              <Text style={styles.tabLabel}>{tab.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+
+      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} style={styles.scrollView}>
         {/* Trial Status */}
         {session?.user?.id && (
           <TrialStatus userId={session.user.id} />
         )}
 
         <View style={styles.content}>
-          {/* Main Action Buttons */}
-          <View style={styles.buttonRow}>
-            <Pressable
-              style={[styles.actionButton, styles.primaryButton]}
-              onPress={() => router.push('/(tabs)/chat')}
-            >
-              <Text style={styles.primaryButtonText}>Start New Reflection</Text>
-            </Pressable>
-
-            {inProgressSession && (
+          {/* Welcome Section Card */}
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeTitle}>👏 Welcome back, {firstName || 'Trina'}</Text>
+            <Text style={styles.welcomeSubtitle}>This is your space to pause, reflect, and realign.</Text>
+          </View>
+          {/* Main Reflection Action Area */}
+          <View style={styles.reflectionActionCard}>
+            <View style={styles.playButtonContainer}>
               <Pressable
-                style={[styles.actionButton, styles.secondaryButton]}
-                onPress={() => router.push(`/session/${inProgressSession.id}`)}
+                style={styles.playButton}
+                onPress={() => router.push('/(tabs)/chat')}
               >
-                <Text style={styles.secondaryButtonText}>Continue Reflection</Text>
-              </Pressable>
-            )}
-          </View>
-
-          {/* Quick Questions Section */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="star-outline" size={20} color={ds.colors.primary.main} />
-              <Text style={styles.cardTitle}>Your Reflection Shapes Background™</Text>
-            </View>
-            <Text style={styles.cardDescription}>
-              Each reflection matters: Use sharing what you're noticing, work on it. Using BeAligned™ 
-              strengthens your natural way your experience and helps you address the situation this process.
-            </Text>
-            <Text style={styles.sectionSubtitle}>How helpful was this process for you?</Text>
-            
-            {/* Rating Stars */}
-            <View style={styles.ratingContainer}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Pressable key={star} style={styles.starButton}>
-                  <Ionicons name="star" size={24} color={ds.colors.warning} />
-                </Pressable>
-              ))}
-              <Text style={styles.ratingText}>Extremely helpful</Text>
-            </View>
-
-            {/* Quick Questions */}
-            <View style={styles.questionsContainer}>
-              <Text style={styles.questionLabel}>What's on minds?</Text>
-              <Text style={styles.questionSubtext}>Are you looking at your next step?</Text>
-              <View style={styles.answerOptions}>
-                <Pressable style={styles.answerButton}>
-                  <Text style={styles.answerText}>Yes</Text>
-                </Pressable>
-                <Pressable style={styles.answerButton}>
-                  <Text style={styles.answerText}>Somewhat</Text>
-                </Pressable>
-                <Pressable style={styles.answerButton}>
-                  <Text style={styles.answerText}>No</Text>
-                </Pressable>
-              </View>
-              
-              <Text style={styles.questionLabel}>How would that that describe how you feel about?</Text>
-              <Text style={styles.questionSubtext}>Any insights from or increase?</Text>
-              
-              <Pressable style={[styles.actionButton, styles.primaryButton, styles.fullWidthButton]}>
-                <Text style={styles.primaryButtonText}>Continue Next Previous Reflection</Text>
+                <Ionicons name="play" size={32} color={ds.colors.background.primary} />
               </Pressable>
             </View>
+            <Text style={styles.actionTitle}>
+              {completedReflections === 0 ? 'Ready for your first reflection?' : 'Ready for your next reflection?'}
+            </Text>
+            <Text style={styles.actionSubtitle}>Transform today's challenges into tomorrow's wisdom</Text>
+
+            <View style={styles.actionButtons}>
+              <Pressable
+                style={[styles.actionButton, styles.primaryButton]}
+                onPress={() => router.push('/(tabs)/chat')}
+              >
+                <Ionicons name="play" size={16} color={ds.colors.text.inverse} style={styles.buttonIcon} />
+                <Text style={styles.primaryButtonText}>Start New Reflection</Text>
+              </Pressable>
+
+              {inProgressSession && (
+                <Pressable
+                  style={[styles.actionButton, styles.secondaryButton]}
+                  onPress={() => router.push(`/session/${inProgressSession.id}`)}
+                >
+                  <Ionicons name="refresh" size={16} color={ds.colors.primary.main} style={styles.buttonIcon} />
+                  <Text style={styles.secondaryButtonText}>Continue Reflection</Text>
+                </Pressable>
+              )}
+            </View>
           </View>
 
-          {/* Reflection Patterns */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="analytics-outline" size={20} color={ds.colors.primary.main} />
-              <Text style={styles.cardTitle}>Your Reflection Patterns</Text>
-            </View>
-            <Text style={styles.cardDescription}>
-              Based on your recent reflections, here are the feelings and needs that you most often draw on.
-            </Text>
-            
-            <View style={styles.patternsContainer}>
-              <View style={styles.patternColumn}>
-                <Text style={styles.patternColumnTitle}>Most Common Feelings</Text>
-                {reflectionPatterns.slice(0, 3).map((pattern) => (
-                  <View key={pattern.id} style={styles.patternItem}>
-                    <Text style={styles.patternLabel}>{pattern.label}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${pattern.value}%`, backgroundColor: pattern.color }]} />
-                    </View>
-                    <Text style={styles.patternValue}>{pattern.value}%</Text>
-                  </View>
-                ))}
+          {/* Your Why Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="heart" size={20} color={ds.colors.primary.main} />
               </View>
-              
-              <View style={styles.patternColumn}>
-                <Text style={styles.patternColumnTitle}>Most Important Needs</Text>
-                {reflectionPatterns.slice(3).map((pattern) => (
-                  <View key={pattern.id} style={styles.patternItem}>
-                    <Text style={styles.patternLabel}>{pattern.label}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${pattern.value}%`, backgroundColor: pattern.color }]} />
-                    </View>
-                    <Text style={styles.patternValue}>{pattern.value}%</Text>
-                  </View>
-                ))}
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.sectionTitle}>Your Why</Text>
+                <Text style={styles.sectionSubtitle}>{yourWhy}</Text>
               </View>
+              <Pressable style={styles.sectionAction}>
+                <Text style={styles.actionLinkText}>View / Update</Text>
+                <Ionicons name="chevron-forward" size={16} color={ds.colors.primary.main} />
+              </Pressable>
             </View>
-            
-            <Text style={styles.insightText}>
-              Insight: Your reflections consistently show your child's stability above all else. When you feel overwhelmed,
-              focusing on how most important moves have you family.
-            </Text>
-          </View>
 
-          {/* Reflection Streak */}
-          {streakCount > 0 && (
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.streakBadge}>
-                  <Text style={styles.streakNumber}>{streakCount}</Text>
-                </View>
-                <View>
-                  <Text style={styles.cardTitle}>Reflection Streak</Text>
-                  <Text style={styles.streakSubtitle}>You're on a {streakCount} day streak!</Text>
-                </View>
-              </View>
-              <Text style={styles.streakDescription}>Keep reflecting to maintain your streak</Text>
-            </View>
-          )}
-
-          {/* Recent Reflections */}
-          {recentReflections.length > 0 && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Recent Reflections</Text>
-              <View style={styles.recentReflectionsList}>
-                {recentReflections.map((reflection) => {
-                  const statusInfo = getStatusDisplay(reflection.status)
-                  return (
-                    <Pressable
-                      key={reflection.id}
-                      style={styles.reflectionItem}
-                      onPress={() => router.push(`/session/${reflection.id}`)}
-                    >
-                      <View style={styles.reflectionDate}>
-                        <Text style={styles.reflectionDateText}>{formatDate(reflection.created_at)}</Text>
-                      </View>
-                      <View style={styles.reflectionContent}>
-                        <Text style={styles.reflectionTitle}>{reflection.title || 'Untitled Reflection'}</Text>
-                        <View style={styles.reflectionStatus}>
-                          <View style={[styles.statusDot, { backgroundColor: statusInfo.color }]} />
-                          <Text style={styles.statusText}>{statusInfo.label}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.reflectionAction}>
-                        <Ionicons name="chevron-forward" size={20} color={ds.colors.text.tertiary} />
-                      </View>
-                    </Pressable>
-                  )
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Additional Resources */}
-          <View style={styles.resourcesContainer}>
-            {/* Weekly Grounding */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Weekly Grounding</Text>
+            <View style={styles.quoteContainer}>
               <Text style={styles.quote}>
-                "In between every stimulus and response there is a space. In that space is the power to choose..."
+                "Every reflection I do brings me closer to being the parent my child deserves. When I'm centered, they feel secure."
               </Text>
-              <Text style={styles.quoteAuthor}>- Victor Frankl</Text>
-              <Text style={styles.beText}>Be</Text>
-              <Text style={styles.beSubtext}>Be conscious. Be your BeAligned.</Text>
+            </View>
+          </View>
+
+          {/* Reflection Streak Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="flame" size={20} color={ds.colors.primary.main} />
+              </View>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.sectionTitle}>Reflection Streak</Text>
+                <Text style={styles.sectionSubtitle}>Keep the momentum going</Text>
+              </View>
+              <View style={styles.streakBadge}>
+                <Text style={styles.streakDaysText}>{streakCount} days</Text>
+              </View>
             </View>
 
-            {/* BeH2OR Certified Coaching */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="school-outline" size={20} color={ds.colors.primary.main} />
-                <Text style={styles.cardTitle}>BeH2OR Certified Coaching</Text>
+            <View style={styles.streakProgress}>
+              <Text style={styles.streakLabel}>Current Streak</Text>
+              <View style={styles.streakProgressContainer}>
+                <View style={styles.streakProgressBar}>
+                  <View style={[styles.streakProgressFill, { width: `${Math.min((streakCount / 7) * 100, 100)}%` }]} />
+                </View>
+                <Text style={styles.streakDaysLabel}>{streakCount} days</Text>
               </View>
-              <Text style={styles.cardDescription}>
-                Ready to take your co-parenting to the next level? Book your complementary 15-minute Prep Mini Session.
-                Your Best BeH2OR coach-ready relationship for BeAligned™ approach.
-              </Text>
-              <Pressable style={styles.linkButton}>
-                <Text style={styles.linkButtonText}>Book Your Prep Session</Text>
-              </Pressable>
+              <Text style={styles.streakGoal}>2 more days to reach your weekly goal!</Text>
+            </View>
+          </View>
+
+          {/* Proof of Reflection Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="document-text" size={20} color={ds.colors.primary.main} />
+              </View>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.sectionTitle}>Proof of Reflection</Text>
+                <Text style={styles.sectionSubtitle}>Download your progress</Text>
+              </View>
+              <View style={styles.completedBadge}>
+                <Text style={styles.completedText}>{completedReflections} completed</Text>
+              </View>
             </View>
 
-            {/* BeAligned Community */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="people-outline" size={20} color={ds.colors.primary.main} />
-                <Text style={styles.cardTitle}>BeAligned Community</Text>
+            <Text style={styles.proofDescription}>
+              Generate a summary of your reflection journey for legal or personal records.
+            </Text>
+
+            <Pressable style={styles.downloadButton} onPress={downloadReflectionSummary}>
+              <Ionicons name="download" size={16} color={ds.colors.primary.main} />
+              <Text style={styles.downloadButtonText}>Download Reflection Summary</Text>
+            </Pressable>
+          </View>
+
+          {/* Weekly Grounding Section - Designed for Social Media Sharing */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="leaf" size={20} color={ds.colors.primary.main} />
               </View>
-              <Text style={styles.cardDescription}>
-                Access the BeAligned Web, select from professionals, and receive encouragement and ideas from parents
-                with circumstances who share your commitment to putting X first.
-              </Text>
-              <Pressable style={styles.linkButton}>
-                <Text style={styles.linkButtonText}>Visit Community</Text>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.sectionTitle}>Weekly Grounding</Text>
+                <Text style={styles.sectionSubtitle}>Week {currentWeekNumber} inspiration</Text>
+              </View>
+            </View>
+
+            {/* Social Media Shareable Image Card */}
+            <View style={styles.groundingShareCard}>
+              <View style={styles.groundingImageContainer}>
+                <Image
+                  source={getGroundingImageSource()}
+                  style={styles.groundingImage}
+                  resizeMode="contain"
+                />
+              </View>
+
+              <Pressable style={styles.shareButton} onPress={shareGroundingImage}>
+                <Ionicons name="share" size={16} color={ds.colors.primary.main} />
+                <Text style={styles.shareButtonText}>Share This Image</Text>
               </Pressable>
             </View>
+          </View>
+
+          {/* Resource Library Section */}
+          <View style={styles.resourceLibrarySection}>
+            <Text style={styles.resourceLibraryTitle}>Resource Library</Text>
+            <Text style={styles.resourceLibrarySubtitle}>Tools and support for your co-parenting journey</Text>
+
+            <View style={styles.resourceGrid}>
+              <Pressable style={styles.resourceCard}>
+                <View style={styles.resourceIconContainer}>
+                  <Ionicons name="heart" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.resourceTitle}>Feelings & Needs Bank</Text>
+                <Text style={styles.resourceDescription}>Explore emotional vocabulary</Text>
+                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
+              </Pressable>
+
+              <Pressable style={styles.resourceCard}>
+                <View style={styles.resourceIconContainer}>
+                  <Ionicons name="shield-checkmark" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.resourceTitle}>Guardrails</Text>
+                <Text style={styles.resourceDescription}>Healthy boundaries guide</Text>
+                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
+              </Pressable>
+
+              <Pressable style={styles.resourceCard}>
+                <View style={styles.resourceIconContainer}>
+                  <Ionicons name="chatbubbles" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.resourceTitle}>Coaching</Text>
+                <Text style={styles.resourceDescription}>Connect with certified coaches</Text>
+                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
+              </Pressable>
+
+              <Pressable style={styles.resourceCard}>
+                <View style={styles.resourceIconContainer}>
+                  <Ionicons name="people" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.resourceTitle}>Community</Text>
+                <Text style={styles.resourceDescription}>Join supportive discussions</Text>
+                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
+              </Pressable>
+
+              <Pressable style={styles.resourceCard}>
+                <View style={styles.resourceIconContainer}>
+                  <Ionicons name="musical-notes" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.resourceTitle}>Soundbites</Text>
+                <Text style={styles.resourceDescription}>Quick audio reflections</Text>
+                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
+              </Pressable>
+
+              <Pressable style={styles.resourceCard}>
+                <View style={styles.resourceIconContainer}>
+                  <Ionicons name="library" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.resourceTitle}>Resources</Text>
+                <Text style={styles.resourceDescription}>Articles and tools</Text>
+                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Legal Disclaimer */}
+          <View style={styles.disclaimerContainer}>
+            <Ionicons name="warning" size={16} color={ds.colors.warning} />
+            <Text style={styles.disclaimerText}>⚠️ BeAligned does not offer legal advice or therapy</Text>
           </View>
         </View>
       </ScrollView>
@@ -362,29 +444,117 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: ds.colors.background.secondary,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: ds.spacing[6],
-    paddingTop: ds.spacing[6],
+    paddingBottom: ds.spacing[8],
   },
-  buttonRow: {
+
+  // Tab Navigation
+  tabNavigation: {
+    backgroundColor: ds.colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: ds.colors.neutral[200],
+  },
+  tabScrollView: {
+    paddingHorizontal: ds.spacing[4],
+  },
+  tabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[3],
+    marginRight: ds.spacing[4],
+  },
+  tabLabel: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Welcome Section
+  welcomeSection: {
+    backgroundColor: '#f0f7ff', // Light blue background
+    borderRadius: ds.borderRadius.xl,
+    padding: ds.spacing[6],
+    marginTop: ds.spacing[8],
+    marginBottom: ds.spacing[6],
+    ...ds.shadows.base,
+  },
+  welcomeTitle: {
+    fontSize: ds.typography.fontSize['2xl'].size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    marginBottom: ds.spacing[2],
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  welcomeSubtitle: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Main Reflection Action
+  reflectionActionCard: {
+    backgroundColor: '#f0f7ff', // Light blue background
+    borderRadius: ds.borderRadius.xl,
+    padding: ds.spacing[8],
+    marginBottom: ds.spacing[6],
+    alignItems: 'center',
+    ...ds.shadows.base,
+  },
+  playButtonContainer: {
+    marginBottom: ds.spacing[4],
+  },
+  playButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: ds.colors.primary.main,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...ds.shadows.lg,
+  },
+  actionTitle: {
+    fontSize: ds.typography.fontSize.xl.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    textAlign: 'center',
+    marginBottom: ds.spacing[2],
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  actionSubtitle: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: ds.spacing[6],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  actionButtons: {
     flexDirection: 'row',
     gap: ds.spacing[3],
-    marginBottom: ds.spacing[6],
+    width: '100%',
   },
   actionButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: ds.spacing[3],
     paddingHorizontal: ds.spacing[4],
-    borderRadius: ds.borderRadius.md,
-    alignItems: 'center',
+    borderRadius: ds.borderRadius.lg,
   },
   primaryButton: {
     backgroundColor: ds.colors.primary.main,
   },
   secondaryButton: {
-    backgroundColor: ds.colors.background.primary,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: ds.colors.neutral[300],
+    borderColor: ds.colors.primary.main,
   },
   primaryButtonText: {
     color: ds.colors.text.inverse,
@@ -393,260 +563,276 @@ const styles = StyleSheet.create({
     fontFamily: ds.typography.fontFamily.base,
   },
   secondaryButtonText: {
-    color: ds.colors.text.primary,
+    color: ds.colors.primary.main,
     fontSize: ds.typography.fontSize.base.size,
     fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
   },
-  fullWidthButton: {
-    flex: 'none',
-    alignSelf: 'stretch',
+  buttonIcon: {
+    marginRight: ds.spacing[2],
   },
-  card: {
+
+  // Section Cards
+  sectionCard: {
     backgroundColor: ds.colors.background.primary,
-    borderRadius: ds.borderRadius.lg,
+    borderRadius: ds.borderRadius.xl,
     padding: ds.spacing[6],
     marginBottom: ds.spacing[6],
     ...ds.shadows.base,
   },
-  cardHeader: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ds.spacing[2],
-    marginBottom: ds.spacing[3],
-  },
-  cardTitle: {
-    fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.primary,
-    fontFamily: ds.typography.fontFamily.heading,
-  },
-  cardDescription: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    lineHeight: ds.typography.fontSize.sm.lineHeight + 4,
-    marginBottom: ds.spacing[4],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  sectionSubtitle: {
-    fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.medium,
-    color: ds.colors.text.primary,
-    marginBottom: ds.spacing[3],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ds.spacing[1],
     marginBottom: ds.spacing[4],
   },
-  starButton: {
-    padding: ds.spacing[1],
-  },
-  ratingText: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    marginLeft: ds.spacing[2],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  questionsContainer: {
-    marginTop: ds.spacing[4],
-  },
-  questionLabel: {
-    fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.medium,
-    color: ds.colors.text.primary,
-    marginBottom: ds.spacing[1],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  questionSubtext: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    marginBottom: ds.spacing[3],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  answerOptions: {
-    flexDirection: 'row',
-    gap: ds.spacing[2],
-    marginBottom: ds.spacing[4],
-  },
-  answerButton: {
-    paddingVertical: ds.spacing[2],
-    paddingHorizontal: ds.spacing[3],
-    borderWidth: 1,
-    borderColor: ds.colors.neutral[300],
-    borderRadius: ds.borderRadius.md,
-    backgroundColor: ds.colors.background.primary,
-  },
-  answerText: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  patternsContainer: {
-    flexDirection: 'row',
-    gap: ds.spacing[6],
-  },
-  patternColumn: {
-    flex: 1,
-  },
-  patternColumnTitle: {
-    fontSize: ds.typography.fontSize.sm.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.primary,
-    marginBottom: ds.spacing[3],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  patternItem: {
-    marginBottom: ds.spacing[3],
-  },
-  patternLabel: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    marginBottom: ds.spacing[1],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: ds.colors.neutral[200],
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: ds.spacing[1],
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  patternValue: {
-    fontSize: ds.typography.fontSize.xs.size,
-    color: ds.colors.text.tertiary,
-    textAlign: 'right',
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  insightText: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    fontStyle: 'italic',
-    marginTop: ds.spacing[4],
-    padding: ds.spacing[3],
-    backgroundColor: ds.colors.neutral[50],
-    borderRadius: ds.borderRadius.md,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  streakBadge: {
+  iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: ds.colors.primary.main,
+    backgroundColor: ds.colors.primary.light + '20',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: ds.spacing[3],
   },
-  streakNumber: {
-    color: ds.colors.text.inverse,
+  sectionTitleContainer: {
+    flex: 1,
+  },
+  sectionTitle: {
     fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.bold,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.heading,
   },
-  streakSubtitle: {
+  sectionSubtitle: {
     fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
   },
-  streakDescription: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  recentReflectionsList: {
-    marginTop: ds.spacing[4],
-  },
-  reflectionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: ds.spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: ds.colors.neutral[100],
-  },
-  reflectionDate: {
-    width: 80,
-  },
-  reflectionDateText: {
-    fontSize: ds.typography.fontSize.xs.size,
-    color: ds.colors.text.tertiary,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  reflectionContent: {
-    flex: 1,
-    marginLeft: ds.spacing[3],
-  },
-  reflectionTitle: {
-    fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.text.primary,
-    fontWeight: ds.typography.fontWeight.medium,
-    marginBottom: ds.spacing[1],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  reflectionStatus: {
+  sectionAction: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ds.spacing[1],
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    fontSize: ds.typography.fontSize.xs.size,
-    color: ds.colors.text.tertiary,
+  actionLinkText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
   },
-  reflectionAction: {
-    padding: ds.spacing[1],
-  },
-  resourcesContainer: {
-    marginBottom: ds.spacing[6],
+
+  // Your Why Section
+  quoteContainer: {
+    backgroundColor: ds.colors.neutral[50],
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[4],
   },
   quote: {
     fontSize: ds.typography.fontSize.base.size,
     fontStyle: 'italic',
     color: ds.colors.text.secondary,
     lineHeight: ds.typography.fontSize.base.lineHeight + 4,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Streak Section
+  streakBadge: {
+    backgroundColor: ds.colors.primary.light + '20',
+    paddingHorizontal: ds.spacing[3],
+    paddingVertical: ds.spacing[1],
+    borderRadius: ds.borderRadius.full,
+  },
+  streakDaysText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.primary.main,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  streakProgress: {
+    marginTop: ds.spacing[2],
+  },
+  streakLabel: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
     marginBottom: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.base,
   },
-  quoteAuthor: {
+  streakProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[3],
+  },
+  streakProgressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: ds.colors.neutral[200],
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  streakProgressFill: {
+    height: '100%',
+    backgroundColor: ds.colors.primary.main,
+    borderRadius: 4,
+  },
+  streakDaysLabel: {
+    fontSize: ds.typography.fontSize.lg.size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.primary.main,
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  streakGoal: {
     fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.tertiary,
+    color: ds.colors.text.secondary,
+    marginTop: ds.spacing[2],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Proof Section
+  completedBadge: {
+    backgroundColor: ds.colors.success + '20',
+    paddingHorizontal: ds.spacing[3],
+    paddingVertical: ds.spacing[1],
+    borderRadius: ds.borderRadius.full,
+  },
+  completedText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    color: ds.colors.success,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  proofDescription: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    lineHeight: ds.typography.fontSize.base.lineHeight + 4,
     marginBottom: ds.spacing[4],
     fontFamily: ds.typography.fontFamily.base,
   },
-  beText: {
-    fontSize: ds.typography.fontSize['4xl'].size,
-    fontWeight: ds.typography.fontWeight.bold,
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ds.spacing[2],
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: ds.colors.primary.main,
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    borderRadius: ds.borderRadius.lg,
+  },
+  downloadButtonText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Grounding Section - Social Media Optimized
+  groundingShareCard: {
+    backgroundColor: '#faf9f9',
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[6],
+    marginBottom: ds.spacing[4],
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+  },
+  groundingImageContainer: {
+    alignItems: 'center',
+    marginBottom: ds.spacing[4],
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[4],
+  },
+  groundingImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: ds.borderRadius.lg,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ds.spacing[2],
+    backgroundColor: ds.colors.primary.main,
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    borderRadius: ds.borderRadius.lg,
+  },
+  shareButtonText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.inverse,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Resource Library
+  resourceLibrarySection: {
+    marginBottom: ds.spacing[8],
+  },
+  resourceLibraryTitle: {
+    fontSize: ds.typography.fontSize.xl.size,
+    fontWeight: ds.typography.fontWeight.semibold,
     color: ds.colors.text.primary,
-    textAlign: 'center',
+    marginBottom: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  beSubtext: {
+  resourceLibrarySubtitle: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    marginBottom: ds.spacing[6],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  resourceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: ds.spacing[4],
+  },
+  resourceCard: {
+    width: '47%',
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[4],
+    alignItems: 'flex-start',
+    ...ds.shadows.sm,
+  },
+  resourceIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: ds.colors.primary.light + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: ds.spacing[3],
+  },
+  resourceTitle: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    marginBottom: ds.spacing[1],
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  resourceDescription: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    marginBottom: ds.spacing[2],
+    flex: 1,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Disclaimer
+  disclaimerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ds.spacing[2],
+    backgroundColor: ds.colors.warning + '10',
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    borderRadius: ds.borderRadius.lg,
+    marginBottom: ds.spacing[6],
+  },
+  disclaimerText: {
     fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     textAlign: 'center',
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  linkButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: ds.spacing[2],
-    paddingHorizontal: ds.spacing[4],
-    backgroundColor: ds.colors.primary.main,
-    borderRadius: ds.borderRadius.md,
-    marginTop: ds.spacing[3],
-  },
-  linkButtonText: {
-    color: ds.colors.text.inverse,
-    fontSize: ds.typography.fontSize.sm.size,
-    fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
   },
 })

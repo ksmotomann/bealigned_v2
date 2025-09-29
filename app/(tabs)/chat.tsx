@@ -774,7 +774,7 @@ export default function Chat() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader activeTab="chat" />
+      <InAppNavigationHeader />
       
       <View style={[styles.reflectionHeader, !isTablet && styles.mobileReflectionHeader]}>
         <View style={styles.reflectionHeaderContent}>
