@@ -26,8 +26,8 @@ export default function LandingPage() {
       <AnimatedWaveHero style={styles.hero}>
         <View style={styles.heroContent}>
           <View style={styles.logoHeroContainer}>
-            <Image 
-              source={require('../../assets/be_logo.avif')} 
+            <Image
+              source={require('../../assets/be_logo.png')}
               style={styles.logoHero}
               resizeMode="contain"
             />

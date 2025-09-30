@@ -43,24 +43,11 @@ export default function EmailVerified() {
   async function continueToApp() {
     setLoading(true)
     try {
-      // Check if user has completed any additional setup
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, user_type, alignment_code_used')
-        .eq('id', user?.id)
-        .single()
-
-      if (profile) {
-        // User has a profile, redirect to dashboard
-        router.replace('/(tabs)/dashboard')
-      } else {
-        // User needs to complete profile setup
-        router.replace('/(auth)/welcome')
-      }
+      // Redirect to login page where the normal auth flow will handle the rest
+      router.replace('/(auth)/login')
     } catch (error) {
-      console.error('Error checking profile:', error)
-      // Default to dashboard
-      router.replace('/(tabs)/dashboard')
+      console.error('Error:', error)
+      router.replace('/(auth)/login')
     }
     setLoading(false)
   }
@@ -123,7 +110,7 @@ export default function EmailVerified() {
             disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'Loading...' : 'Continue to BeAligned'}
+              {loading ? 'Loading...' : 'Continue to Sign In'}
             </Text>
           </Pressable>
 

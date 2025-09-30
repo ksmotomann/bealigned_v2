@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform, Share, Image, Modal, Alert, TextInput, TouchableOpacity, Linking } from 'react-native'
+import * as Sharing from 'expo-sharing'
+import * as FileSystem from 'expo-file-system'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { supabase } from '../../lib/supabase'
@@ -8,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons'
 import InAppNavigationHeader from '../../components/InAppNavigationHeader'
 import TrialStatus from '../../components/TrialStatus'
 import FeedbackSurvey from '../../components/FeedbackSurvey'
+import WaveCircle from '../../components/WaveCircle'
+import PulsatingHighlight from '../../components/PulsatingHighlight'
 import ds from '../../styles/design-system'
 
 interface RecentReflection {
@@ -16,12 +20,6 @@ interface RecentReflection {
   title: string
   status: 'in_progress' | 'completed' | 'archived'
   current_step: number
-}
-
-interface NavigationTab {
-  id: string
-  label: string
-  icon: keyof typeof Ionicons.glyphMap
 }
 
 export default function Dashboard() {
@@ -40,24 +38,17 @@ export default function Dashboard() {
   const [streakMessage, setStreakMessage] = useState('')
   const [weeklyGoal] = useState(5) // Default goal: 5 reflections per week (Monday-Sunday)
   const [weeklyReflections, setWeeklyReflections] = useState(0)
-  const [showSocialMediaModal, setShowSocialMediaModal] = useState(false)
-  const [socialMediaSettings, setSocialMediaSettings] = useState<any>(null)
-  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null)
-  const [showPlatformConfig, setShowPlatformConfig] = useState(false)
   const [completedReflections, setCompletedReflections] = useState(12)
   const [currentWeekNumber, setCurrentWeekNumber] = useState(1)
   const [userCreatedAt, setUserCreatedAt] = useState<string | null>(null)
   const [showFeedbackSurvey, setShowFeedbackSurvey] = useState(false)
   const [completedReflectionId, setCompletedReflectionId] = useState<string | null>(null)
-
-  const navigationTabs: NavigationTab[] = [
-    { id: 'reflection', label: 'Start Reflection', icon: 'play-circle-outline' },
-    { id: 'why', label: 'Your Why', icon: 'heart-outline' },
-    { id: 'streak', label: 'Streak', icon: 'flame-outline' },
-    { id: 'proof', label: 'Proof', icon: 'document-outline' },
-    { id: 'grounding', label: 'Grounding', icon: 'leaf-outline' },
-    { id: 'resources', label: 'Resources', icon: 'library-outline' },
-  ]
+  const [daysSinceLastReflection, setDaysSinceLastReflection] = useState(0)
+  const [daysSinceRegistration, setDaysSinceRegistration] = useState(0)
+  const [showSocialMediaModal, setShowSocialMediaModal] = useState(false)
+  const [showSocialMediaSetup, setShowSocialMediaSetup] = useState(false)
+  const [socialMediaSettings, setSocialMediaSettings] = useState<any>({})
+  const [setupPlatform, setSetupPlatform] = useState('')
 
   const getStreakMessage = (streak: number, completedData: any[], weeklyGoal: number): string => {
     // Get start of current week (Monday)
@@ -97,7 +88,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboardData()
-    loadSocialMediaSettings()
   }, [])
 
   // Check for completed reflection feedback survey trigger
@@ -122,7 +112,7 @@ export default function Dashboard() {
       if (session?.user) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('role, your_why')
+          .select('role, your_why, social_media_settings')
           .eq('id', session.user.id)
           .single()
 
@@ -133,7 +123,12 @@ export default function Dashboard() {
           setYourWhy(profileData.your_why)
         }
 
-        // Get user registration date to calculate week number
+        // Load social media settings
+        if (profileData?.social_media_settings) {
+          setSocialMediaSettings(profileData.social_media_settings)
+        }
+
+        // Get user registration date
         const { data: userData } = await supabase
           .from('users')
           .select('created_at')
@@ -167,6 +162,23 @@ export default function Dashboard() {
           .eq('status', 'completed')
           .not('completed_at', 'is', null)
           .order('completed_at', { ascending: false })
+
+        // Calculate days since last reflection and registration
+        if (completedData && completedData.length > 0) {
+          const lastReflectionDate = new Date(completedData[0].completed_at!)
+          const today = new Date()
+          const diffTime = Math.abs(today.getTime() - lastReflectionDate.getTime())
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+          setDaysSinceLastReflection(diffDays)
+        }
+
+        if (userData?.created_at) {
+          const registrationDate = new Date(userData.created_at)
+          const today = new Date()
+          const diffTime = Math.abs(today.getTime() - registrationDate.getTime())
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+          setDaysSinceRegistration(diffDays)
+        }
 
         if (completedData && completedData.length > 0) {
           // Set the actual completed reflections count
@@ -248,23 +260,13 @@ export default function Dashboard() {
     }
   }
 
-  const loadSocialMediaSettings = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('social_media_settings')
-          .eq('id', session.user.id)
-          .single()
 
-        if (profileData?.social_media_settings) {
-          setSocialMediaSettings(profileData.social_media_settings)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading social media settings:', error)
-    }
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({
+      y: 0,
+      animated: true
+    })
   }
 
   const calculateWeekNumber = (createdAt: string): number => {
@@ -297,107 +299,73 @@ export default function Dashboard() {
     return groundingImages[currentWeekNumber as keyof typeof groundingImages] || groundingImages[1]
   }
 
-  const scrollToSection = (sectionId: string) => {
-    if (sectionId === 'reflection') {
-      // Navigate to chat for reflection
-      router.push('/(tabs)/chat')
-      return
-    }
-
-    // For other sections, scroll to them within the dashboard
-    scrollViewRef.current?.scrollTo({
-      y: getSectionOffset(sectionId),
-      animated: true
-    })
-  }
-
-  const getSectionOffset = (sectionId: string): number => {
-    // Fine-tuned offsets to position section headings at the top of viewport
-    const offsets = {
-      why: 350,        // Your Why section (increased to get past reflection card)
-      streak: 630,     // Streak section (increased to get past the quote)
-      proof: 850,      // Proof section (good as is)
-      grounding: 1120, // Grounding section (decreased slightly to show heading)
-      resources: 1480  // Resources section (slight adjustment up)
-    }
-    return offsets[sectionId as keyof typeof offsets] || 0
-  }
-
-  const scrollToTop = () => {
-    scrollViewRef.current?.scrollTo({
-      y: 0,
-      animated: true
-    })
-  }
-
-  const shareGroundingImage = async () => {
-    setShowSocialMediaModal(true)
-  }
-
-  const handleSocialMediaShare = (platform: string) => {
-    if (!socialMediaSettings || !socialMediaSettings[platform]) {
-      // Platform not configured, show config modal
-      setSelectedPlatform(platform)
-      setShowPlatformConfig(true)
-      setShowSocialMediaModal(false)
-    } else {
-      // Platform configured, post directly
-      postToSocialMedia(platform)
-    }
-  }
-
-  const postToSocialMedia = async (platform: string) => {
+  const getGroundingImageUri = async (): Promise<string | null> => {
     try {
-      const message = `Week ${currentWeekNumber} Grounding from BeAligned™\n\nBe grounded. Be clear. BeAligned.™\n\n#BeAligned #Mindfulness #CoParenting`
-
-      // For now, we'll use web URLs to open social media platforms
-      // In a production app, you'd integrate with each platform's API
-      const platformUrls = {
-        twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}`,
-        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://bealigned.app')}&quote=${encodeURIComponent(message)}`,
-        instagram: 'instagram://camera', // Opens Instagram camera
-        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://bealigned.app')}&summary=${encodeURIComponent(message)}`
+      // Create mapping of week numbers to actual image file names
+      const imageFiles = {
+        1: 'WK1.png', 2: 'WK2.png', 3: 'WK3.png', 4: 'WK4.png',
+        5: 'WK5.png', 6: 'WK6.png', 7: 'WK7.png', 8: 'WK8.png',
+        9: 'WK9.png', 10: 'WK10.png', 11: 'WK11.png', 12: 'WK12.png'
       }
 
-      const url = platformUrls[platform as keyof typeof platformUrls]
-      if (url) {
-        await Linking.openURL(url)
-        setShowSocialMediaModal(false)
+      const filename = imageFiles[currentWeekNumber as keyof typeof imageFiles] || 'WK1.png'
+
+      // For web, we'll use a different approach
+      if (Platform.OS === 'web') {
+        return null // Will fall back to text-only sharing
       }
+
+      // For mobile, copy the bundled asset to a shareable location
+      const assetUri = `${FileSystem.bundleDirectory}assets/grounding/${filename}`
+      const localUri = `${FileSystem.documentDirectory}BeAligned_Week${currentWeekNumber}_Grounding.png`
+
+      // Check if the asset exists and copy it
+      const assetInfo = await FileSystem.getInfoAsync(assetUri)
+      if (assetInfo.exists) {
+        await FileSystem.copyAsync({
+          from: assetUri,
+          to: localUri
+        })
+        return localUri
+      }
+
+      return null
     } catch (error) {
-      console.error('Error posting to social media:', error)
-      Alert.alert('Error', 'Failed to open social media platform')
+      console.error('Error getting image URI:', error)
+      return null
     }
   }
 
-  const saveSocialMediaSettings = async (platform: string, settings: any) => {
+  const shareImageWithMessage = async (message: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        const updatedSettings = {
-          ...socialMediaSettings,
-          [platform]: { ...settings, configured: true }
+      // First try to get the image URI
+      const imageUri = await getGroundingImageUri()
+
+      if (imageUri && Platform.OS !== 'web') {
+        // Share with image on mobile platforms
+        const isAvailable = await Sharing.isAvailableAsync()
+        if (isAvailable) {
+          await Sharing.shareAsync(imageUri, {
+            mimeType: 'image/png',
+            dialogTitle: `Week ${currentWeekNumber} Grounding from BeAligned™`
+          })
+          return true
         }
-
-        const { error } = await supabase
-          .from('profiles')
-          .update({ social_media_settings: updatedSettings })
-          .eq('id', session.user.id)
-
-        if (error) throw error
-
-        setSocialMediaSettings(updatedSettings)
-        setShowPlatformConfig(false)
-        setSelectedPlatform(null)
-
-        // Now post to the platform
-        postToSocialMedia(platform)
       }
+
+      // Fallback to text-only sharing (works on all platforms)
+      await Share.share({
+        message: `${message}\n\n🖼️ View Week ${currentWeekNumber} Grounding Card at: https://bealigned.com/grounding/week-${currentWeekNumber}`,
+        title: `Week ${currentWeekNumber} Grounding from BeAligned™`,
+      })
+
+      return true
     } catch (error) {
-      console.error('Error saving social media settings:', error)
-      Alert.alert('Error', 'Failed to save social media settings')
+      console.error('Error sharing:', error)
+      return false
     }
   }
+
 
   const downloadReflectionSummary = () => {
     // Implementation for downloading reflection summary
@@ -415,27 +383,219 @@ export default function Dashboard() {
     setCompletedReflectionId(null)
   }
 
+  const handleSocialMediaShare = () => {
+    setShowSocialMediaModal(true)
+  }
+
+  const shareToSocialMedia = async (platform: string) => {
+    const message = `Week ${currentWeekNumber} Grounding from BeAligned™\n\nBe grounded. Be clear. BeAligned.™\n\n#BeAligned #Mindfulness #CoParenting`
+
+    try {
+      let shareUrl = ''
+      switch (platform) {
+        case 'facebook':
+          console.log('🔄 Facebook sharing triggered - DEBUG MODE')
+          console.log('📊 Current week number:', currentWeekNumber)
+          console.log('💬 Message:', message)
+
+          // Facebook sharing with weekly grounding card image URL
+          try {
+            // Smart URL detection for Facebook sharing
+            // This automatically works on any deployment without configuration
+            const getBaseUrl = () => {
+              if (Platform.OS === 'web') {
+                // Development: use localhost
+                if (window.location.hostname === 'localhost') {
+                  return `http://localhost:8081`
+                }
+
+                // Production: smart detection
+                const hostname = window.location.hostname
+                const protocol = window.location.protocol
+
+                // Check for common deployment patterns
+                if (hostname.includes('vercel.app') ||
+                    hostname.includes('netlify.app') ||
+                    hostname.includes('herokuapp.com') ||
+                    hostname.includes('bealigned.com')) {
+                  return `${protocol}//${hostname}`
+                }
+
+                // Environment variable override (optional)
+                if (process.env.EXPO_PUBLIC_BASE_URL) {
+                  return process.env.EXPO_PUBLIC_BASE_URL
+                }
+
+                // Fallback to current domain
+                return `${protocol}//${hostname}`
+              }
+
+              // Mobile/native: always use production URL
+              return process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.com'
+            }
+
+            const baseUrl = getBaseUrl()
+            const imageUrl = `${baseUrl}/images/be_grounding_wk${currentWeekNumber}.png`
+            const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(imageUrl)}&quote=${encodeURIComponent(message)}`
+
+            console.log('🔧 Runtime Detection Debug:')
+            console.log('  - Platform.OS:', Platform.OS)
+            if (Platform.OS === 'web') {
+              console.log('  - window.location.hostname:', window.location.hostname)
+              console.log('  - window.location.protocol:', window.location.protocol)
+            }
+            console.log('  - Environment EXPO_PUBLIC_BASE_URL:', process.env.EXPO_PUBLIC_BASE_URL)
+            console.log('  - Detected Base URL:', baseUrl)
+            console.log('🖼️ Final Image URL:', imageUrl)
+            console.log('📤 Facebook share URL:', facebookShareUrl)
+
+            // Show user confirmation of what's being shared
+            Alert.alert(
+              'Facebook Sharing Debug',
+              `Week ${currentWeekNumber} Grounding Card:\nbe_grounding_wk${currentWeekNumber}.png\n\nImage URL:\n${imageUrl}\n\nFacebook URL:\n${facebookShareUrl}`,
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                  onPress: () => {
+                    console.log('❌ Facebook sharing cancelled')
+                    setShowSocialMediaModal(false)
+                  }
+                },
+                {
+                  text: 'Share',
+                  onPress: async () => {
+                    console.log('✅ Facebook sharing confirmed - opening URL...')
+                    try {
+                      if (Platform.OS === 'web') {
+                        console.log('🌐 Opening in browser window...')
+                        window.open(facebookShareUrl, '_blank')
+                      } else {
+                        console.log('📱 Opening with Linking...')
+                        await Linking.openURL(facebookShareUrl)
+                      }
+                      console.log('✅ Facebook sharing completed successfully')
+                    } catch (error) {
+                      console.error('❌ Error opening Facebook URL:', error)
+                    }
+                    setShowSocialMediaModal(false)
+                  }
+                }
+              ]
+            )
+            return
+          } catch (error) {
+            console.error('❌ Facebook sharing error:', error)
+            // Fallback to basic Facebook sharing
+            shareUrl = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(message)}&u=${encodeURIComponent('https://bealigned.com')}`
+            console.log('🔄 Using fallback URL:', shareUrl)
+            await Linking.openURL(shareUrl)
+            setShowSocialMediaModal(false)
+            return
+          }
+        case 'twitter':
+          // Check if user has credentials for Twitter
+          if (!socialMediaSettings[platform]) {
+            setSetupPlatform(platform)
+            setShowSocialMediaSetup(true)
+            setShowSocialMediaModal(false)
+            return
+          }
+          shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}`
+          break
+        case 'linkedin':
+          // Check if user has credentials for LinkedIn
+          if (!socialMediaSettings[platform]) {
+            setSetupPlatform(platform)
+            setShowSocialMediaSetup(true)
+            setShowSocialMediaModal(false)
+            return
+          }
+          shareUrl = `https://www.linkedin.com/sharing/share-offsite/?title=${encodeURIComponent('BeAligned Weekly Grounding')}&summary=${encodeURIComponent(message)}`
+          break
+        case 'instagram':
+          // Instagram doesn't support direct URL sharing, provide instructions for image sharing
+          Alert.alert(
+            'Share to Instagram',
+            `Perfect! Here's how to share your Week ${currentWeekNumber} grounding card:\n\n1. Save the grounding image to your photos\n2. Open Instagram\n3. Create a new post/story\n4. Use the saved image\n5. Add this caption:\n\n"${message}"`,
+            [
+              { text: 'Got it!', onPress: () => setShowSocialMediaModal(false) }
+            ]
+          )
+          return
+        default:
+          await Share.share({ message: message })
+          return
+      }
+
+      await Linking.openURL(shareUrl)
+      setShowSocialMediaModal(false)
+    } catch (error) {
+      console.error('Error sharing to social media:', error)
+      Alert.alert('Error', 'Failed to share to social media. Please try again.')
+    }
+  }
+
+  const saveSocialMediaSettings = async (settings: any) => {
+    try {
+      if (!session?.user) return
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ social_media_settings: settings })
+        .eq('id', session.user.id)
+
+      if (error) throw error
+
+      setSocialMediaSettings(settings)
+    } catch (error) {
+      console.error('Error saving social media settings:', error)
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <InAppNavigationHeader onLogoPress={scrollToTop} />
 
-      {/* Navigation Tabs */}
-      <View style={styles.tabNavigation}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScrollView}>
-          {navigationTabs.map((tab) => (
-            <Pressable
-              key={tab.id}
-              style={styles.tabItem}
-              onPress={() => scrollToSection(tab.id)}
-            >
-              <Ionicons name={tab.icon} size={16} color={ds.colors.primary.main} />
-              <Text style={styles.tabLabel}>{tab.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-
       <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} style={styles.scrollView}>
+        {/* New Header Section */}
+        <View style={styles.newHeaderSection}>
+          <View style={styles.welcomeRow}>
+            <Text style={styles.welcomeText}>👋 Welcome back, {firstName || 'Trina'}</Text>
+          </View>
+
+          <View style={styles.statsRow}>
+            <WaveCircle
+              size={60}
+              color={ds.colors.primary.main}
+              waveColor={`${ds.colors.primary.main}30`}
+              waveCount={3}
+              duration={2500}
+            >
+              <View style={styles.statsCircle}>
+                {/* Circle is now just the container for the wave effect */}
+              </View>
+            </WaveCircle>
+            <View style={styles.statsTextContainer}>
+              <View style={styles.statsNumberContainer}>
+                <Text style={styles.statsNumber}>{completedReflections}</Text>
+                <Text style={styles.statsLabel}>Reflections Completed</Text>
+              </View>
+              <Text style={styles.statsSubtitle}>
+                You have had {completedReflections} reflections over the past {daysSinceRegistration} days
+              </Text>
+              {daysSinceLastReflection > 0 && (
+                <Text style={styles.lastReflectionText}>
+                  Last reflection {daysSinceLastReflection} day{daysSinceLastReflection !== 1 ? 's' : ''} ago
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <Text style={styles.motivationalMessage}>
+            Your commitment to pause, reflect, and align is creating lasting change
+          </Text>
+        </View>
         {/* Trial Status */}
         {session?.user?.id && (
           <TrialStatus userId={session.user.id} />
@@ -453,11 +613,6 @@ export default function Dashboard() {
         )}
 
         <View style={styles.content}>
-          {/* Welcome Section Card */}
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>👏 Welcome back, {firstName || 'Trina'}</Text>
-            <Text style={styles.welcomeSubtitle}>This is your space to pause, reflect, and realign.</Text>
-          </View>
           {/* Main Reflection Action Area */}
           <View style={styles.reflectionActionCard}>
             <View style={styles.playButtonContainer}>
@@ -470,7 +625,7 @@ export default function Dashboard() {
             </View>
             <Text style={styles.actionTitle}>
               {completedReflections === 0 && inProgressSession
-                ? 'Ready to resume your first reflection?'
+                ? 'Ready to complete your first reflection?'
                 : completedReflections === 0
                 ? 'Ready for your first reflection?'
                 : 'Ready for your next reflection?'}
@@ -478,8 +633,8 @@ export default function Dashboard() {
             <Text style={styles.actionSubtitle}>Transform today's challenges into tomorrow's wisdom</Text>
 
             <View style={styles.actionButtons}>
-              {/* For first-time users with in-progress session, only show Continue button */}
-              {completedReflections === 0 && inProgressSession ? (
+              {/* For first-time users with in-progress session, only show Continue button if they haven't progressed past initial steps */}
+              {completedReflections === 0 && inProgressSession && inProgressSession.current_step <= 2 ? (
                 <Pressable
                   style={[styles.actionButton, styles.primaryButton]}
                   onPress={() => router.push(`/session/${inProgressSession.id}`)}
@@ -511,51 +666,98 @@ export default function Dashboard() {
             </View>
           </View>
 
-          {/* Your Why Section */}
-          <View style={styles.sectionCard}>
+          {/* Your Core Why Section */}
+          <View style={styles.yourCoreWhyCard}>
             <View style={styles.sectionHeader}>
               <View style={styles.iconContainer}>
                 <Ionicons name="heart" size={20} color={ds.colors.primary.main} />
               </View>
               <View style={styles.sectionTitleContainer}>
-                <Text style={styles.sectionTitle}>Your Why</Text>
-                <Text style={styles.sectionSubtitle}>{yourWhy}</Text>
+                <Text style={styles.sectionTitle}>Your Core Why</Text>
+                <Text style={styles.sectionSubtitle}>Through your reflections, this value consistently guides your co-parenting decisions</Text>
               </View>
             </View>
 
-            {yourWhyQuote && (
-              <View style={styles.quoteContainer}>
-                <Text style={styles.quote}>
-                  "{yourWhyQuote}"
+            {/* Blue highlighted foundational value box with pulsating effect */}
+            <PulsatingHighlight
+              color="rgba(0,150,255,0.3)"
+              ringCount={3}
+              scale={1.4}
+              duration={6000}
+            >
+              <View style={styles.blueFoundationalBox}>
+                <View style={styles.foundationalValueHeader}>
+                  <Ionicons name="heart" size={16} color={ds.colors.text.inverse} />
+                  <Text style={styles.whiteFoundationalValueTitle}>Your Child's Stability</Text>
+                </View>
+                <Text style={styles.whiteFoundationalValueDescription}>
+                  This foundational value appears in 91% of your reflections, serving as your North Star for co-parenting decisions.
                 </Text>
+                <View style={styles.whiteConsistencyBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color={ds.colors.text.inverse} />
+                  <Text style={styles.whiteConsistencyText}>Consistently identified across {completedReflections} reflections</Text>
+                </View>
               </View>
-            )}
+            </PulsatingHighlight>
+
+            {/* Reminder box */}
+            <View style={styles.reminderBox}>
+              <Text style={styles.reminderText}>
+                <Text style={styles.reminderBold}>Remember:</Text> When co-parenting feels overwhelming, return to this core value. Let your child's stability guide your next steps forward.
+              </Text>
+            </View>
           </View>
 
-          {/* Reflection Streak Section */}
+          {/* Past Reflections Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View style={styles.iconContainer}>
-                <Ionicons name="flame" size={20} color={ds.colors.primary.main} />
+                <Ionicons name="document-text" size={20} color={ds.colors.primary.main} />
               </View>
               <View style={styles.sectionTitleContainer}>
-                <Text style={styles.sectionTitle}>Reflection Streak</Text>
-                <Text style={styles.sectionSubtitle}>Keep the momentum going</Text>
+                <Text style={styles.sectionTitle}>Past Reflections</Text>
               </View>
-              <View style={styles.streakBadge}>
-                <Text style={styles.streakDaysText}>{streakCount} days</Text>
-              </View>
+              <Pressable style={styles.viewAllButton}>
+                <Text style={styles.viewAllText}>View All</Text>
+                <Ionicons name="chevron-forward" size={16} color={ds.colors.primary.main} />
+              </Pressable>
             </View>
 
-            <View style={styles.streakProgress}>
-              <Text style={styles.streakLabel}>Weekly Progress</Text>
-              <View style={styles.streakProgressContainer}>
-                <View style={styles.streakProgressBar}>
-                  <View style={[styles.streakProgressFill, { width: `${Math.min((weeklyReflections / weeklyGoal) * 100, 100)}%` }]} />
+            {/* Past Reflections List */}
+            <View style={styles.pastReflectionsList}>
+              {recentReflections.filter(r => r.status === 'completed').slice(0, 3).map((reflection, index) => (
+                <View key={reflection.id} style={styles.pastReflectionItem}>
+                  <View style={styles.pastReflectionMain}>
+                    <View style={styles.pastReflectionLeft}>
+                      <Text style={styles.pastReflectionDate}>
+                        {new Date(reflection.created_at).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </Text>
+                      <Text style={styles.pastReflectionTitle}>
+                        {reflection.title || `Reflection Session ${index + 1}`}
+                      </Text>
+                      <View style={styles.completedStatusBadge}>
+                        <Text style={styles.completedStatusText}>Complete</Text>
+                      </View>
+                    </View>
+                    <Pressable style={styles.viewReflectionButton}>
+                      <Ionicons name="eye" size={16} color={ds.colors.primary.main} />
+                      <Text style={styles.viewReflectionText}>View</Text>
+                    </Pressable>
+                  </View>
                 </View>
-                <Text style={styles.streakDaysLabel}>{weeklyReflections}/{weeklyGoal}</Text>
-              </View>
-              <Text style={styles.streakGoal}>{streakMessage}</Text>
+              ))}
+
+              {recentReflections.filter(r => r.status === 'completed').length === 0 && (
+                <View style={styles.emptyReflectionsContainer}>
+                  <Text style={styles.emptyReflectionsText}>
+                    Complete your first reflection to see your journey here
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -584,7 +786,7 @@ export default function Dashboard() {
             </Pressable>
           </View>
 
-          {/* Weekly Grounding Section - Designed for Social Media Sharing */}
+          {/* Weekly Grounding Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View style={styles.iconContainer}>
@@ -592,27 +794,27 @@ export default function Dashboard() {
               </View>
               <View style={styles.sectionTitleContainer}>
                 <Text style={styles.sectionTitle}>Weekly Grounding</Text>
-                <Text style={styles.sectionSubtitle}>Week {currentWeekNumber} inspiration</Text>
+                <Text style={styles.sectionSubtitle}>Inspiration for your journey</Text>
               </View>
             </View>
 
-            {/* Enhanced Social Media Shareable Image Card */}
-            <View style={styles.groundingShareCard}>
+            {/* Weekly Grounding Image */}
+            <View style={styles.groundingImageCard}>
               <View style={styles.groundingImageContainer}>
                 <Image
                   source={getGroundingImageSource()}
-                  style={styles.groundingImage}
+                  style={styles.groundingWeeklyImage}
                   resizeMode="contain"
                 />
               </View>
 
-              <View style={styles.shareButtonContainer}>
-                <Pressable style={styles.shareButton} onPress={shareGroundingImage}>
-                  <Ionicons name="share-social" size={18} color={ds.colors.text.inverse} />
-                  <Text style={styles.shareButtonText}>Share to Social Media</Text>
+              <View style={styles.groundingShareContainer}>
+                <Pressable style={styles.socialMediaPrimaryButton} onPress={handleSocialMediaShare}>
+                  <Ionicons name="logo-twitter" size={20} color={ds.colors.text.inverse} />
+                  <Text style={styles.socialMediaPrimaryText}>Share on Social Media</Text>
                 </Pressable>
 
-                <Pressable style={styles.nativeShareButton} onPress={async () => {
+                <Pressable style={styles.shareGroundingSecondaryButton} onPress={async () => {
                   try {
                     const message = `Week ${currentWeekNumber} Grounding from BeAligned™\n\nBe grounded. Be clear. BeAligned.™\n\n#BeAligned #Mindfulness #CoParenting`
                     await Share.share({
@@ -623,71 +825,65 @@ export default function Dashboard() {
                     console.error('Error sharing:', error)
                   }
                 }}>
-                  <Ionicons name="share" size={16} color={ds.colors.primary.main} />
-                  <Text style={styles.nativeShareButtonText}>Share</Text>
+                  <Ionicons name="share-outline" size={20} color={ds.colors.primary.main} />
                 </Pressable>
               </View>
             </View>
           </View>
 
-          {/* Resource Library Section */}
-          <View style={styles.resourceLibrarySection}>
-            <Text style={styles.resourceLibraryTitle}>Resource Library</Text>
-            <Text style={styles.resourceLibrarySubtitle}>Tools and support for your co-parenting journey</Text>
+          {/* Quick Access Section */}
+          <View style={styles.quickAccessSection}>
+            <Text style={styles.quickAccessTitle}>Quick Access</Text>
+            <Text style={styles.quickAccessSubtitle}>Tools and support for your co-parenting journey</Text>
 
-            <View style={styles.resourceGrid}>
-              <Pressable style={styles.resourceCard}>
-                <View style={styles.resourceIconContainer}>
+            <View style={styles.quickAccessGrid}>
+              <Pressable style={styles.quickAccessCard}>
+                <View style={styles.quickAccessIconContainer}>
+                  <Ionicons name="star" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.quickAccessCardTitle}>Feedback Survey</Text>
+                <Text style={styles.quickAccessCardDescription}>Share your reflection experience</Text>
+              </Pressable>
+
+              <Pressable style={styles.quickAccessCard}>
+                <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="heart" size={24} color={ds.colors.primary.main} />
                 </View>
-                <Text style={styles.resourceTitle}>Feelings & Needs Bank</Text>
-                <Text style={styles.resourceDescription}>Explore emotional vocabulary</Text>
-                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
+                <Text style={styles.quickAccessCardTitle}>Free First Why</Text>
+                <Text style={styles.quickAccessCardDescription}>Connect with a BeH2O Certified Coach</Text>
+                <Text style={styles.quickAccessCardSubtext}>FREE 15-minute coaching session</Text>
               </Pressable>
 
-              <Pressable style={styles.resourceCard}>
-                <View style={styles.resourceIconContainer}>
-                  <Ionicons name="shield-checkmark" size={24} color={ds.colors.primary.main} />
-                </View>
-                <Text style={styles.resourceTitle}>Guardrails</Text>
-                <Text style={styles.resourceDescription}>Healthy boundaries guide</Text>
-                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
-              </Pressable>
-
-              <Pressable style={styles.resourceCard}>
-                <View style={styles.resourceIconContainer}>
-                  <Ionicons name="chatbubbles" size={24} color={ds.colors.primary.main} />
-                </View>
-                <Text style={styles.resourceTitle}>Coaching</Text>
-                <Text style={styles.resourceDescription}>Connect with certified coaches</Text>
-                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
-              </Pressable>
-
-              <Pressable style={styles.resourceCard}>
-                <View style={styles.resourceIconContainer}>
-                  <Ionicons name="people" size={24} color={ds.colors.primary.main} />
-                </View>
-                <Text style={styles.resourceTitle}>Community</Text>
-                <Text style={styles.resourceDescription}>Join supportive discussions</Text>
-                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
-              </Pressable>
-
-              <Pressable style={styles.resourceCard}>
-                <View style={styles.resourceIconContainer}>
-                  <Ionicons name="musical-notes" size={24} color={ds.colors.primary.main} />
-                </View>
-                <Text style={styles.resourceTitle}>Soundbites</Text>
-                <Text style={styles.resourceDescription}>Quick audio reflections</Text>
-                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
-              </Pressable>
-
-              <Pressable style={styles.resourceCard}>
-                <View style={styles.resourceIconContainer}>
+              <Pressable style={styles.quickAccessCard}>
+                <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="library" size={24} color={ds.colors.primary.main} />
                 </View>
-                <Text style={styles.resourceTitle}>Resources</Text>
-                <Text style={styles.resourceDescription}>Articles and tools</Text>
-                <Ionicons name="chevron-forward" size={16} color={ds.colors.text.tertiary} />
+                <Text style={styles.quickAccessCardTitle}>Resource Library</Text>
+                <Text style={styles.quickAccessCardDescription}>Feelings & Needs Bank and Guardrails</Text>
+              </Pressable>
+
+              <Pressable style={styles.quickAccessCard}>
+                <View style={styles.quickAccessIconContainer}>
+                  <Ionicons name="document-text" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.quickAccessCardTitle}>Proof of Reflection</Text>
+                <Text style={styles.quickAccessCardDescription}>Request personalized certificate</Text>
+              </Pressable>
+
+              <Pressable style={styles.quickAccessCard}>
+                <View style={styles.quickAccessIconContainer}>
+                  <Ionicons name="mic" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.quickAccessCardTitle}>Founder Soundbite Request</Text>
+                <Text style={styles.quickAccessCardDescription}>Request personalized guidance</Text>
+              </Pressable>
+
+              <Pressable style={styles.quickAccessCard}>
+                <View style={styles.quickAccessIconContainer}>
+                  <Ionicons name="people" size={24} color={ds.colors.primary.main} />
+                </View>
+                <Text style={styles.quickAccessCardTitle}>BeAligned Community Access</Text>
+                <Text style={styles.quickAccessCardDescription}>Be part of the BeAligned Community</Text>
               </Pressable>
             </View>
           </View>
@@ -700,7 +896,7 @@ export default function Dashboard() {
         </View>
       </ScrollView>
 
-      {/* Social Media Platform Selection Modal */}
+      {/* Social Media Share Modal */}
       <Modal
         visible={showSocialMediaModal}
         transparent={true}
@@ -712,104 +908,101 @@ export default function Dashboard() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Share to Social Media</Text>
               <Pressable onPress={() => setShowSocialMediaModal(false)}>
-                <Ionicons name="close" size={24} color={ds.colors.text.secondary} />
+                <Ionicons name="close" size={24} color={ds.colors.text.primary} />
               </Pressable>
             </View>
 
-            <Text style={styles.modalSubtitle}>Choose a platform to share your Week {currentWeekNumber} grounding</Text>
+            <Text style={styles.modalSubtitle}>Choose your platform:</Text>
 
-            <View style={styles.platformGrid}>
-              <Pressable style={styles.platformButton} onPress={() => handleSocialMediaShare('twitter')}>
-                <Ionicons name="logo-twitter" size={32} color="#1DA1F2" />
-                <Text style={styles.platformName}>Twitter</Text>
-                {socialMediaSettings?.twitter?.configured && (
-                  <View style={styles.configuredBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color={ds.colors.success} />
-                  </View>
-                )}
+            <View style={styles.socialPlatforms}>
+              <Pressable style={styles.platformButton} onPress={() => shareToSocialMedia('twitter')}>
+                <Ionicons name="logo-twitter" size={24} color="#1DA1F2" />
+                <Text style={styles.platformText}>Twitter</Text>
               </Pressable>
 
-              <Pressable style={styles.platformButton} onPress={() => handleSocialMediaShare('facebook')}>
-                <Ionicons name="logo-facebook" size={32} color="#4267B2" />
-                <Text style={styles.platformName}>Facebook</Text>
-                {socialMediaSettings?.facebook?.configured && (
-                  <View style={styles.configuredBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color={ds.colors.success} />
-                  </View>
-                )}
+              <Pressable style={styles.platformButton} onPress={() => shareToSocialMedia('facebook')}>
+                <Ionicons name="logo-facebook" size={24} color="#1877F2" />
+                <Text style={styles.platformText}>Facebook</Text>
               </Pressable>
 
-              <Pressable style={styles.platformButton} onPress={() => handleSocialMediaShare('instagram')}>
-                <Ionicons name="logo-instagram" size={32} color="#E4405F" />
-                <Text style={styles.platformName}>Instagram</Text>
-                {socialMediaSettings?.instagram?.configured && (
-                  <View style={styles.configuredBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color={ds.colors.success} />
-                  </View>
-                )}
+              <Pressable style={styles.platformButton} onPress={() => shareToSocialMedia('linkedin')}>
+                <Ionicons name="logo-linkedin" size={24} color="#0A66C2" />
+                <Text style={styles.platformText}>LinkedIn</Text>
               </Pressable>
 
-              <Pressable style={styles.platformButton} onPress={() => handleSocialMediaShare('linkedin')}>
-                <Ionicons name="logo-linkedin" size={32} color="#0077B5" />
-                <Text style={styles.platformName}>LinkedIn</Text>
-                {socialMediaSettings?.linkedin?.configured && (
-                  <View style={styles.configuredBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color={ds.colors.success} />
-                  </View>
-                )}
+              <Pressable style={styles.platformButton} onPress={() => shareToSocialMedia('instagram')}>
+                <Ionicons name="logo-instagram" size={24} color="#E4405F" />
+                <Text style={styles.platformText}>Instagram</Text>
               </Pressable>
             </View>
+
+            <Pressable style={styles.genericShareButton} onPress={() => shareToSocialMedia('generic')}>
+              <Ionicons name="share" size={20} color={ds.colors.primary.main} />
+              <Text style={styles.genericShareText}>Use Device Share Menu</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
 
-      {/* Platform Configuration Modal */}
+      {/* Social Media Setup Modal */}
       <Modal
-        visible={showPlatformConfig}
+        visible={showSocialMediaSetup}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowPlatformConfig(false)}
+        onRequestClose={() => setShowSocialMediaSetup(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Configure {selectedPlatform?.charAt(0).toUpperCase()}{selectedPlatform?.slice(1)}</Text>
-              <Pressable onPress={() => setShowPlatformConfig(false)}>
-                <Ionicons name="close" size={24} color={ds.colors.text.secondary} />
+              <Text style={styles.modalTitle}>Set up {setupPlatform?.charAt(0).toUpperCase() + setupPlatform?.slice(1)}</Text>
+              <Pressable onPress={() => setShowSocialMediaSetup(false)}>
+                <Ionicons name="close" size={24} color={ds.colors.text.primary} />
               </Pressable>
             </View>
 
             <Text style={styles.modalSubtitle}>
-              First time sharing to {selectedPlatform}? We'll save your preferences for future sharing.
+              Connect your {setupPlatform} account to share directly to your profile.
             </Text>
 
-            <View style={styles.configForm}>
-              <Text style={styles.configLabel}>Display Name (optional)</Text>
+            <View style={styles.setupForm}>
+              <Text style={styles.setupLabel}>Account Handle/Username:</Text>
               <TextInput
-                style={styles.configInput}
-                placeholder="Your name as it appears on posts"
+                style={styles.setupInput}
+                placeholder={`@your${setupPlatform}handle`}
                 placeholderTextColor={ds.colors.text.tertiary}
+                onChangeText={(text) => {
+                  const newSettings = { ...socialMediaSettings }
+                  newSettings[setupPlatform] = { handle: text }
+                  setSocialMediaSettings(newSettings)
+                }}
+                value={socialMediaSettings[setupPlatform]?.handle || ''}
               />
+            </View>
 
-              <View style={styles.configButtons}>
-                <Pressable
-                  style={styles.configButton}
-                  onPress={() => saveSocialMediaSettings(selectedPlatform!, { displayName: '' })}
-                >
-                  <Text style={styles.configButtonText}>Save & Share</Text>
-                </Pressable>
+            <View style={styles.setupActions}>
+              <Pressable
+                style={styles.setupCancelButton}
+                onPress={() => setShowSocialMediaSetup(false)}
+              >
+                <Text style={styles.setupCancelText}>Cancel</Text>
+              </Pressable>
 
-                <Pressable
-                  style={styles.configCancelButton}
-                  onPress={() => setShowPlatformConfig(false)}
-                >
-                  <Text style={styles.configCancelButtonText}>Cancel</Text>
-                </Pressable>
-              </View>
+              <Pressable
+                style={styles.setupSaveButton}
+                onPress={async () => {
+                  await saveSocialMediaSettings(socialMediaSettings)
+                  setShowSocialMediaSetup(false)
+                  // Now proceed with sharing
+                  shareToSocialMedia(setupPlatform)
+                }}
+              >
+                <Text style={styles.setupSaveText}>Save & Share</Text>
+              </Pressable>
             </View>
           </View>
         </View>
       </Modal>
+
     </SafeAreaView>
   )
 }
@@ -823,64 +1016,101 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: ds.spacing[6],
+    paddingHorizontal: ds.spacing[10], // Increased from 6 to 10 for more white space
     paddingBottom: ds.spacing[8],
   },
 
-  // Tab Navigation
-  tabNavigation: {
-    backgroundColor: ds.colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: ds.colors.neutral[200],
+  // New Header Section
+  newHeaderSection: {
+    backgroundColor: '#f0f7ff', // Light blue tinted background
+    paddingHorizontal: ds.spacing[6],
+    paddingVertical: ds.spacing[6],
+    borderRadius: ds.borderRadius.xl,
+    marginTop: ds.spacing[6], // Add margin below nav
+    marginBottom: ds.spacing[6],
+    marginHorizontal: ds.spacing[4], // Match other panels width
+    ...ds.shadows.lg,
   },
-  tabScrollView: {
-    paddingHorizontal: ds.spacing[4],
+  welcomeRow: {
+    marginBottom: ds.spacing[4],
   },
-  tabItem: {
+  welcomeText: {
+    fontSize: ds.typography.fontSize.lg.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ds.spacing[2],
-    paddingVertical: ds.spacing[3],
-    paddingHorizontal: ds.spacing[3],
-    marginRight: ds.spacing[4],
+    marginBottom: ds.spacing[4],
   },
-  tabLabel: {
+  statsCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: ds.colors.primary.main,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statsNumberContainer: {
+    marginLeft: ds.spacing[4],
+  },
+  statsNumber: {
+    fontSize: ds.typography.fontSize['3xl'].size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.primary.main,
+    fontFamily: ds.typography.fontFamily.heading,
+    lineHeight: ds.typography.fontSize['3xl'].size,
+  },
+  statsLabel: {
     fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    fontWeight: ds.typography.fontWeight.medium,
+    color: ds.colors.text.primary,
+    fontWeight: ds.typography.fontWeight.semibold,
     fontFamily: ds.typography.fontFamily.base,
+    marginTop: ds.spacing[1],
   },
-
-  // Welcome Section
-  welcomeSection: {
-    backgroundColor: '#f0f7ff', // Light blue background
-    borderRadius: ds.borderRadius.xl,
-    padding: ds.spacing[6],
-    marginTop: ds.spacing[8],
-    marginBottom: ds.spacing[6],
-    ...ds.shadows.base,
+  statsTextContainer: {
+    flex: 1,
   },
-  welcomeTitle: {
-    fontSize: ds.typography.fontSize['2xl'].size,
+  statsTitle: {
+    fontSize: ds.typography.fontSize.base.size,
     fontWeight: ds.typography.fontWeight.semibold,
     color: ds.colors.text.primary,
-    marginBottom: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.heading,
+    marginBottom: ds.spacing[1],
   },
-  welcomeSubtitle: {
-    fontSize: ds.typography.fontSize.base.size,
+  statsSubtitle: {
+    fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
+    lineHeight: ds.typography.fontSize.sm.lineHeight + 2,
   },
+  lastReflectionText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontFamily: ds.typography.fontFamily.base,
+    marginTop: ds.spacing[1],
+  },
+  motivationalMessage: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    fontFamily: ds.typography.fontFamily.base,
+    lineHeight: ds.typography.fontSize.sm.lineHeight + 4,
+  },
+
 
   // Main Reflection Action
   reflectionActionCard: {
-    backgroundColor: '#f0f7ff', // Light blue background
+    backgroundColor: '#f0f7ff', // Light blue tinted background
     borderRadius: ds.borderRadius.xl,
     padding: ds.spacing[8],
     marginBottom: ds.spacing[6],
+    marginHorizontal: ds.spacing[4], // Match header section width
     alignItems: 'center',
-    ...ds.shadows.base,
+    ...ds.shadows.lg,
   },
   playButtonContainer: {
     marginBottom: ds.spacing[4],
@@ -954,6 +1184,7 @@ const styles = StyleSheet.create({
     borderRadius: ds.borderRadius.xl,
     padding: ds.spacing[6],
     marginBottom: ds.spacing[6],
+    marginHorizontal: ds.spacing[4], // Match other panels width
     ...ds.shadows.base,
   },
   sectionHeader: {
@@ -1010,55 +1241,156 @@ const styles = StyleSheet.create({
     fontFamily: ds.typography.fontFamily.base,
   },
 
-  // Streak Section
-  streakBadge: {
-    backgroundColor: ds.colors.primary.light + '20',
-    paddingHorizontal: ds.spacing[3],
-    paddingVertical: ds.spacing[1],
-    borderRadius: ds.borderRadius.full,
+  // Your Core Why Section - White with Grey Border
+  yourCoreWhyCard: {
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.xl,
+    padding: ds.spacing[6],
+    marginBottom: ds.spacing[6],
+    marginHorizontal: ds.spacing[4], // Match other panels width
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+    ...ds.shadows.lg,
   },
-  streakDaysText: {
-    fontSize: ds.typography.fontSize.sm.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.primary.main,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  streakProgress: {
-    marginTop: ds.spacing[2],
-  },
-  streakLabel: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    marginBottom: ds.spacing[2],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  streakProgressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ds.spacing[3],
-  },
-  streakProgressBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: ds.colors.neutral[200],
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  streakProgressFill: {
-    height: '100%',
+  // Blue Inner Box for "Your Child's Stability"
+  blueFoundationalBox: {
     backgroundColor: ds.colors.primary.main,
-    borderRadius: 4,
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[4],
+    marginVertical: ds.spacing[4],
   },
-  streakDaysLabel: {
+  whiteFoundationalValueTitle: {
     fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.bold,
-    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.inverse,
+    marginLeft: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  streakGoal: {
+  whiteFoundationalValueDescription: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.inverse,
+    lineHeight: ds.typography.fontSize.base.lineHeight + 4,
+    marginBottom: ds.spacing[3],
+    fontFamily: ds.typography.fontFamily.base,
+    opacity: 0.9,
+  },
+  whiteConsistencyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: ds.spacing[3],
+    paddingVertical: ds.spacing[2],
+    borderRadius: ds.borderRadius.full,
+    alignSelf: 'flex-start',
+  },
+  whiteConsistencyText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.inverse,
+    marginLeft: ds.spacing[1],
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  foundationalValueHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: ds.spacing[2],
+  },
+  reminderBox: {
+    backgroundColor: ds.colors.neutral[50],
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[4],
+    marginTop: ds.spacing[4],
+  },
+  reminderText: {
     fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
-    marginTop: ds.spacing[2],
+    lineHeight: ds.typography.fontSize.sm.lineHeight + 4,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  reminderBold: {
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+  },
+
+  // Past Reflections Section
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[1],
+  },
+  viewAllText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  pastReflectionsList: {
+    marginTop: ds.spacing[4],
+  },
+  pastReflectionItem: {
+    paddingVertical: ds.spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: ds.colors.neutral[100],
+  },
+  pastReflectionMain: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pastReflectionLeft: {
+    flex: 1,
+  },
+  pastReflectionDate: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.tertiary,
+    fontFamily: ds.typography.fontFamily.base,
+    marginBottom: ds.spacing[1],
+  },
+  pastReflectionTitle: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.primary,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+    marginBottom: ds.spacing[2],
+  },
+  completedStatusBadge: {
+    backgroundColor: ds.colors.success + '15',
+    paddingHorizontal: ds.spacing[2],
+    paddingVertical: ds.spacing[1],
+    borderRadius: ds.borderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  completedStatusText: {
+    fontSize: ds.typography.fontSize.xs.size,
+    color: ds.colors.success,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  viewReflectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[1],
+    paddingHorizontal: ds.spacing[3],
+    paddingVertical: ds.spacing[2],
+    borderWidth: 1,
+    borderColor: ds.colors.primary.main,
+    borderRadius: ds.borderRadius.md,
+    backgroundColor: 'transparent',
+  },
+  viewReflectionText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  emptyReflectionsContainer: {
+    paddingVertical: ds.spacing[8],
+    alignItems: 'center',
+  },
+  emptyReflectionsText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    textAlign: 'center',
     fontFamily: ds.typography.fontFamily.base,
   },
 
@@ -1101,104 +1433,70 @@ const styles = StyleSheet.create({
     fontFamily: ds.typography.fontFamily.base,
   },
 
-  // Enhanced Grounding Section - Social Media Optimized
-  groundingShareCard: {
-    backgroundColor: ds.colors.background.primary,
-    borderRadius: ds.borderRadius.xl,
-    padding: ds.spacing[8],
-    marginBottom: ds.spacing[6],
-    borderWidth: 2,
-    borderColor: ds.colors.primary.main + '20',
-    ...ds.shadows.xl,
-    elevation: 8,
+  // Weekly Grounding - Image Design
+  groundingImageCard: {
+    alignItems: 'center',
+    marginTop: ds.spacing[4],
   },
   groundingImageContainer: {
-    alignItems: 'center',
-    marginBottom: ds.spacing[6],
-    backgroundColor: ds.colors.neutral[50],
+    alignSelf: 'center',
+    marginBottom: ds.spacing[4],
     borderRadius: ds.borderRadius.xl,
-    padding: ds.spacing[6],
-    ...ds.shadows.md,
+    backgroundColor: ds.colors.background.primary,
+    ...ds.shadows.xl,
+    // Enhanced soft shadow
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
+    // Soft border
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    padding: ds.spacing[2],
   },
-  groundingImage: {
-    width: '100%',
-    height: 280,
+  groundingWeeklyImage: {
+    width: 389, // 20% bigger than 324px
+    height: 259, // 20% bigger than 216px
     borderRadius: ds.borderRadius.lg,
   },
-  shareButtonContainer: {
-    flexDirection: 'row',
-    gap: ds.spacing[3],
-    justifyContent: 'space-between',
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: ds.spacing[2],
-    backgroundColor: ds.colors.primary.main,
-    paddingVertical: ds.spacing[4],
-    paddingHorizontal: ds.spacing[6],
-    borderRadius: ds.borderRadius.xl,
-    flex: 1,
-    ...ds.shadows.md,
-  },
-  shareButtonText: {
-    fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.text.inverse,
-    fontWeight: ds.typography.fontWeight.semibold,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  nativeShareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: ds.spacing[2],
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: ds.colors.primary.main,
-    paddingVertical: ds.spacing[4],
-    paddingHorizontal: ds.spacing[4],
-    borderRadius: ds.borderRadius.xl,
-    minWidth: 80,
-  },
-  nativeShareButtonText: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.primary.main,
-    fontWeight: ds.typography.fontWeight.medium,
-    fontFamily: ds.typography.fontFamily.base,
-  },
 
-  // Resource Library
-  resourceLibrarySection: {
+  // Quick Access Section
+  quickAccessSection: {
     marginBottom: ds.spacing[8],
+    marginHorizontal: ds.spacing[4], // Match other panels width
   },
-  resourceLibraryTitle: {
+  quickAccessTitle: {
     fontSize: ds.typography.fontSize.xl.size,
     fontWeight: ds.typography.fontWeight.semibold,
     color: ds.colors.text.primary,
     marginBottom: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  resourceLibrarySubtitle: {
+  quickAccessSubtitle: {
     fontSize: ds.typography.fontSize.base.size,
     color: ds.colors.text.secondary,
     marginBottom: ds.spacing[6],
     fontFamily: ds.typography.fontFamily.base,
   },
-  resourceGrid: {
+  quickAccessGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: ds.spacing[4],
   },
-  resourceCard: {
+  quickAccessCard: {
     width: '47%',
     backgroundColor: ds.colors.background.primary,
     borderRadius: ds.borderRadius.lg,
     padding: ds.spacing[4],
     alignItems: 'flex-start',
     ...ds.shadows.sm,
+    minHeight: 120,
   },
-  resourceIconContainer: {
+  quickAccessIconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -1207,18 +1505,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: ds.spacing[3],
   },
-  resourceTitle: {
+  quickAccessCardTitle: {
     fontSize: ds.typography.fontSize.base.size,
     fontWeight: ds.typography.fontWeight.semibold,
     color: ds.colors.text.primary,
-    marginBottom: ds.spacing[1],
+    marginBottom: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.heading,
+    lineHeight: ds.typography.fontSize.base.lineHeight,
   },
-  resourceDescription: {
+  quickAccessCardDescription: {
     fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
-    marginBottom: ds.spacing[2],
-    flex: 1,
+    marginBottom: ds.spacing[1],
+    fontFamily: ds.typography.fontFamily.base,
+    lineHeight: ds.typography.fontSize.sm.lineHeight + 2,
+  },
+  quickAccessCardSubtext: {
+    fontSize: ds.typography.fontSize.xs.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
   },
 
@@ -1241,18 +1546,55 @@ const styles = StyleSheet.create({
     fontFamily: ds.typography.fontFamily.base,
   },
 
-  // Social Media Modals
+  // Social Media Sharing Styles
+  groundingShareContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: ds.spacing[3],
+  },
+  socialMediaPrimaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ds.spacing[2],
+    backgroundColor: ds.colors.primary.main,
+    paddingVertical: ds.spacing[4],
+    paddingHorizontal: ds.spacing[6],
+    borderRadius: ds.borderRadius.lg,
+    flex: 1,
+    ...ds.shadows.base,
+  },
+  socialMediaPrimaryText: {
+    color: ds.colors.text.inverse,
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  shareGroundingSecondaryButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: ds.colors.background.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ds.colors.primary.main,
+    ...ds.shadows.sm,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: ds.colors.background.primary,
-    borderTopLeftRadius: ds.borderRadius.xl,
-    borderTopRightRadius: ds.borderRadius.xl,
+    borderRadius: ds.borderRadius.xl,
     padding: ds.spacing[6],
-    maxHeight: '80%',
+    margin: ds.spacing[6],
+    minWidth: 300,
+    maxWidth: 400,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1261,7 +1603,7 @@ const styles = StyleSheet.create({
     marginBottom: ds.spacing[4],
   },
   modalTitle: {
-    fontSize: ds.typography.fontSize.xl.size,
+    fontSize: ds.typography.fontSize.lg.size,
     fontWeight: ds.typography.fontWeight.semibold,
     color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.heading,
@@ -1269,88 +1611,103 @@ const styles = StyleSheet.create({
   modalSubtitle: {
     fontSize: ds.typography.fontSize.base.size,
     color: ds.colors.text.secondary,
-    marginBottom: ds.spacing[6],
+    marginBottom: ds.spacing[4],
     fontFamily: ds.typography.fontFamily.base,
   },
-  platformGrid: {
+  socialPlatforms: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: ds.spacing[4],
-    justifyContent: 'space-between',
+    gap: ds.spacing[3],
+    marginBottom: ds.spacing[6],
   },
   platformButton: {
-    width: '47%',
-    backgroundColor: ds.colors.neutral[50],
-    borderRadius: ds.borderRadius.lg,
-    padding: ds.spacing[4],
     alignItems: 'center',
-    position: 'relative',
-    ...ds.shadows.sm,
+    padding: ds.spacing[3],
+    borderRadius: ds.borderRadius.lg,
+    backgroundColor: ds.colors.neutral[50],
+    minWidth: 80,
+    flex: 1,
   },
-  platformName: {
+  platformText: {
     fontSize: ds.typography.fontSize.sm.size,
-    fontWeight: ds.typography.fontWeight.medium,
     color: ds.colors.text.primary,
     marginTop: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.base,
   },
-  configuredBadge: {
-    position: 'absolute',
-    top: ds.spacing[2],
-    right: ds.spacing[2],
+  genericShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ds.spacing[2],
+    padding: ds.spacing[3],
+    borderWidth: 1,
+    borderColor: ds.colors.primary.main,
+    borderRadius: ds.borderRadius.lg,
+    backgroundColor: 'transparent',
   },
-  configForm: {
-    gap: ds.spacing[4],
+  genericShareText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
   },
-  configLabel: {
+
+  // Social Media Setup Modal Styles
+  setupForm: {
+    marginVertical: ds.spacing[6],
+  },
+  setupLabel: {
     fontSize: ds.typography.fontSize.base.size,
     fontWeight: ds.typography.fontWeight.medium,
     color: ds.colors.text.primary,
+    marginBottom: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.base,
   },
-  configInput: {
+  setupInput: {
     borderWidth: 1,
     borderColor: ds.colors.neutral[300],
-    borderRadius: ds.borderRadius.lg,
-    padding: ds.spacing[4],
+    borderRadius: ds.borderRadius.md,
+    paddingHorizontal: ds.spacing[4],
+    paddingVertical: ds.spacing[3],
     fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.base,
     backgroundColor: ds.colors.background.primary,
   },
-  configButtons: {
+  setupActions: {
     flexDirection: 'row',
     gap: ds.spacing[3],
     marginTop: ds.spacing[4],
   },
-  configButton: {
+  setupCancelButton: {
     flex: 1,
-    backgroundColor: ds.colors.primary.main,
-    paddingVertical: ds.spacing[4],
-    paddingHorizontal: ds.spacing[6],
-    borderRadius: ds.borderRadius.lg,
-    alignItems: 'center',
-  },
-  configButtonText: {
-    fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.text.inverse,
-    fontWeight: ds.typography.fontWeight.semibold,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  configCancelButton: {
-    flex: 1,
-    backgroundColor: 'transparent',
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
     borderWidth: 1,
     borderColor: ds.colors.neutral[300],
-    paddingVertical: ds.spacing[4],
-    paddingHorizontal: ds.spacing[6],
-    borderRadius: ds.borderRadius.lg,
+    borderRadius: ds.borderRadius.md,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
-  configCancelButtonText: {
+  setupCancelText: {
     fontSize: ds.typography.fontSize.base.size,
     color: ds.colors.text.secondary,
     fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
   },
+  setupSaveButton: {
+    flex: 1,
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    backgroundColor: ds.colors.primary.main,
+    borderRadius: ds.borderRadius.md,
+    alignItems: 'center',
+    ...ds.shadows.sm,
+  },
+  setupSaveText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.inverse,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
 })
