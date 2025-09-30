@@ -3,106 +3,10 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/about",
-      "has": [
-        {
-          "type": "host",
-          "value": "bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/about",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/pricing",
-      "has": [
-        {
-          "type": "host",
-          "value": "bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/pricing",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/contact",
-      "has": [
-        {
-          "type": "host",
-          "value": "bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/contact",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/features",
-      "has": [
-        {
-          "type": "host",
-          "value": "bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/features",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.bealigned.app"
-        }
-      ],
-      "destination": "/figma-wrapper.html"
+      "src": "^/(about|pricing|contact|features)?$",
+      "dest": "/figma-wrapper.html"
     }
   ]
 }
