@@ -7,6 +7,13 @@
     {
       "src": "^/(about|pricing|contact|features)?$",
       "dest": "/figma-wrapper.html"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
