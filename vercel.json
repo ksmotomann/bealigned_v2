@@ -3,82 +3,116 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
-      "destination": "https://bealigned.figma.site/"
+      "has": [
+        {
+          "type": "host",
+          "value": "bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/",
+      "permanent": false
     },
     {
       "source": "/about",
-      "destination": "https://bealigned.figma.site/about"
+      "has": [
+        {
+          "type": "host",
+          "value": "bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/about",
+      "permanent": false
+    },
+    {
+      "source": "/about",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/about",
+      "permanent": false
     },
     {
       "source": "/pricing",
-      "destination": "https://bealigned.figma.site/pricing"
+      "has": [
+        {
+          "type": "host",
+          "value": "bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/pricing",
+      "permanent": false
+    },
+    {
+      "source": "/pricing",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/pricing",
+      "permanent": false
     },
     {
       "source": "/contact",
-      "destination": "https://bealigned.figma.site/contact"
+      "has": [
+        {
+          "type": "host",
+          "value": "bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/contact",
+      "permanent": false
+    },
+    {
+      "source": "/contact",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/contact",
+      "permanent": false
     },
     {
       "source": "/features",
-      "destination": "https://bealigned.figma.site/features"
+      "has": [
+        {
+          "type": "host",
+          "value": "bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/features",
+      "permanent": false
     },
     {
-      "source": "/login",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/signup",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/welcome",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/chat",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/profile",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/settings",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/admin",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/history",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/subscription",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/session/(.*)",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/_expo/(.*)",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/static/(.*)",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/:path*",
-      "destination": "https://bealigned.figma.site/:path*"
+      "source": "/features",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.bealigned.app"
+        }
+      ],
+      "destination": "https://bealigned.figma.site/features",
+      "permanent": false
     }
   ]
 }
