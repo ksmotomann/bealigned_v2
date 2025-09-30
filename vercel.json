@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
-  "redirects": [
+  "rewrites": [
     {
       "source": "/",
       "has": [
@@ -12,8 +12,7 @@
           "value": "bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/",
@@ -23,8 +22,7 @@
           "value": "www.bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/about",
@@ -34,8 +32,7 @@
           "value": "bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/about",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/about",
@@ -45,8 +42,7 @@
           "value": "www.bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/about",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/pricing",
@@ -56,8 +52,7 @@
           "value": "bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/pricing",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/pricing",
@@ -67,8 +62,7 @@
           "value": "www.bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/pricing",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/contact",
@@ -78,8 +72,7 @@
           "value": "bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/contact",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/contact",
@@ -89,8 +82,7 @@
           "value": "www.bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/contact",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/features",
@@ -100,8 +92,7 @@
           "value": "bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/features",
-      "permanent": false
+      "destination": "/public/index.html"
     },
     {
       "source": "/features",
@@ -111,8 +102,7 @@
           "value": "www.bealigned.app"
         }
       ],
-      "destination": "https://bealigned.figma.site/features",
-      "permanent": false
+      "destination": "/public/index.html"
     }
   ]
 }
