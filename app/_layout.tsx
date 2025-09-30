@@ -18,6 +18,7 @@ export default function RootLayout() {
   const [showLegalModal, setShowLegalModal] = useState(false)
   const [requiresTour, setRequiresTour] = useState(false)
   const [showTourModal, setShowTourModal] = useState(false)
+  const [requiresFirstReflection, setRequiresFirstReflection] = useState(false)
   const router = useRouter()
   const segments = useSegments()
 
@@ -50,7 +51,7 @@ export default function RootLayout() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('requires_legal_acknowledgment, terms_acknowledged_at, privacy_acknowledged_at, tour_completed_at')
+        .select('requires_legal_acknowledgment, terms_acknowledged_at, privacy_acknowledged_at, tour_completed_at, first_reflection_completed_at')
         .eq('id', userId)
         .single()
 
@@ -64,9 +65,11 @@ export default function RootLayout() {
                                  !data?.privacy_acknowledged_at
 
       const needsTour = !data?.tour_completed_at
+      const needsFirstReflection = !data?.first_reflection_completed_at
 
       setRequiresLegalAcknowledgment(needsAcknowledgment)
       setRequiresTour(needsTour)
+      setRequiresFirstReflection(needsFirstReflection)
     } catch (error) {
       console.error('Error checking user onboarding status:', error)
     }
@@ -90,6 +93,7 @@ export default function RootLayout() {
         setShowLegalModal(false)
         setRequiresTour(false)
         setShowTourModal(false)
+        setRequiresFirstReflection(false)
       }
     })
 
@@ -118,6 +122,9 @@ export default function RootLayout() {
         setShowLegalModal(true)
       } else if (requiresTour) {
         setShowTourModal(true)
+      } else if (requiresFirstReflection) {
+        // Allow users to navigate freely, but start them on the chat screen
+        router.replace('/(tabs)/chat')
       } else {
         router.replace('/(tabs)/dashboard')
       }
@@ -128,8 +135,9 @@ export default function RootLayout() {
       } else if (requiresTour) {
         setShowTourModal(true)
       }
+      // Remove automatic chat redirect - allow users to navigate freely during first reflection
     }
-  }, [session, segments, isLoading, isProxyContext, requiresLegalAcknowledgment, requiresTour])
+  }, [session, segments, isLoading, isProxyContext, requiresLegalAcknowledgment, requiresTour, requiresFirstReflection])
 
   const handleLegalAcknowledgmentComplete = () => {
     setShowLegalModal(false)
@@ -138,6 +146,8 @@ export default function RootLayout() {
     // After legal acknowledgment, check if tour is needed
     if (requiresTour) {
       setShowTourModal(true)
+    } else if (requiresFirstReflection) {
+      router.replace('/(tabs)/chat')
     } else {
       router.replace('/(tabs)/dashboard')
     }
@@ -146,7 +156,14 @@ export default function RootLayout() {
   const handleTourComplete = () => {
     setShowTourModal(false)
     setRequiresTour(false)
-    router.replace('/(tabs)/dashboard')
+
+    // After tour completion, allow users to navigate freely
+    // Start first-time users on chat but don't force them to stay there
+    if (requiresFirstReflection) {
+      router.replace('/(tabs)/chat')
+    } else {
+      router.replace('/(tabs)/dashboard')
+    }
   }
 
   return (

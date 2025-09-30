@@ -32,21 +32,36 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   async function loadProfile() {
     try {
-      // Since profiles table doesn't exist, determine admin status from email or other method
-      // For now, check if user email is in a list of admin emails
+      if (!user?.id) return
+
+      // Load profile data from the database
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, user_type')
+        .eq('id', user.id)
+        .single()
+
+      if (error) {
+        console.error('Error loading profile:', error)
+      } else if (profileData) {
+        setProfile(profileData)
+      }
+
+      // Determine admin status from profile data or email
       const adminEmails = [
         // Add admin emails here - robert@freedomrallyracing.com should NOT be admin for testing
         // 'admin@bealigned.app',
         // Add other verified admin emails here
       ]
 
-      const isAdmin = user?.email && adminEmails.includes(user.email)
+      const isAdmin = (profileData?.user_type === 'admin' || profileData?.user_type === 'super_admin') ||
+                     (user?.email && adminEmails.includes(user.email))
       setIsActualAdmin(isAdmin)
 
-      console.log('Admin status check:', {
+      console.log('Profile loaded:', {
         email: user?.email,
-        isAdmin,
-        adminEmails
+        profile: profileData,
+        isAdmin
       })
     } catch (error) {
       console.error('Error loading profile:', error)
@@ -81,11 +96,11 @@ export default function UserMenu({ user }: UserMenuProps) {
 
       const { error } = await supabase.auth.signOut()
       if (!error) {
-        router.replace('/(auth)/login')
+        router.replace('/(marketing)/goodbye')
       }
     } catch (error) {
       console.error('Sign out error:', error)
-      router.replace('/(auth)/login')
+      router.replace('/(marketing)/goodbye')
     }
   }
 

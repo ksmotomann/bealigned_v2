@@ -4,9 +4,20 @@ import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import ds from '../../styles/design-system'
-import AnimatedWaveHero from '../../components/AnimatedWaveHero'
-import NavigationHeader from '../../components/NavigationHeader'
 import SEOHead from '../../components/SEOHead'
+
+// Official "Be" logo component using the transparent asset
+function BeLogo() {
+  return (
+    <View style={styles.logoCircle}>
+      <Image
+        source={require('../../assets/be_logo.png')}
+        style={styles.beLogoImage}
+        resizeMode="contain"
+      />
+    </View>
+  )
+}
 
 export default function ConfirmEmail() {
   const router = useRouter()
@@ -41,76 +52,86 @@ export default function ConfirmEmail() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <SEOHead page="confirm-email" />
 
-      {/* Navigation Header */}
-      <NavigationHeader />
+      <View style={styles.content}>
+        {/* Be Logo */}
+        <BeLogo />
 
-      {/* Main Content with Animated Wave Background */}
-      <AnimatedWaveHero style={styles.hero}>
-        <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="mail-outline" size={48} color={ds.colors.primary.main} />
+        {/* Welcome Heading */}
+        <Text style={styles.welcomeTitle}>Welcome to BeAligned™</Text>
+
+        {/* Email Confirmation Card */}
+        <View style={styles.emailCard}>
+          {/* Checkmark Icon */}
+          <View style={styles.checkmarkContainer}>
+            <View style={styles.checkmarkCircle}>
+              <Ionicons name="checkmark" size={32} color={ds.colors.primary.main} />
             </View>
           </View>
 
-          <Text style={styles.title}>
-            Check Your Email
-          </Text>
+          {/* Check Your Email */}
+          <Text style={styles.cardTitle}>Check Your Email</Text>
 
-          <Text style={styles.subtitle}>
+          <Text style={styles.cardSubtitle}>
             We've sent a confirmation link to
           </Text>
 
+          {/* Email Display */}
           {email && (
-            <Text style={styles.email}>
-              {email}
-            </Text>
+            <View style={styles.emailContainer}>
+              <Text style={styles.emailText}>{email}</Text>
+            </View>
           )}
+        </View>
 
-          <View style={styles.instructionsContainer}>
-            <Text style={styles.sectionTitle}>Next Steps</Text>
+        {/* Next Steps - On Main Body */}
+        <View style={styles.nextStepsContainer}>
+          <Text style={styles.nextStepsTitle}>Next Steps</Text>
 
-            <View style={styles.instruction}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>1</Text>
-              </View>
-              <View style={styles.instructionText}>
-                <Text style={styles.instructionTitle}>Check your inbox</Text>
-                <Text style={styles.instructionDescription}>
-                  Look for an email from BeAligned with the subject "Confirm your signup"
-                </Text>
-              </View>
+          <View style={styles.step}>
+            <View style={styles.stepNumber}>
+              <Text style={styles.stepNumberText}>1</Text>
             </View>
-
-            <View style={styles.instruction}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>2</Text>
-              </View>
-              <View style={styles.instructionText}>
-                <Text style={styles.instructionTitle}>Click the confirmation link</Text>
-                <Text style={styles.instructionDescription}>
-                  This will verify your email address and activate your account
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.instruction}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>3</Text>
-              </View>
-              <View style={styles.instructionText}>
-                <Text style={styles.instructionTitle}>Sign in to BeAligned</Text>
-                <Text style={styles.instructionDescription}>
-                  Once confirmed, you can sign in and begin your reflection journey
-                </Text>
-              </View>
+            <View style={styles.stepContent}>
+              <Text style={styles.stepTitle}>Check your inbox</Text>
+              <Text style={styles.stepDescription}>
+                Look for an email from BeAligned with the subject "Confirm your signup"
+              </Text>
             </View>
           </View>
 
-          <View style={styles.helpContainer}>
-            <Text style={styles.helpTitle}>Didn't receive the email?</Text>
-            <Text style={styles.helpText}>
-              Check your spam folder, or wait a few minutes and try again. Confirmation emails can sometimes take a moment to arrive.
+          <View style={styles.step}>
+            <View style={styles.stepNumber}>
+              <Text style={styles.stepNumberText}>2</Text>
+            </View>
+            <View style={styles.stepContent}>
+              <Text style={styles.stepTitle}>Click the confirmation link</Text>
+              <Text style={styles.stepDescription}>
+                This will verify your email address and activate your account
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.step}>
+            <View style={styles.stepNumber}>
+              <Text style={styles.stepNumberText}>3</Text>
+            </View>
+            <View style={styles.stepContent}>
+              <Text style={styles.stepTitle}>Sign in to BeAligned</Text>
+              <Text style={styles.stepDescription}>
+                Once confirmed, you can sign in and begin your reflection journey
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Help Card */}
+        <View style={styles.helpCard}>
+          {/* Didn't receive email section */}
+          <View style={styles.noEmailSection}>
+            <Text style={styles.noEmailTitle}>Didn't receive the email?</Text>
+            <Text style={styles.noEmailText}>
+              Check your spam folder, or wait a few minutes and try again.
+              Confirmation emails can sometimes take a moment to arrive.
             </Text>
 
             {message && (
@@ -132,45 +153,17 @@ export default function ConfirmEmail() {
             </Pressable>
           </View>
 
-          <View style={styles.linkContainer}>
-            <Text style={styles.linkText}>Already confirmed? </Text>
-            <Pressable onPress={() => router.push('/(auth)/login')}>
-              <Text style={styles.link}>Sign In</Text>
+          {/* Already confirmed section */}
+          <View style={styles.alreadyConfirmedSection}>
+            <Text style={styles.alreadyConfirmedText}>Already confirmed?</Text>
+            <Pressable
+              style={styles.signInButton}
+              onPress={() => router.push('/(auth)/login')}
+            >
+              <Text style={styles.signInButtonText}>Sign In</Text>
             </Pressable>
           </View>
         </View>
-      </AnimatedWaveHero>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Image
-          source={require('../../assets/bealigned_logo.avif')}
-          style={styles.footerLogoImage}
-          resizeMode="contain"
-        />
-
-        <View style={styles.footerLinks}>
-          <Pressable onPress={() => router.push('/(marketing)')}>
-            <Text style={styles.footerLink}>Home</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/our-story')}>
-            <Text style={styles.footerLink}>Our Story</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/faq')}>
-            <Text style={styles.footerLink}>FAQ</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/contact')}>
-            <Text style={styles.footerLink}>Contact</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.footerDisclaimer}>
-          © 2025 BeAligned • BeH2O® is a registered trademark{'\n'}
-          BeAligned provides educational guidance and is not a substitute for professional therapy or legal advice
-        </Text>
       </View>
     </ScrollView>
   )
@@ -179,68 +172,138 @@ export default function ConfirmEmail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ds.colors.background.primary,
-  },
-  hero: {
-    paddingVertical: ds.spacing[20],
-    paddingHorizontal: ds.spacing[10],
-    alignItems: 'center',
-    minHeight: 600,
+    backgroundColor: '#F8F9FA', // Light gray background like in the design
   },
   content: {
-    paddingHorizontal: ds.spacing[6],
-    maxWidth: 600,
-    width: '100%',
-    alignSelf: 'center',
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: ds.spacing[4],
+    paddingVertical: ds.spacing[8],
   },
-  iconContainer: {
+
+  // Be Logo styles
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: ds.spacing[6],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: ds.colors.primary.light,
+  beLogoImage: {
+    width: 60,
+    height: 60,
+  },
+
+  // Welcome heading
+  welcomeTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: ds.colors.text.primary,
+    textAlign: 'center',
+    marginBottom: ds.spacing[10],
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+
+  // Email confirmation card
+  emailCard: {
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius['2xl'],
+    padding: ds.spacing[8],
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    marginBottom: ds.spacing[8],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  // Help card
+  helpCard: {
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius['2xl'],
+    padding: ds.spacing[8],
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    marginTop: ds.spacing[8],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  // Checkmark icon
+  checkmarkContainer: {
+    marginBottom: ds.spacing[6],
+  },
+  checkmarkCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: ds.colors.primary.main + '20', // 20% opacity
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: ds.typography.fontSize['3xl'].size,
-    fontWeight: ds.typography.fontWeight.bold,
-    color: ds.colors.text.inverse,
+
+  // Card title and subtitle
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: ds.colors.text.primary,
     textAlign: 'center',
-    marginBottom: ds.spacing[2],
+    marginBottom: ds.spacing[3],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  subtitle: {
-    fontSize: ds.typography.fontSize.lg.size,
-    color: ds.colors.text.inverse,
+  cardSubtitle: {
+    fontSize: 16,
+    color: ds.colors.text.secondary,
     textAlign: 'center',
-    marginBottom: ds.spacing[2],
-    opacity: 0.9,
+    marginBottom: ds.spacing[4],
     fontFamily: ds.typography.fontFamily.base,
   },
-  email: {
-    fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.inverse,
-    textAlign: 'center',
+
+  // Email display
+  emailContainer: {
+    backgroundColor: ds.colors.primary.lightest,
+    paddingHorizontal: ds.spacing[4],
+    paddingVertical: ds.spacing[3],
+    borderRadius: ds.borderRadius.md,
     marginBottom: ds.spacing[8],
+  },
+  emailText: {
+    fontSize: 16,
+    color: ds.colors.primary.dark,
     fontFamily: ds.typography.fontFamily.base,
+    fontWeight: '500',
   },
-  instructionsContainer: {
+
+  // Next Steps
+  nextStepsContainer: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
     marginBottom: ds.spacing[8],
   },
-  sectionTitle: {
-    fontSize: ds.typography.fontSize['2xl'].size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.inverse,
-    marginBottom: ds.spacing[5],
+  nextStepsTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: ds.colors.text.primary,
     textAlign: 'center',
+    marginBottom: ds.spacing[6],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  instruction: {
+  step: {
     flexDirection: 'row',
     marginBottom: ds.spacing[5],
     alignItems: 'flex-start',
@@ -257,67 +320,69 @@ const styles = StyleSheet.create({
   },
   stepNumberText: {
     color: ds.colors.text.inverse,
-    fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.semibold,
+    fontSize: 14,
+    fontWeight: '600',
     fontFamily: ds.typography.fontFamily.base,
   },
-  instructionText: {
+  stepContent: {
     flex: 1,
   },
-  instructionTitle: {
-    fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.inverse,
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: ds.colors.text.primary,
     marginBottom: ds.spacing[1],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  instructionDescription: {
-    fontSize: ds.typography.fontSize.base.size,
-    lineHeight: ds.typography.fontSize.base.lineHeight,
-    color: ds.colors.text.inverse,
-    opacity: 0.9,
+  stepDescription: {
+    fontSize: 14,
+    color: ds.colors.text.secondary,
+    lineHeight: 20,
     fontFamily: ds.typography.fontFamily.base,
   },
-  helpContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: ds.spacing[5],
-    borderRadius: ds.borderRadius.lg,
+
+  // No email section
+  noEmailSection: {
+    width: '100%',
+    alignItems: 'center',
     marginBottom: ds.spacing[6],
   },
-  helpTitle: {
-    fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.inverse,
-    marginBottom: ds.spacing[2],
+  noEmailTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: ds.colors.text.primary,
     textAlign: 'center',
+    marginBottom: ds.spacing[3],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  helpText: {
-    fontSize: ds.typography.fontSize.base.size,
-    lineHeight: ds.typography.fontSize.base.lineHeight,
-    color: ds.colors.text.inverse,
-    opacity: 0.9,
+  noEmailText: {
+    fontSize: 14,
+    color: ds.colors.text.secondary,
     textAlign: 'center',
+    lineHeight: 20,
     marginBottom: ds.spacing[4],
     fontFamily: ds.typography.fontFamily.base,
   },
+
+  // Message box
   messageBox: {
     padding: ds.spacing[3],
     borderRadius: ds.borderRadius.md,
     marginBottom: ds.spacing[4],
+    width: '100%',
   },
   successBox: {
-    backgroundColor: ds.colors.background.primary,
+    backgroundColor: ds.colors.success + '10',
     borderWidth: 1,
     borderColor: ds.colors.success,
   },
   errorBox: {
-    backgroundColor: ds.colors.background.primary,
+    backgroundColor: ds.colors.error + '10',
     borderWidth: 1,
     borderColor: ds.colors.error,
   },
   messageText: {
-    fontSize: ds.typography.fontSize.sm.size,
+    fontSize: 14,
     textAlign: 'center',
     fontFamily: ds.typography.fontFamily.base,
   },
@@ -327,71 +392,46 @@ const styles = StyleSheet.create({
   errorText: {
     color: ds.colors.error,
   },
+
+  // Resend button
   resendButton: {
-    backgroundColor: ds.colors.background.primary,
+    backgroundColor: ds.colors.primary.main,
     paddingVertical: ds.spacing[3],
     paddingHorizontal: ds.spacing[6],
     borderRadius: ds.borderRadius.md,
-    alignSelf: 'center',
     ...ds.shadows.base,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   resendButtonText: {
+    color: ds.colors.text.inverse,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Already confirmed section
+  alreadyConfirmedSection: {
+    alignItems: 'center',
+  },
+  alreadyConfirmedText: {
+    fontSize: 14,
+    color: ds.colors.text.secondary,
+    marginBottom: ds.spacing[3],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  signInButton: {
+    borderWidth: 1,
+    borderColor: ds.colors.primary.main,
+    paddingVertical: ds.spacing[2],
+    paddingHorizontal: ds.spacing[6],
+    borderRadius: ds.borderRadius.md,
+  },
+  signInButtonText: {
     color: ds.colors.primary.main,
-    fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  linkContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: ds.spacing[4],
-  },
-  linkText: {
-    color: ds.colors.text.inverse,
-    opacity: 0.8,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  link: {
-    color: ds.colors.text.inverse,
-    fontWeight: ds.typography.fontWeight.semibold,
-    textDecorationLine: 'underline',
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  footer: {
-    backgroundColor: ds.colors.neutral[800],
-    paddingVertical: ds.spacing[10],
-    paddingHorizontal: ds.spacing[10],
-    alignItems: 'center',
-  },
-  footerLogoImage: {
-    width: 120,
-    height: 32,
-    marginBottom: 24,
-    tintColor: '#FFFFFF',
-  },
-  footerLinks: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  footerLink: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.neutral[300],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  footerDivider: {
-    color: '#666666',
-    marginHorizontal: 12,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  footerDisclaimer: {
-    fontSize: ds.typography.fontSize.xs.size,
-    color: ds.colors.neutral[400],
-    textAlign: 'center',
-    lineHeight: ds.typography.fontSize.xs.lineHeight + 2,
+    fontSize: 16,
+    fontWeight: '500',
     fontFamily: ds.typography.fontFamily.base,
   },
 })

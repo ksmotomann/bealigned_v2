@@ -6,9 +6,11 @@ import { supabase } from '../lib/supabase'
 import UserMenu from './UserMenu'
 import ds from '../styles/design-system'
 
-interface InAppNavigationHeaderProps {}
+interface InAppNavigationHeaderProps {
+  onLogoPress?: () => void
+}
 
-export default function InAppNavigationHeader({}: InAppNavigationHeaderProps) {
+export default function InAppNavigationHeader({ onLogoPress }: InAppNavigationHeaderProps) {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
 
@@ -28,7 +30,7 @@ export default function InAppNavigationHeader({}: InAppNavigationHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.headerContent}>
-        <Pressable style={styles.logo} onPress={() => router.push('/(tabs)/dashboard')}>
+        <Pressable style={styles.logo} onPress={() => onLogoPress ? onLogoPress() : router.push('/(tabs)/dashboard')}>
           <Image
             source={require('../assets/bealigned_logo.avif')}
             style={styles.logoImage}

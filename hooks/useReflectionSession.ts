@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { checkPhaseCompletion, generateAIResponse } from '../lib/aiServiceKnowledgeBased'
 import { getRandomWelcomePrompt, getAIGeneratedWelcome } from '../lib/welcomePrompts'
 import { generateSimplePhase7Response, SimplePhase7Context } from '../lib/simplifiedPhase7'
+import { useRouter } from 'expo-router'
 
 export interface Message {
   id: string
@@ -49,6 +50,7 @@ export function useReflectionSession(
   options?: UseReflectionSessionOptions,
   phases?: any[]
 ): UseReflectionSessionReturn {
+  const router = useRouter()
   const [session, setSession] = useState<ReflectionSession>({
     id: null,
     currentStep: 1,
@@ -69,6 +71,50 @@ export function useReflectionSession(
   useEffect(() => {
     checkAdminStatus()
   }, [])
+
+  // Helper function to check and update first reflection completion
+  const checkFirstReflectionCompletion = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return false
+
+      // Check if user has already completed their first reflection
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_reflection_completed_at')
+        .eq('id', user.id)
+        .single()
+
+      if (profile && !profile.first_reflection_completed_at) {
+        // This is the user's first reflection completion
+        const now = new Date().toISOString()
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({ first_reflection_completed_at: now })
+          .eq('id', user.id)
+
+        if (error) {
+          console.error('Error updating first reflection completion:', error)
+          return false
+        }
+
+        console.log('✅ First reflection completion recorded!')
+
+        // Redirect to dashboard after first reflection
+        setTimeout(() => {
+          router.replace('/(tabs)/dashboard')
+        }, 5000) // Wait 5 seconds to let user see completion message
+
+        return true
+      }
+
+      return false
+    } catch (error) {
+      console.error('Error checking first reflection completion:', error)
+      return false
+    }
+  }
 
   // Load or create session when sessionId changes (including initial mount)
   useEffect(() => {
@@ -890,12 +936,15 @@ export function useReflectionSession(
               step_data: updatedResponses
             })
             .eq('id', session.id)
-          
+
           setSession(prev => ({
             ...prev,
             isComplete: true,
             responses: updatedResponses
           }))
+
+          // Check if this is the user's first reflection completion
+          await checkFirstReflectionCompletion()
         }, 3000) // Single 3-second delay for closing
       }
     } catch (error) {

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { useSearchParams } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import CreditCardForm from '../../components/CreditCardForm';
-import { Ionicons } from '@expo/vector-icons';
 
 interface SubscriptionProduct {
   id: string;
@@ -26,12 +25,26 @@ export default function SubscriptionScreen() {
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<SubscriptionProduct | null>(null);
+  const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     loadSubscriptionData();
   }, []);
+
+  // Handle success/cancel from Stripe checkout
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+
+    if (success === 'true') {
+      setCheckoutMessage('🎉 Subscription activated successfully! Welcome to BeAligned Premium.');
+      // Reload subscription data to show updated status
+      loadSubscriptionData();
+    } else if (canceled === 'true') {
+      setCheckoutMessage('Subscription setup was canceled. You can try again anytime.');
+    }
+  }, [searchParams]);
 
   const loadSubscriptionData = async () => {
     try {
@@ -75,33 +88,34 @@ export default function SubscriptionScreen() {
       return;
     }
 
-    // Find the selected product
-    const product = products.find(p => p.stripe_price_id === priceId);
-    if (!product) {
-      Alert.alert('Error', 'Product not found');
-      return;
-    }
+    setCheckoutLoading(true);
 
-    setSelectedProduct(product);
-    setShowPaymentModal(true);
-  };
-
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
     try {
-      Alert.alert('Success!', 'Your subscription has been activated successfully');
-      setShowPaymentModal(false);
-      setSelectedProduct(null);
+      // Create checkout session for subscription
+      const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+        body: {
+          action: 'create-checkout-session',
+          successUrl: `${window.location.origin}/(tabs)/subscription?success=true`,
+          cancelUrl: `${window.location.origin}/(tabs)/subscription?canceled=true`
+        }
+      });
 
-      // Reload subscription data
-      await loadSubscriptionData();
-    } catch (error) {
-      console.error('Error handling payment success:', error);
+      if (error) throw error;
+
+      if (data?.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error: any) {
+      console.error('Error creating checkout session:', error);
+      Alert.alert('Error', error.message || 'Failed to start checkout process');
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
-  const handlePaymentError = (error: string) => {
-    Alert.alert('Payment Failed', error);
-  };
 
   const handleManageSubscription = async () => {
     try {
@@ -230,48 +244,18 @@ export default function SubscriptionScreen() {
         </View>
       )}
 
-      {/* Payment Modal */}
-      <Modal
-        visible={showPaymentModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowPaymentModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Complete Your Subscription</Text>
-            <TouchableOpacity
-              onPress={() => setShowPaymentModal(false)}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-
-          {selectedProduct && (
-            <ScrollView contentContainerStyle={styles.modalContent}>
-              <View style={styles.productSummary}>
-                <Text style={styles.productSummaryTitle}>{selectedProduct.name}</Text>
-                <Text style={styles.productSummaryPrice}>
-                  ${selectedProduct.price}/{selectedProduct.interval}
-                </Text>
-                <Text style={styles.productSummaryDescription}>
-                  {selectedProduct.description}
-                </Text>
-              </View>
-
-              <CreditCardForm
-                amount={selectedProduct.price}
-                description={`${selectedProduct.name} - ${selectedProduct.description}`}
-                onSuccess={handlePaymentSuccess}
-                onError={handlePaymentError}
-                loading={checkoutLoading}
-                setLoading={setCheckoutLoading}
-              />
-            </ScrollView>
-          )}
+      {/* Checkout Message */}
+      {checkoutMessage && (
+        <View style={styles.messageContainer}>
+          <Text style={styles.messageText}>{checkoutMessage}</Text>
+          <TouchableOpacity
+            style={styles.dismissButton}
+            onPress={() => setCheckoutMessage(null)}
+          >
+            <Text style={styles.dismissButtonText}>✕</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
+      )}
     </ScrollView>
   );
 }
@@ -389,7 +373,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Modal styles
+  messageContainer: {
+    backgroundColor: '#4CAF50',
+    margin: 20,
+    padding: 16,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  messageText: {
+    color: '#fff',
+    fontSize: 14,
+    flex: 1,
+    marginRight: 12,
+  },
+  dismissButton: {
+    padding: 4,
+  },
+  dismissButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   modalContainer: {
     flex: 1,
     backgroundColor: '#F5F7FA',
