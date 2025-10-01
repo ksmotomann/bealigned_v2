@@ -42,10 +42,14 @@ export default function Community() {
   const [likingPost, setLikingPost] = useState<string | null>(null)
   const [showReplyModal, setShowReplyModal] = useState(false)
   const [replyToPost, setReplyToPost] = useState<{ id: string; author: string } | null>(null)
+  const [foundersVideos, setFoundersVideos] = useState<any[]>([])
+  const [coachWisdomItems, setCoachWisdomItems] = useState<any[]>([])
 
   useEffect(() => {
     loadPosts()
     checkAdminStatus()
+    loadFoundersVideos()
+    loadCoachWisdom()
   }, [showShareModal]) // Reload when modal closes
 
   async function checkAdminStatus() {
@@ -90,6 +94,36 @@ export default function Community() {
       console.error('Error loading posts:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadFoundersVideos() {
+    try {
+      const { data, error } = await supabase
+        .from('founders_voice_videos')
+        .select('*')
+        .eq('is_published', true)
+        .order('display_order', { ascending: true })
+
+      if (error) throw error
+      setFoundersVideos(data || [])
+    } catch (error) {
+      console.error('Error loading founders videos:', error)
+    }
+  }
+
+  async function loadCoachWisdom() {
+    try {
+      const { data, error } = await supabase
+        .from('coach_wisdom')
+        .select('*')
+        .eq('is_published', true)
+        .order('display_order', { ascending: true })
+
+      if (error) throw error
+      setCoachWisdomItems(data || [])
+    } catch (error) {
+      console.error('Error loading coach wisdom:', error)
     }
   }
 
@@ -235,49 +269,6 @@ export default function Community() {
     }
   ]
 
-  const foundersVoice = [
-    {
-      title: 'Why I Created BeAligned',
-      question: '"What inspired you to start this journey?"',
-      duration: '4:23',
-      plays: '342 plays'
-    },
-    {
-      title: 'The Evolution from BeH2O',
-      question: '"How does BeAligned build on your court program?"',
-      duration: '3:45',
-      plays: '287 plays'
-    },
-    {
-      title: 'Technology for Healing',
-      question: '"Can technology really transform family dynamics?"',
-      duration: '5:12',
-      plays: '156 plays'
-    }
-  ]
-
-  const coachWisdom = [
-    {
-      title: 'The Power of Pause',
-      content: 'Before responding to your co-parent, take three deep breaths. This simple practice creates space for wisdom instead of reaction.',
-      author: '— Dr. Maria Santos'
-    },
-    {
-      title: 'Children as Observers',
-      content: 'Your children are always watching how you handle conflict. Every aligned choice you make teaches them resilience and emotional intelligence.',
-      author: '— James Parker'
-    },
-    {
-      title: 'Words That Heal',
-      content: 'Replace "You always..." with "I feel..." in communications. This shift moves you from blame to authentic expression.',
-      author: '— Dr. Sarah Kim'
-    },
-    {
-      title: 'Progress Over Perfection',
-      content: 'Every small step toward aligned co-parenting is a victory. Celebrate the micro-moments of growth.',
-      author: '— Jessica Williams'
-    }
-  ]
 
   return (
     <SafeAreaView style={styles.container}>
@@ -298,7 +289,9 @@ export default function Community() {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.title}>BeAligned™ Community</Text>
+          <Text style={styles.title}>
+            BeAligned<Text style={styles.trademark}>™</Text> Community
+          </Text>
           <Text style={styles.subtitle}>A shared space for reflection, wisdom, and growth.</Text>
           <View style={styles.divider} />
         </View>
@@ -400,15 +393,15 @@ export default function Community() {
               <Text style={styles.columnTitle}>Founder's Voice</Text>
               <Text style={styles.columnSubtitle}>Answers to your questions</Text>
 
-              {foundersVoice.map((video, index) => (
-                <Pressable key={index} style={styles.videoCard}>
+              {foundersVideos.map((video) => (
+                <Pressable key={video.id} style={styles.videoCard}>
                   <Text style={styles.videoTitle}>{video.title}</Text>
                   <Text style={styles.videoQuestion}>{video.question}</Text>
                   <View style={styles.videoMeta}>
                     <Text style={styles.videoDuration}>{video.duration}</Text>
                     <View style={styles.videoPlays}>
                       <Ionicons name="play" size={12} color={ds.colors.primary.main} />
-                      <Text style={styles.videoPlaysText}>{video.plays}</Text>
+                      <Text style={styles.videoPlaysText}>{video.plays} plays</Text>
                     </View>
                   </View>
                 </Pressable>
@@ -425,8 +418,8 @@ export default function Community() {
               <Text style={styles.columnTitle}>Coach Wisdom</Text>
               <Text style={styles.columnSubtitle}>Tips & grounding insights</Text>
 
-              {coachWisdom.map((wisdom, index) => (
-                <View key={index} style={styles.wisdomCard}>
+              {coachWisdomItems.map((wisdom) => (
+                <View key={wisdom.id} style={styles.wisdomCard}>
                   <Text style={styles.wisdomTitle}>{wisdom.title}</Text>
                   <Text style={styles.wisdomContent}>{wisdom.content}</Text>
                   <Text style={styles.wisdomAuthor}>{wisdom.author}</Text>
@@ -528,6 +521,13 @@ const styles = StyleSheet.create({
     color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.heading,
     marginBottom: ds.spacing[2],
+  },
+  trademark: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.normal,
+    lineHeight: ds.typography.fontSize.sm.size,
+    position: 'relative',
+    top: -12,
   },
   subtitle: {
     fontSize: ds.typography.fontSize.base.size,

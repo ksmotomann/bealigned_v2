@@ -20,6 +20,8 @@ import { MODEL_INFO, AIModel, DEFAULT_AI_CONFIG } from '../../lib/aiConfig'
 import { supabase } from '../../lib/supabase'
 import AdminTrainingTranscripts from '../../components/AdminTrainingTranscripts'
 import AdminSettings from '../../components/AdminSettings'
+import CommunityManager from '../../components/admin/CommunityManager'
+import AlignmentAnalyticsManager from '../../components/admin/AlignmentAnalyticsManager'
 import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
 import RippleBackground from '../../components/RippleBackground'
@@ -75,8 +77,11 @@ export default function AdminPanel() {
   const [userSearchQuery, setUserSearchQuery] = useState('')
   const [userTypeFilter, setUserTypeFilter] = useState('all')
   const [selectedUsers, setSelectedUsers] = useState([])
+  const [showUserTypeModal, setShowUserTypeModal] = useState(false)
+  const [userTypeModalData, setUserTypeModalData] = useState<{userIds: string[], userName?: string} | null>(null)
   const [userStats, setUserStats] = useState({
     total: 0,
+    super_admins: 0,
     admins: 0,
     experts: 0,
     users: 0,
@@ -101,12 +106,11 @@ export default function AdminPanel() {
     { id: 'seo', title: 'SEO Management', icon: 'search-outline' },
     { id: 'content', title: 'Content Management', icon: 'document-text-outline' },
     { id: 'config', title: 'App Configuration', icon: 'settings-outline' },
-    { id: 'alignment-codes', title: 'Alignment Codes', icon: 'key-outline' },
+    { id: 'alignment-analytics', title: 'Alignment Codes', icon: 'key-outline' },
     { id: 'ai', title: 'AI Configuration', icon: 'bulb-outline' },
     { id: 'chat', title: 'Chat Settings', icon: 'chatbubbles-outline' },
     { id: 'training', title: 'Training Management', icon: 'school-outline' },
-    { id: 'community', title: 'Community Approvals', icon: 'people-circle-outline' },
-    { id: 'analytics', title: 'Analytics', icon: 'analytics-outline' },
+    { id: 'community', title: 'Community Manager', icon: 'people-circle-outline' },
     { id: 'users', title: 'User Management', icon: 'people-outline' },
     { id: 'assets', title: 'Assets Catalog', icon: 'cube-outline' },
   ]
@@ -115,12 +119,8 @@ export default function AdminPanel() {
   useEffect(() => {
     if (activeSection === 'ai') {
       loadAIConfig()
-    } else if (activeSection === 'alignment-codes') {
-      loadAlignmentCodes()
     } else if (activeSection === 'users') {
       loadUsers()
-    } else if (activeSection === 'analytics') {
-      loadAnalytics()
     } else if (activeSection === 'community') {
       loadPendingPosts()
     }
@@ -362,8 +362,7 @@ export default function AdminPanel() {
           role,
           alignment_code_used,
           created_at,
-          updated_at,
-          last_login_at
+          updated_at
         `)
         .order('created_at', { ascending: false })
 
@@ -387,15 +386,11 @@ export default function AdminPanel() {
       // Calculate user statistics
       const stats = {
         total: usersData.length,
+        super_admins: usersData.filter(u => (u.user_type || u.role) === 'super_admin').length,
         admins: usersData.filter(u => (u.user_type || u.role) === 'admin').length,
         experts: usersData.filter(u => (u.user_type || u.role) === 'expert').length,
         users: usersData.filter(u => (u.user_type || u.role || 'user') === 'user').length,
-        activeToday: usersData.filter(u => {
-          if (!u.last_login_at) return false
-          const today = new Date()
-          const loginDate = new Date(u.last_login_at)
-          return loginDate.toDateString() === today.toDateString()
-        }).length,
+        activeToday: 0, // last_login_at column doesn't exist yet
         newThisWeek: usersData.filter(u => {
           const weekAgo = new Date()
           weekAgo.setDate(weekAgo.getDate() - 7)
@@ -415,46 +410,93 @@ export default function AdminPanel() {
 
   const loadUserAlignmentCodes = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_alignment_codes')
-        .select(`
-          *,
-          alignment_codes (
-            code,
-            description,
-            user_type
-          )
-        `)
-        .eq('user_id', userId)
-        .order('used_at', { ascending: false })
+      console.log('🔍 Loading detailed data for user:', userId)
 
-      if (error) {
-        console.error('Error loading user alignment codes:', error)
-        return
+      // Load alignment codes, sessions, and community posts in parallel
+      const [codesResult, sessionsResult, postsResult] = await Promise.all([
+        supabase
+          .from('user_alignment_codes')
+          .select(`
+            *,
+            alignment_codes (
+              code,
+              description,
+              user_type
+            )
+          `)
+          .eq('user_id', userId)
+          .order('used_at', { ascending: false }),
+
+        supabase
+          .from('reflection_sessions')
+          .select('id, created_at, updated_at, current_phase, messages_count:messages(count)')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(10),
+
+        supabase
+          .from('community_posts')
+          .select('id, content, status, likes, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(10)
+      ])
+
+      if (codesResult.error) {
+        console.error('❌ Error loading user alignment codes:', codesResult.error)
       }
 
-      setUserAlignmentCodes(data || [])
+      console.log('✅ Loaded user data:', {
+        codes: codesResult.data?.length || 0,
+        sessions: sessionsResult.data?.length || 0,
+        posts: postsResult.data?.length || 0
+      })
+
+      setUserAlignmentCodes(codesResult.data || [])
+      setSelectedUser(prev => prev ? {
+        ...prev,
+        sessions: sessionsResult.data || [],
+        posts: postsResult.data || []
+      } : null)
     } catch (err) {
-      console.error('Error loading user alignment codes:', err)
+      console.error('💥 Exception loading user data:', err)
+      setUserAlignmentCodes([])
     }
   }
 
-  const updateUserType = async (userId: string, newUserType: string) => {
+  const openUserTypeModal = (userIds: string[], userName?: string) => {
+    setUserTypeModalData({ userIds, userName })
+    setShowUserTypeModal(true)
+  }
+
+  const closeUserTypeModal = () => {
+    setShowUserTypeModal(false)
+    setUserTypeModalData(null)
+  }
+
+  const updateUserType = async (userIds: string[], newUserType: string) => {
+    console.log(`🔄 Updating ${userIds.length} user(s) to type: ${newUserType}`)
     setUpdatingUser(true)
+    closeUserTypeModal()
+
     try {
       const { error } = await supabase
         .from('profiles')
         .update({ user_type: newUserType })
-        .eq('id', userId)
+        .in('id', userIds)
 
       if (error) {
-        Alert.alert('Error', 'Failed to update user type')
+        console.error('❌ Error updating user type:', error)
+        Alert.alert('Error', 'Failed to update user type: ' + error.message)
         return
       }
 
-      Alert.alert('Success', 'User type updated successfully!')
+      console.log('✅ User type updated successfully')
+      Alert.alert('Success', `User type${userIds.length > 1 ? 's' : ''} updated successfully!`)
+      setSelectedUsers([]) // Clear selection after bulk update
       loadUsers() // Refresh the user list
     } catch (err) {
+      console.error('💥 Exception updating user type:', err)
       Alert.alert('Error', 'Failed to update user type')
     } finally {
       setUpdatingUser(false)
@@ -474,29 +516,6 @@ export default function AdminPanel() {
     setFilteredUsers(filtered)
   }
 
-  // Bulk user actions
-  const handleBulkUserTypeUpdate = async (userIds: string[], newUserType: string) => {
-    setUpdatingUser(true)
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ user_type: newUserType })
-        .in('id', userIds)
-
-      if (error) {
-        Alert.alert('Error', 'Failed to update user types')
-        return
-      }
-
-      Alert.alert('Success', `Updated ${userIds.length} users to ${newUserType} type`)
-      setSelectedUsers([])
-      loadUsers()
-    } catch (err) {
-      Alert.alert('Error', 'Failed to update user types')
-    } finally {
-      setUpdatingUser(false)
-    }
-  }
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers(prev =>
@@ -1120,6 +1139,10 @@ export default function AdminPanel() {
               <Text style={styles.statLabel}>Total Users</Text>
             </View>
             <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{userStats.super_admins}</Text>
+              <Text style={styles.statLabel}>Super Admins</Text>
+            </View>
+            <View style={styles.statCard}>
               <Text style={styles.statNumber}>{userStats.admins}</Text>
               <Text style={styles.statLabel}>Admins</Text>
             </View>
@@ -1155,7 +1178,7 @@ export default function AdminPanel() {
             </View>
 
             <View style={styles.filterContainer}>
-              {['all', 'admin', 'expert', 'user'].map((type) => (
+              {['all', 'super_admin', 'admin', 'expert', 'user'].map((type) => (
                 <Pressable
                   key={type}
                   style={[
@@ -1168,7 +1191,7 @@ export default function AdminPanel() {
                     styles.filterButtonText,
                     userTypeFilter === type && styles.filterButtonTextActive
                   ]}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    {type === 'super_admin' ? 'Super Admin' : type.charAt(0).toUpperCase() + type.slice(1)}
                   </Text>
                 </Pressable>
               ))}
@@ -1183,20 +1206,10 @@ export default function AdminPanel() {
               </Text>
               <View style={styles.bulkActionsButtons}>
                 <Pressable
-                  style={[styles.bulkActionButton, { backgroundColor: ds.colors.success }]}
-                  onPress={() => {
-                    Alert.alert(
-                      'Bulk Update User Types',
-                      'Update selected users to:',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'User', onPress: () => handleBulkUserTypeUpdate(selectedUsers, 'user') },
-                        { text: 'Expert', onPress: () => handleBulkUserTypeUpdate(selectedUsers, 'expert') },
-                        { text: 'Admin', onPress: () => handleBulkUserTypeUpdate(selectedUsers, 'admin') },
-                      ]
-                    )
-                  }}
+                  style={[styles.bulkActionButton, { backgroundColor: ds.colors.warning }]}
+                  onPress={() => openUserTypeModal(selectedUsers)}
                 >
+                  <Ionicons name="settings-outline" size={16} color="white" />
                   <Text style={styles.bulkActionButtonText}>Change Type</Text>
                 </Pressable>
                 <Pressable style={styles.bulkActionButton} onPress={clearSelection}>
@@ -1235,159 +1248,300 @@ export default function AdminPanel() {
             </Text>
           ) : (
             <View style={styles.codesContainer}>
-              {filteredUsers.map((user: any) => (
-                <View key={user.id} style={[
-                  styles.codeCard,
-                  selectedUsers.includes(user.id) && styles.selectedUserCard
-                ]}>
-                  <View style={styles.userCardHeader}>
-                    <Pressable
-                      style={styles.userCheckbox}
-                      onPress={() => toggleUserSelection(user.id)}
-                    >
-                      <Ionicons
-                        name={selectedUsers.includes(user.id) ? "checkbox" : "square-outline"}
-                        size={20}
-                        color={ds.colors.primary.main}
-                      />
-                    </Pressable>
-                    <View style={styles.userInfo}>
-                      <View style={styles.codeHeader}>
+              {filteredUsers.map((user: any) => {
+                const isExpanded = selectedUser?.id === user.id
+
+                if (isExpanded) {
+                  // Show detailed view for selected user
+                  return (
+                    <View key={user.id} style={[styles.codeCard, styles.expandedUserCard]}>
+                      {/* Header */}
+                      <Pressable
+                        style={styles.codeHeader}
+                        onPress={() => {
+                          setSelectedUser(null)
+                          setUserAlignmentCodes([])
+                        }}
+                      >
                         <View>
-                          <Text style={styles.codeText}>
+                          <Text style={styles.sectionTitle}>
                             {user.first_name} {user.last_name}
                           </Text>
                           <Text style={styles.codeDescription}>{user.email}</Text>
                         </View>
-                        <View style={[styles.tierBadge, {
-                          backgroundColor:
-                            (user.user_type || user.role) === 'admin' ? ds.colors.danger :
-                            (user.user_type || user.role) === 'expert' ? ds.colors.warning :
-                            ds.colors.success
-                        }]}>
-                          <Text style={styles.tierText}>{((user.user_type || user.role) || 'user').toUpperCase()}</Text>
+                        <Ionicons name="chevron-up" size={24} color={ds.colors.text.secondary} />
+                      </Pressable>
+
+                      {/* Activity Summary */}
+                      <Text style={styles.subsectionTitle}>Activity Summary</Text>
+                      <View style={styles.statsContainer}>
+                        <View style={styles.statCard}>
+                          <Text style={styles.statNumber}>{user.sessions?.length || 0}</Text>
+                          <Text style={styles.statLabel}>Sessions</Text>
+                        </View>
+                        <View style={styles.statCard}>
+                          <Text style={styles.statNumber}>{user.posts?.length || 0}</Text>
+                          <Text style={styles.statLabel}>Posts</Text>
+                        </View>
+                        <View style={styles.statCard}>
+                          <Text style={styles.statNumber}>{userAlignmentCodes.length}</Text>
+                          <Text style={styles.statLabel}>Codes Used</Text>
                         </View>
                       </View>
 
-                      <View style={styles.userStats}>
-                        <Text style={styles.codeStat}>
-                          Code: {user.alignment_code_used || 'None'}
-                        </Text>
-                        <Text style={styles.codeStat}>
-                          Joined: {new Date(user.created_at).toLocaleDateString()}
-                        </Text>
-                        {user.last_login_at && (
-                          <Text style={styles.codeStat}>
-                            Last Login: {new Date(user.last_login_at).toLocaleDateString()}
+                      {/* Contact Information */}
+                      <Text style={styles.subsectionTitle}>User Details</Text>
+                      <View style={styles.userDetailsGrid}>
+                        <View style={styles.userDetailItem}>
+                          <Text style={styles.userDetailLabel}>User Type</Text>
+                          <Text style={styles.userDetailValue}>
+                            {(user.user_type || user.role) === 'super_admin' ? 'Super Admin' :
+                             ((user.user_type || user.role) || 'user').toUpperCase()}
                           </Text>
-                        )}
+                        </View>
+                        <View style={styles.userDetailItem}>
+                          <Text style={styles.userDetailLabel}>Alignment Code</Text>
+                          <Text style={styles.userDetailValue}>{user.alignment_code_used || 'None'}</Text>
+                        </View>
+                        <View style={styles.userDetailItem}>
+                          <Text style={styles.userDetailLabel}>Joined</Text>
+                          <Text style={styles.userDetailValue}>
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Recent Sessions */}
+                      {user.sessions && user.sessions.length > 0 && (
+                        <>
+                          <Text style={styles.subsectionTitle}>Recent Reflection Sessions</Text>
+                          <View style={styles.codesContainer}>
+                            {user.sessions.map((session: any) => (
+                              <View key={session.id} style={[styles.codeCard, { marginBottom: 8, padding: ds.spacing[3] }]}>
+                                <View style={styles.codeHeader}>
+                                  <View>
+                                    <Text style={styles.codeText}>Session #{session.id.substring(0, 8)}</Text>
+                                    <Text style={styles.codeDescription}>
+                                      Phase: {session.current_phase || 'N/A'}
+                                    </Text>
+                                  </View>
+                                  <Text style={styles.codeStat}>
+                                    {new Date(session.created_at).toLocaleDateString()}
+                                  </Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        </>
+                      )}
+
+                      {/* Community Posts */}
+                      {user.posts && user.posts.length > 0 && (
+                        <>
+                          <Text style={styles.subsectionTitle}>Community Posts</Text>
+                          <View style={styles.codesContainer}>
+                            {user.posts.map((post: any) => (
+                              <View key={post.id} style={[styles.codeCard, { marginBottom: 8, padding: ds.spacing[3] }]}>
+                                <View style={styles.codeHeader}>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={styles.codeDescription} numberOfLines={2}>
+                                      {post.content}
+                                    </Text>
+                                  </View>
+                                  <View style={[styles.tierBadge, {
+                                    backgroundColor:
+                                      post.status === 'approved' ? '#10B981' :
+                                      post.status === 'pending' ? '#F59E0B' :
+                                      '#EF4444'
+                                  }]}>
+                                    <Text style={styles.tierText}>{post.status.toUpperCase()}</Text>
+                                  </View>
+                                </View>
+                                <View style={styles.codeStats}>
+                                  <Text style={styles.codeStat}>
+                                    ❤️ {post.likes || 0} likes
+                                  </Text>
+                                  <Text style={styles.codeStat}>
+                                    {new Date(post.created_at).toLocaleDateString()}
+                                  </Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        </>
+                      )}
+
+                      {/* Alignment Code History */}
+                      <Text style={styles.subsectionTitle}>Alignment Code History</Text>
+                      {userAlignmentCodes.length === 0 ? (
+                        <Text style={styles.comingSoonDescription}>No alignment codes used</Text>
+                      ) : (
+                        <View style={styles.codesContainer}>
+                          {userAlignmentCodes.map((userCode: any) => (
+                            <View key={userCode.id} style={[styles.codeCard, { marginBottom: 8, padding: ds.spacing[3] }]}>
+                              <Text style={styles.codeText}>{userCode.code}</Text>
+                              <Text style={styles.codeDescription}>
+                                Status: {userCode.status} | Used: {new Date(userCode.used_at).toLocaleDateString()}
+                              </Text>
+                              {userCode.trial_ends_at && (
+                                <Text style={styles.codeStat}>
+                                  Trial Ends: {new Date(userCode.trial_ends_at).toLocaleDateString()}
+                                </Text>
+                              )}
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* Actions */}
+                      <View style={styles.codeActions}>
+                        <Pressable
+                          style={[styles.userActionButton, { backgroundColor: ds.colors.warning }]}
+                          onPress={(e) => {
+                            e.stopPropagation()
+                            console.log('⚙️ Change Type button pressed for user:', user.id)
+                            openUserTypeModal([user.id], `${user.first_name} ${user.last_name}`)
+                          }}
+                          disabled={updatingUser}
+                        >
+                          <Ionicons name="settings-outline" size={16} color="white" />
+                          <Text style={styles.userActionButtonText}>
+                            {updatingUser ? 'Updating...' : 'Change Type'}
+                          </Text>
+                        </Pressable>
                       </View>
                     </View>
-                  </View>
+                  )
+                }
 
-                  <View style={styles.codeActions}>
-                    <Pressable
-                      style={[styles.userActionButton, { backgroundColor: ds.colors.primary.main }]}
-                      onPress={() => {
-                        setSelectedUser(user)
-                        loadUserAlignmentCodes(user.id)
-                      }}
-                    >
-                      <Ionicons name="person-outline" size={16} color="white" />
-                      <Text style={styles.userActionButtonText}>Details</Text>
-                    </Pressable>
+                // Show basic view for non-selected users
+                return (
+                  <Pressable
+                    key={user.id}
+                    style={[
+                      styles.codeCard,
+                      selectedUsers.includes(user.id) && styles.selectedUserCard
+                    ]}
+                    onPress={() => {
+                      console.log('👤 User card clicked:', user.id)
+                      setSelectedUser(user)
+                      loadUserAlignmentCodes(user.id)
+                    }}
+                  >
+                    <View style={styles.userCardHeader}>
+                      <Pressable
+                        style={styles.userCheckbox}
+                        onPress={(e) => {
+                          e.stopPropagation()
+                          toggleUserSelection(user.id)
+                        }}
+                      >
+                        <Ionicons
+                          name={selectedUsers.includes(user.id) ? "checkbox" : "square-outline"}
+                          size={20}
+                          color={ds.colors.primary.main}
+                        />
+                      </Pressable>
+                      <View style={styles.userInfo}>
+                        <View style={styles.codeHeader}>
+                          <View>
+                            <Text style={styles.codeText}>
+                              {user.first_name} {user.last_name}
+                            </Text>
+                            <Text style={styles.codeDescription}>{user.email}</Text>
+                          </View>
+                          <View style={[styles.tierBadge, {
+                            backgroundColor:
+                              (user.user_type || user.role) === 'super_admin' ? '#9333EA' :
+                              (user.user_type || user.role) === 'admin' ? ds.colors.danger :
+                              (user.user_type || user.role) === 'expert' ? ds.colors.warning :
+                              ds.colors.success
+                          }]}>
+                            <Text style={styles.tierText}>
+                              {(user.user_type || user.role) === 'super_admin' ? 'SUPER ADMIN' : ((user.user_type || user.role) || 'user').toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
 
-                    <Pressable
-                      style={[styles.userActionButton, { backgroundColor: ds.colors.warning }]}
-                      onPress={() => {
-                        Alert.alert(
-                          'Update User Type',
-                          `Change ${user.first_name} ${user.last_name} to:`,
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'User', onPress: () => updateUserType(user.id, 'user') },
-                            { text: 'Expert', onPress: () => updateUserType(user.id, 'expert') },
-                            { text: 'Admin', onPress: () => updateUserType(user.id, 'admin') },
-                          ]
-                        )
-                      }}
-                      disabled={updatingUser}
-                    >
-                      <Ionicons name="settings-outline" size={16} color="white" />
-                      <Text style={styles.userActionButtonText}>
-                        {updatingUser ? 'Updating...' : 'Change Type'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
+                        <View style={styles.userStats}>
+                          <Text style={styles.codeStat}>
+                            Code: {user.alignment_code_used || 'None'}
+                          </Text>
+                          <Text style={styles.codeStat}>
+                            Joined: {new Date(user.created_at).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </Pressable>
+                )
+              })}
             </View>
           )}
 
-          {/* User Details Modal/Panel */}
-          {selectedUser && (
-            <View style={[styles.codeCard, { marginTop: 20, backgroundColor: ds.colors.background.secondary }]}>
-              <View style={styles.codeHeader}>
-                <Text style={styles.sectionTitle}>
-                  {selectedUser.first_name} {selectedUser.last_name} Details
+          {/* User Type Change Modal */}
+          {showUserTypeModal && userTypeModalData && (
+            <View style={styles.modalOverlay}>
+              <Pressable
+                style={styles.modalBackdrop}
+                onPress={closeUserTypeModal}
+              />
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>
+                  {userTypeModalData.userName
+                    ? `Change User Type for ${userTypeModalData.userName}`
+                    : `Change User Type for ${userTypeModalData.userIds.length} user${userTypeModalData.userIds.length > 1 ? 's' : ''}`
+                  }
                 </Text>
+                <Text style={styles.modalSubtitle}>
+                  Select the new user type:
+                </Text>
+
+                <View style={styles.userTypeButtons}>
+                  <Pressable
+                    style={[styles.userTypeButton, styles.userTypeButtonUser]}
+                    onPress={() => updateUserType(userTypeModalData.userIds, 'user')}
+                  >
+                    <Ionicons name="person" size={24} color="#FFFFFF" />
+                    <Text style={styles.userTypeButtonText}>User</Text>
+                    <Text style={styles.userTypeButtonDesc}>Standard user access</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.userTypeButton, styles.userTypeButtonExpert]}
+                    onPress={() => updateUserType(userTypeModalData.userIds, 'expert')}
+                  >
+                    <Ionicons name="star" size={24} color="#FFFFFF" />
+                    <Text style={styles.userTypeButtonText}>Expert</Text>
+                    <Text style={styles.userTypeButtonDesc}>Advanced features</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.userTypeButton, styles.userTypeButtonAdmin]}
+                    onPress={() => updateUserType(userTypeModalData.userIds, 'admin')}
+                  >
+                    <Ionicons name="shield-checkmark" size={24} color="#FFFFFF" />
+                    <Text style={styles.userTypeButtonText}>Admin</Text>
+                    <Text style={styles.userTypeButtonDesc}>Full system access</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.userTypeButton, styles.userTypeButtonSuperAdmin]}
+                    onPress={() => updateUserType(userTypeModalData.userIds, 'super_admin')}
+                  >
+                    <Ionicons name="planet" size={24} color="#FFFFFF" />
+                    <Text style={styles.userTypeButtonText}>Super Admin</Text>
+                    <Text style={styles.userTypeButtonDesc}>Maximum privileges</Text>
+                  </Pressable>
+                </View>
+
                 <Pressable
-                  style={styles.deactivateButton}
-                  onPress={() => {
-                    setSelectedUser(null)
-                    setUserAlignmentCodes([])
-                  }}
+                  style={styles.modalCancelButton}
+                  onPress={closeUserTypeModal}
                 >
-                  <Ionicons name="close" size={16} color="white" />
-                  <Text style={styles.deactivateButtonText}>Close</Text>
+                  <Text style={styles.modalCancelButtonText}>Cancel</Text>
                 </Pressable>
               </View>
-
-              <View style={styles.userDetailsGrid}>
-                <View style={styles.userDetailItem}>
-                  <Text style={styles.userDetailLabel}>Email</Text>
-                  <Text style={styles.userDetailValue}>{selectedUser.email}</Text>
-                </View>
-                <View style={styles.userDetailItem}>
-                  <Text style={styles.userDetailLabel}>User Type</Text>
-                  <Text style={styles.userDetailValue}>{(selectedUser.user_type || selectedUser.role) || 'user'}</Text>
-                </View>
-                <View style={styles.userDetailItem}>
-                  <Text style={styles.userDetailLabel}>Alignment Code</Text>
-                  <Text style={styles.userDetailValue}>{selectedUser.alignment_code_used || 'None'}</Text>
-                </View>
-                <View style={styles.userDetailItem}>
-                  <Text style={styles.userDetailLabel}>Joined</Text>
-                  <Text style={styles.userDetailValue}>{new Date(selectedUser.created_at).toLocaleDateString()}</Text>
-                </View>
-                {selectedUser.last_login_at && (
-                  <View style={styles.userDetailItem}>
-                    <Text style={styles.userDetailLabel}>Last Login</Text>
-                    <Text style={styles.userDetailValue}>{new Date(selectedUser.last_login_at).toLocaleDateString()}</Text>
-                  </View>
-                )}
-              </View>
-
-              <Text style={styles.subsectionTitle}>Alignment Code History</Text>
-              {userAlignmentCodes.length === 0 ? (
-                <Text style={styles.comingSoonDescription}>No alignment codes used</Text>
-              ) : (
-                <View>
-                  {userAlignmentCodes.map((userCode: any) => (
-                    <View key={userCode.id} style={[styles.codeCard, { marginBottom: 8, padding: ds.spacing[3] }]}>
-                      <Text style={styles.codeText}>{userCode.code}</Text>
-                      <Text style={styles.codeDescription}>
-                        Status: {userCode.status} | Used: {new Date(userCode.used_at).toLocaleDateString()}
-                      </Text>
-                      {userCode.trial_ends_at && (
-                        <Text style={styles.codeStat}>
-                          Trial Ends: {new Date(userCode.trial_ends_at).toLocaleDateString()}
-                        </Text>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              )}
             </View>
           )}
         </View>
@@ -2069,94 +2223,20 @@ export default function AdminPanel() {
     )
   }
 
-  const renderCommunitySection = () => (
-    <View style={styles.sectionContent}>
-      <Text style={styles.sectionTitle}>Community Post Approvals</Text>
-      <Text style={styles.subsectionDescription}>
-        Review and approve community posts before they appear on the Community Wall
-      </Text>
+  const renderCommunitySection = () => <CommunityManager />
 
-      {loadingPosts ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading pending posts...</Text>
-        </View>
-      ) : pendingPosts.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="checkmark-circle-outline" size={48} color={ds.colors.text.tertiary} />
-          <Text style={styles.emptyStateText}>No pending posts to review</Text>
-        </View>
-      ) : (
-        <View style={styles.postsContainer}>
-          {pendingPosts.map((post: any) => (
-            <View key={post.id} style={styles.postCard}>
-              <View style={styles.postCardHeader}>
-                <View>
-                  <Text style={styles.postAuthor}>{post.author_name}</Text>
-                  <Text style={styles.postUserInfo}>
-                    {post.profiles?.first_name} {post.profiles?.last_name} ({post.profiles?.email})
-                  </Text>
-                  <Text style={styles.postDate}>
-                    {new Date(post.created_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={styles.postContent}>{post.content}</Text>
-
-              {post.media_url && (
-                <View style={styles.postMedia}>
-                  {post.media_type === 'image' ? (
-                    <Image source={{ uri: post.media_url }} style={styles.postImage} resizeMode="cover" />
-                  ) : (
-                    <View style={styles.videoPlaceholder}>
-                      <Ionicons name="videocam" size={32} color={ds.colors.text.tertiary} />
-                      <Text style={styles.videoPlaceholderText}>Video Attachment</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              <View style={styles.postActions}>
-                <Pressable
-                  style={[styles.postActionButton, styles.approveButton]}
-                  onPress={() => approvePost(post.id)}
-                >
-                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                  <Text style={styles.postActionButtonText}>Approve</Text>
-                </Pressable>
-
-                <Pressable
-                  style={[styles.postActionButton, styles.rejectButton]}
-                  onPress={() => rejectPost(post.id)}
-                >
-                  <Ionicons name="close-circle" size={20} color="#FFFFFF" />
-                  <Text style={styles.postActionButtonText}>Reject</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  )
+  const renderAlignmentAnalyticsSection = () => <AlignmentAnalyticsManager />
 
   const renderActiveSection = () => {
     switch (activeSection) {
       case 'seo': return renderSeoSection()
       case 'content': return renderContentSection()
       case 'config': return renderConfigSection()
-      case 'alignment-codes': return renderAlignmentCodesSection()
+      case 'alignment-analytics': return renderAlignmentAnalyticsSection()
       case 'ai': return renderAISection()
       case 'chat': return renderChatSection()
       case 'training': return renderTrainingSection()
       case 'community': return renderCommunitySection()
-      case 'analytics': return renderAnalyticsSection()
       case 'users': return renderUsersSection()
       case 'assets': return renderAssetsSection()
       default: return renderSeoSection()
@@ -2627,6 +2707,10 @@ const styles = StyleSheet.create({
     borderColor: ds.colors.neutral[200],
     marginBottom: ds.spacing[3],
   },
+  expandedUserCard: {
+    backgroundColor: ds.colors.background.secondary,
+    padding: ds.spacing[6],
+  },
   codeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -2778,6 +2862,9 @@ const styles = StyleSheet.create({
     gap: ds.spacing[2],
   },
   bulkActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
     paddingHorizontal: ds.spacing[3],
     paddingVertical: ds.spacing[2],
     borderRadius: ds.borderRadius.sm,
@@ -3089,5 +3176,97 @@ const styles = StyleSheet.create({
     fontSize: ds.typography.fontSize.base.size,
     color: ds.colors.text.tertiary,
     marginTop: ds.spacing[3],
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.xl,
+    padding: ds.spacing[6],
+    maxWidth: 500,
+    width: '90%',
+    ...ds.shadows.xl,
+    zIndex: 1001,
+  },
+  modalTitle: {
+    fontSize: ds.typography.fontSize['2xl'].size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.heading,
+    marginBottom: ds.spacing[2],
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+    marginBottom: ds.spacing[6],
+    textAlign: 'center',
+  },
+  userTypeButtons: {
+    gap: ds.spacing[3],
+    marginBottom: ds.spacing[6],
+  },
+  userTypeButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: ds.spacing[4],
+    borderRadius: ds.borderRadius.lg,
+    gap: ds.spacing[2],
+  },
+  userTypeButtonUser: {
+    backgroundColor: '#10B981',
+  },
+  userTypeButtonExpert: {
+    backgroundColor: '#F59E0B',
+  },
+  userTypeButtonAdmin: {
+    backgroundColor: '#EF4444',
+  },
+  userTypeButtonSuperAdmin: {
+    backgroundColor: '#9333EA',
+  },
+  userTypeButtonText: {
+    fontSize: ds.typography.fontSize.lg.size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: '#FFFFFF',
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  userTypeButtonDesc: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: '#FFFFFF',
+    fontFamily: ds.typography.fontFamily.base,
+    opacity: 0.9,
+  },
+  modalCancelButton: {
+    backgroundColor: ds.colors.background.secondary,
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    borderRadius: ds.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[300],
+  },
+  modalCancelButtonText: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+    textAlign: 'center',
   },
 })
