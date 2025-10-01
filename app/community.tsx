@@ -235,17 +235,48 @@ export default function Community() {
     }
   ]
 
-  const foundersVoice: Article[] = [
-    { title: 'Why I Created BeAligned', author: '4:23', views: '142 views' },
-    { title: 'The Evolution from BeH2O', author: '5:43', views: '287 views' },
-    { title: 'Technology for Healing', author: '5:12', views: '156 views' }
+  const foundersVoice = [
+    {
+      title: 'Why I Created BeAligned',
+      question: '"What inspired you to start this journey?"',
+      duration: '4:23',
+      plays: '342 plays'
+    },
+    {
+      title: 'The Evolution from BeH2O',
+      question: '"How does BeAligned build on your court program?"',
+      duration: '3:45',
+      plays: '287 plays'
+    },
+    {
+      title: 'Technology for Healing',
+      question: '"Can technology really transform family dynamics?"',
+      duration: '5:12',
+      plays: '156 plays'
+    }
   ]
 
-  const coachWisdom: Article[] = [
-    { title: 'The Power of Pause', author: '- Dr. Maria Santos', views: '' },
-    { title: 'Children as Observers', author: '- James Parker', views: '' },
-    { title: 'Words That Heal', author: '- Dr. Sarah Kim', views: '' },
-    { title: 'Progress Over Perfection', author: '- Jeremy Williams', views: '' }
+  const coachWisdom = [
+    {
+      title: 'The Power of Pause',
+      content: 'Before responding to your co-parent, take three deep breaths. This simple practice creates space for wisdom instead of reaction.',
+      author: '— Dr. Maria Santos'
+    },
+    {
+      title: 'Children as Observers',
+      content: 'Your children are always watching how you handle conflict. Every aligned choice you make teaches them resilience and emotional intelligence.',
+      author: '— James Parker'
+    },
+    {
+      title: 'Words That Heal',
+      content: 'Replace "You always..." with "I feel..." in communications. This shift moves you from blame to authentic expression.',
+      author: '— Dr. Sarah Kim'
+    },
+    {
+      title: 'Progress Over Perfection',
+      content: 'Every small step toward aligned co-parenting is a victory. Celebrate the micro-moments of growth.',
+      author: '— Jessica Williams'
+    }
   ]
 
   return (
@@ -330,7 +361,7 @@ export default function Community() {
                           style={styles.postAction}
                           onPress={(e) => handleReply(post.id, post.author, e)}
                         >
-                          <MessageCircle size={14} color="#ef4444" strokeWidth={2} />
+                          <MessageCircle size={14} color="#FF8A65" strokeWidth={2} />
                           <Text style={styles.actionText}>Reply</Text>
                         </Pressable>
                       </View>
@@ -361,48 +392,47 @@ export default function Community() {
         {/* Content Columns */}
         <View style={styles.columnsContainer}>
           {/* Founder's Voice */}
-          <View style={styles.column}>
-            <View style={styles.columnHeader}>
-              <View style={styles.columnIcon}>
-                <Ionicons name="play-circle" size={20} color={ds.colors.primary.main} />
+          <View style={styles.columnWrapper}>
+            <View style={styles.column}>
+              <View style={styles.columnIconBox}>
+                <Ionicons name="play-outline" size={32} color="#FF8A65" />
               </View>
               <Text style={styles.columnTitle}>Founder's Voice</Text>
-            </View>
-            <Text style={styles.columnSubtitle}>Answers to your questions</Text>
+              <Text style={styles.columnSubtitle}>Answers to your questions</Text>
 
-            {foundersVoice.map((article, index) => (
-              <Pressable key={index} style={styles.articleCard}>
-                <Text style={styles.articleTitle}>{article.title}</Text>
-                <View style={styles.articleMeta}>
-                  <Text style={styles.articleAuthor}>{article.author}</Text>
-                  <Text style={styles.articleViews}>{article.views}</Text>
-                </View>
-              </Pressable>
-            ))}
+              {foundersVoice.map((video, index) => (
+                <Pressable key={index} style={styles.videoCard}>
+                  <Text style={styles.videoTitle}>{video.title}</Text>
+                  <Text style={styles.videoQuestion}>{video.question}</Text>
+                  <View style={styles.videoMeta}>
+                    <Text style={styles.videoDuration}>{video.duration}</Text>
+                    <View style={styles.videoPlays}>
+                      <Ionicons name="play" size={12} color={ds.colors.primary.main} />
+                      <Text style={styles.videoPlaysText}>{video.plays}</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
           </View>
 
           {/* Coach Wisdom */}
-          <View style={styles.column}>
-            <View style={styles.columnHeader}>
-              <View style={styles.columnIcon}>
-                <Ionicons name="bulb" size={20} color={ds.colors.primary.main} />
+          <View style={styles.columnWrapper}>
+            <View style={styles.column}>
+              <View style={styles.columnIconBox}>
+                <Ionicons name="bulb-outline" size={32} color="#FF8A65" />
               </View>
               <Text style={styles.columnTitle}>Coach Wisdom</Text>
-            </View>
-            <Text style={styles.columnSubtitle}>Tips & grounding insights</Text>
+              <Text style={styles.columnSubtitle}>Tips & grounding insights</Text>
 
-            {coachWisdom.map((article, index) => (
-              <View key={index} style={styles.wisdomCard}>
-                <Text style={styles.wisdomTitle}>{article.title}</Text>
-                <Text style={styles.wisdomContent}>
-                  {article.title === 'The Power of Pause' && 'Before responding to your co-parent, take three deep breaths. This simple practice creates space for wisdom instead of reaction.'}
-                  {article.title === 'Children as Observers' && 'Your children are always watching how you handle conflict. Every aligned choice you make teaches them resilience and emotional intelligence.'}
-                  {article.title === 'Words That Heal' && 'Replace "You always..." with "I feel..." This shift moves you from blame to authentic expression.'}
-                  {article.title === 'Progress Over Perfection' && 'Every small step toward aligned co-parenting is a victory. Celebrate the micro-moments of growth.'}
-                </Text>
-                <Text style={styles.wisdomAuthor}>{article.author}</Text>
-              </View>
-            ))}
+              {coachWisdom.map((wisdom, index) => (
+                <View key={index} style={styles.wisdomCard}>
+                  <Text style={styles.wisdomTitle}>{wisdom.title}</Text>
+                  <Text style={styles.wisdomContent}>{wisdom.content}</Text>
+                  <Text style={styles.wisdomAuthor}>{wisdom.author}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
 
@@ -657,93 +687,112 @@ const styles = StyleSheet.create({
   },
   columnsContainer: {
     paddingHorizontal: ds.spacing[40],
+    flexDirection: 'row',
     gap: ds.spacing[6],
     marginBottom: ds.spacing[8],
   },
+  columnWrapper: {
+    flex: 1,
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.xl,
+    padding: ds.spacing[8],
+    ...ds.shadows.lg,
+  },
   column: {
-    marginBottom: ds.spacing[6],
-  },
-  columnHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: ds.spacing[2],
-    marginBottom: ds.spacing[2],
   },
-  columnIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: ds.colors.primary.lightest,
+  columnIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: ds.borderRadius.lg,
+    borderWidth: 2,
+    borderColor: ds.colors.primary.main,
+    backgroundColor: ds.colors.background.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: ds.spacing[3],
   },
   columnTitle: {
-    fontSize: ds.typography.fontSize.lg.size,
+    fontSize: ds.typography.fontSize.xl.size,
     fontWeight: ds.typography.fontWeight.bold,
     color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.heading,
+    marginBottom: ds.spacing[1],
+    textAlign: 'center',
   },
   columnSubtitle: {
     fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
-    marginBottom: ds.spacing[4],
+    marginBottom: ds.spacing[5],
+    textAlign: 'center',
   },
-  articleCard: {
-    backgroundColor: ds.colors.background.primary,
-    borderRadius: ds.borderRadius.md,
-    padding: ds.spacing[3],
+  videoCard: {
+    backgroundColor: ds.colors.background.secondary,
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[4],
     marginBottom: ds.spacing[3],
-    ...ds.shadows.sm,
+    width: '100%',
   },
-  articleTitle: {
-    fontSize: ds.typography.fontSize.sm.size,
-    fontWeight: ds.typography.fontWeight.medium,
+  videoTitle: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.bold,
     color: ds.colors.text.primary,
-    fontFamily: ds.typography.fontFamily.base,
+    fontFamily: ds.typography.fontFamily.heading,
     marginBottom: ds.spacing[2],
   },
-  articleMeta: {
+  videoQuestion: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+    marginBottom: ds.spacing[3],
+    fontStyle: 'italic',
+  },
+  videoMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  articleAuthor: {
-    fontSize: ds.typography.fontSize.xs.size,
-    color: ds.colors.text.tertiary,
+  videoDuration: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.base,
   },
-  articleViews: {
-    fontSize: ds.typography.fontSize.xs.size,
-    color: ds.colors.text.tertiary,
+  videoPlays: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[1],
+  },
+  videoPlaysText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
     fontFamily: ds.typography.fontFamily.base,
   },
   wisdomCard: {
-    backgroundColor: ds.colors.background.primary,
-    borderRadius: ds.borderRadius.md,
-    padding: ds.spacing[4],
+    backgroundColor: ds.colors.background.secondary,
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[5],
     marginBottom: ds.spacing[3],
-    ...ds.shadows.sm,
+    width: '100%',
   },
   wisdomTitle: {
     fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.semibold,
+    fontWeight: ds.typography.fontWeight.bold,
     color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.heading,
-    marginBottom: ds.spacing[2],
+    marginBottom: ds.spacing[3],
   },
   wisdomContent: {
     fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
-    lineHeight: ds.typography.fontSize.sm.lineHeight,
-    marginBottom: ds.spacing[2],
+    lineHeight: ds.typography.fontSize.sm.lineHeight * 1.5,
+    marginBottom: ds.spacing[3],
   },
   wisdomAuthor: {
-    fontSize: ds.typography.fontSize.xs.size,
+    fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.tertiary,
     fontFamily: ds.typography.fontFamily.base,
-    fontStyle: 'italic',
   },
   footer: {
     flexDirection: 'row',

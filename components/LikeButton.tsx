@@ -35,9 +35,9 @@ export default function LikeButton({ likes, isLiked, onPress, isAnimating }: Lik
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <Heart
           size={14}
-          color="#ef4444"
+          color="#FF8A65"
           strokeWidth={2}
-          fill={isLiked ? '#ef4444' : 'none'}
+          fill={isLiked ? '#FF8A65' : 'none'}
         />
       </Animated.View>
       <Text style={styles.text}>{likes}</Text>
