@@ -10,7 +10,7 @@ interface AlignmentCode {
   user_type: string
   description: string
   max_uses: number | null
-  used_count: number
+  current_uses: number
   is_active: boolean
   created_at: string
 }
@@ -264,7 +264,7 @@ export default function AlignmentCodesPanel() {
 
               <View style={styles.codeStats}>
                 <Text style={styles.codeStat}>
-                  Uses: {code.used_count || 0}
+                  Uses: {code.current_uses || 0}
                   {code.max_uses ? ` / ${code.max_uses}` : ' (unlimited)'}
                 </Text>
                 <Text style={styles.codeStat}>
