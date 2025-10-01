@@ -58,6 +58,21 @@ export default function PostDetailModal({ visible, onClose, postId }: PostDetail
     try {
       const { data: { user } } = await supabase.auth.getUser()
       setUserId(user?.id || null)
+
+      if (user?.id) {
+        // Get user's profile to construct name
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.first_name && profile?.last_name) {
+          // Format: "First Last Initial" (e.g., "Robert M.")
+          const displayName = `${profile.first_name} ${profile.last_name.charAt(0)}.`
+          setCommentAuthorName(displayName)
+        }
+      }
     } catch (error) {
       console.error('Error loading user:', error)
     }
@@ -136,15 +151,15 @@ export default function PostDetailModal({ visible, onClose, postId }: PostDetail
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Post Details</Text>
-              <Pressable onPress={onClose} style={styles.closeButton}>
-                <X size={24} color={ds.colors.text.primary} strokeWidth={2} />
-              </Pressable>
-            </View>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Post Details</Text>
+            <Pressable onPress={onClose} style={styles.closeButton}>
+              <X size={24} color={ds.colors.text.primary} strokeWidth={2} />
+            </Pressable>
+          </View>
 
+          <ScrollView showsVerticalScrollIndicator={false}>
             {loading ? (
               <ActivityIndicator size="large" color={ds.colors.primary.main} />
             ) : post ? (
@@ -223,13 +238,6 @@ export default function PostDetailModal({ visible, onClose, postId }: PostDetail
                   <View style={styles.addCommentSection}>
                     <Text style={styles.addCommentTitle}>Add Your Reflection</Text>
                     <TextInput
-                      style={styles.nameInput}
-                      placeholder="Your name or initials"
-                      placeholderTextColor={ds.colors.text.tertiary}
-                      value={commentAuthorName}
-                      onChangeText={setCommentAuthorName}
-                    />
-                    <TextInput
                       style={styles.commentInput}
                       placeholder="Share your thoughts..."
                       placeholderTextColor={ds.colors.text.tertiary}
@@ -242,7 +250,7 @@ export default function PostDetailModal({ visible, onClose, postId }: PostDetail
                     <Pressable
                       style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
                       onPress={submitComment}
-                      disabled={isSubmitting || !newComment.trim() || !commentAuthorName.trim()}
+                      disabled={isSubmitting || !newComment.trim()}
                     >
                       {isSubmitting ? (
                         <ActivityIndicator color="#FFFFFF" />
@@ -286,6 +294,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    paddingBottom: ds.spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: ds.colors.neutral[200],
     marginBottom: ds.spacing[4],
   },
   title: {

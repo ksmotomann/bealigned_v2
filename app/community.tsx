@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Pressable, StyleSheet, Image, Alert, Modal } from 'react-native'
+import React, { useState, useEffect, useRef } from 'react'
+import { View, Text, ScrollView, Pressable, StyleSheet, Image, Alert, Modal, Animated } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -8,6 +8,8 @@ import InAppNavigationHeader from '../components/InAppNavigationHeader'
 import WaveCircle from '../components/WaveCircle'
 import ShareYourWhyModal from '../components/ShareYourWhyModal'
 import PostDetailModal from '../components/PostDetailModal'
+import ReplyModal from '../components/ReplyModal'
+import LikeButton from '../components/LikeButton'
 import { supabase } from '../lib/supabase'
 import ds from '../styles/design-system'
 
@@ -36,6 +38,10 @@ export default function Community() {
   const [postToDelete, setPostToDelete] = useState<string | null>(null)
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   const [showPostDetail, setShowPostDetail] = useState(false)
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set())
+  const [likingPost, setLikingPost] = useState<string | null>(null)
+  const [showReplyModal, setShowReplyModal] = useState(false)
+  const [replyToPost, setReplyToPost] = useState<{ id: string; author: string } | null>(null)
 
   useEffect(() => {
     loadPosts()
@@ -129,6 +135,52 @@ export default function Community() {
     setShowPostDetail(false)
     setSelectedPostId(null)
     loadPosts() // Reload to refresh comment counts
+  }
+
+  async function handleLike(postId: string, e?: any) {
+    if (e) {
+      e.stopPropagation()
+    }
+
+    // Prevent double-clicking
+    if (likingPost === postId) return
+
+    setLikingPost(postId)
+
+    try {
+      // Optimistically update the UI
+      const updatedPosts = communityPosts.map(post =>
+        post.id === postId ? { ...post, likes: post.likes + 1 } : post
+      )
+      setCommunityPosts(updatedPosts)
+      setLikedPosts(new Set([...likedPosts, postId]))
+
+      // Update the database
+      const post = communityPosts.find(p => p.id === postId)
+      if (!post) return
+
+      const { error } = await supabase
+        .from('community_posts')
+        .update({ likes: post.likes + 1 })
+        .eq('id', postId)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error liking post:', error)
+      // Revert the optimistic update
+      loadPosts()
+      const newLikedPosts = new Set(likedPosts)
+      newLikedPosts.delete(postId)
+      setLikedPosts(newLikedPosts)
+    } finally {
+      setLikingPost(null)
+    }
+  }
+
+  function handleReply(postId: string, postAuthor: string, e: any) {
+    e.stopPropagation()
+    setReplyToPost({ id: postId, author: postAuthor })
+    setShowReplyModal(true)
   }
 
   // Fallback posts if database is empty
@@ -268,14 +320,19 @@ export default function Community() {
                       </View>
                       <Text style={styles.postContent}>{post.content}</Text>
                       <View style={styles.postFooter}>
-                        <View style={styles.postAction}>
-                          <Heart size={14} color="#ef4444" strokeWidth={2} />
-                          <Text style={styles.actionText}>{post.likes}</Text>
-                        </View>
-                        <View style={styles.postAction}>
+                        <LikeButton
+                          likes={post.likes}
+                          isLiked={likedPosts.has(post.id)}
+                          onPress={(e) => handleLike(post.id, e)}
+                          isAnimating={likingPost === post.id}
+                        />
+                        <Pressable
+                          style={styles.postAction}
+                          onPress={(e) => handleReply(post.id, post.author, e)}
+                        >
                           <MessageCircle size={14} color="#ef4444" strokeWidth={2} />
                           <Text style={styles.actionText}>Reply</Text>
-                        </View>
+                        </Pressable>
                       </View>
                     </Pressable>
                   </View>
@@ -363,6 +420,18 @@ export default function Community() {
 
       {/* Post Detail Modal */}
       <PostDetailModal visible={showPostDetail} onClose={closePostDetail} postId={selectedPostId} />
+
+      {/* Reply Modal */}
+      <ReplyModal
+        visible={showReplyModal}
+        onClose={() => {
+          setShowReplyModal(false)
+          setReplyToPost(null)
+          loadPosts() // Refresh to show new reply
+        }}
+        postId={replyToPost?.id || null}
+        postAuthor={replyToPost?.author || ''}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal visible={showDeleteConfirm} transparent animationType="fade" onRequestClose={cancelDelete}>

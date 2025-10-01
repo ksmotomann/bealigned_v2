@@ -37,6 +37,21 @@ export default function ShareYourWhyModal({ visible, onClose }: ShareYourWhyModa
     try {
       const { data: { user } } = await supabase.auth.getUser()
       setUserId(user?.id || null)
+
+      if (user?.id) {
+        // Get user's profile to construct name
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.first_name && profile?.last_name) {
+          // Format: "First Last Initial" (e.g., "Robert M.")
+          const displayName = `${profile.first_name} ${profile.last_name.charAt(0)}.`
+          setAuthorName(displayName)
+        }
+      }
     } catch (error) {
       console.error('Error loading user:', error)
     }
@@ -105,6 +120,42 @@ export default function ShareYourWhyModal({ visible, onClose }: ShareYourWhyModa
     }
   }
 
+  const generateBadge = async (postContent: string): Promise<string> => {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are analyzing a parent\'s reflection about co-parenting. Choose the single most appropriate badge from this list: Peace, Growth, Healing, Unity, Reflection, Respect, Impact, Champion, Hero. Respond with ONLY the badge word, nothing else.',
+            },
+            {
+              role: 'user',
+              content: postContent,
+            },
+          ],
+          temperature: 0.3,
+        }),
+      })
+
+      const data = await response.json()
+      const badge = data.choices?.[0]?.message?.content?.trim()
+
+      // Validate badge is from our list
+      const validBadges = ['Peace', 'Growth', 'Healing', 'Unity', 'Reflection', 'Respect', 'Impact', 'Champion', 'Hero']
+      return validBadges.includes(badge) ? badge : 'Reflection'
+    } catch (error) {
+      console.error('Error generating badge:', error)
+      return 'Reflection' // Default fallback
+    }
+  }
+
   const handleSubmit = async () => {
     if (!userId) {
       Alert.alert('Error', 'You must be logged in to share')
@@ -113,11 +164,6 @@ export default function ShareYourWhyModal({ visible, onClose }: ShareYourWhyModa
 
     if (!content.trim()) {
       Alert.alert('Missing Information', 'Please share your reflection')
-      return
-    }
-
-    if (!authorName.trim()) {
-      Alert.alert('Missing Information', 'Please enter your name or initials')
       return
     }
 
@@ -134,6 +180,9 @@ export default function ShareYourWhyModal({ visible, onClose }: ShareYourWhyModa
       const isAdmin = profile?.user_type === 'admin' || profile?.user_type === 'super_admin'
       const status = isAdmin ? 'approved' : 'pending'
 
+      // Generate badge using AI
+      const badge = await generateBadge(content.trim())
+
       // Upload media if present
       let mediaUrl = null
       if (mediaUri) {
@@ -144,6 +193,7 @@ export default function ShareYourWhyModal({ visible, onClose }: ShareYourWhyModa
         user_id: userId,
         author_name: authorName.trim(),
         content: content.trim(),
+        badge: badge,
         media_url: mediaUrl,
         media_type: mediaType,
         status: status,
@@ -157,7 +207,6 @@ export default function ShareYourWhyModal({ visible, onClose }: ShareYourWhyModa
 
       // Clear form and close modal
       setContent('')
-      setAuthorName('')
       setMediaUri(null)
       setMediaType(null)
       onClose()
@@ -180,7 +229,6 @@ export default function ShareYourWhyModal({ visible, onClose }: ShareYourWhyModa
 
   const handleCancel = () => {
     setContent('')
-    setAuthorName('')
     setMediaUri(null)
     setMediaType(null)
     onClose()
@@ -244,19 +292,6 @@ export default function ShareYourWhyModal({ visible, onClose }: ShareYourWhyModa
                 </View>
               )}
             </View>
-
-            {/* Name Input */}
-            <View style={styles.section}>
-              <Text style={styles.label}>First Name or Initials</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., Trina N."
-                placeholderTextColor={ds.colors.text.tertiary}
-                value={authorName}
-                onChangeText={setAuthorName}
-              />
-            </View>
-
 
             {/* Buttons */}
             <View style={styles.buttonContainer}>
