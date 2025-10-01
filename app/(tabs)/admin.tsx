@@ -8,6 +8,7 @@ import {
   TextInput,
   Switch,
   Alert,
+  Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -19,6 +20,9 @@ import { MODEL_INFO, AIModel, DEFAULT_AI_CONFIG } from '../../lib/aiConfig'
 import { supabase } from '../../lib/supabase'
 import AdminTrainingTranscripts from '../../components/AdminTrainingTranscripts'
 import AdminSettings from '../../components/AdminSettings'
+import WaveCircle from '../../components/WaveCircle'
+import PulsatingHighlight from '../../components/PulsatingHighlight'
+import RippleBackground from '../../components/RippleBackground'
 
 export default function AdminPanel() {
   const { seoData: contextSeoData, updateSEOData } = useSEO()
@@ -86,6 +90,12 @@ export default function AdminPanel() {
   const [recentUsage, setRecentUsage] = useState([])
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   const [analyticsTab, setAnalyticsTab] = useState('overview')
+  const [assetsTab, setAssetsTab] = useState('components')
+  const [assetsSearch, setAssetsSearch] = useState('')
+
+  // Community posts state
+  const [pendingPosts, setPendingPosts] = useState([])
+  const [loadingPosts, setLoadingPosts] = useState(false)
 
   const adminSections = [
     { id: 'seo', title: 'SEO Management', icon: 'search-outline' },
@@ -95,8 +105,10 @@ export default function AdminPanel() {
     { id: 'ai', title: 'AI Configuration', icon: 'bulb-outline' },
     { id: 'chat', title: 'Chat Settings', icon: 'chatbubbles-outline' },
     { id: 'training', title: 'Training Management', icon: 'school-outline' },
+    { id: 'community', title: 'Community Approvals', icon: 'people-circle-outline' },
     { id: 'analytics', title: 'Analytics', icon: 'analytics-outline' },
     { id: 'users', title: 'User Management', icon: 'people-outline' },
+    { id: 'assets', title: 'Assets Catalog', icon: 'cube-outline' },
   ]
 
   // Load saved AI configuration when component mounts or section changes
@@ -109,6 +121,8 @@ export default function AdminPanel() {
       loadUsers()
     } else if (activeSection === 'analytics') {
       loadAnalytics()
+    } else if (activeSection === 'community') {
+      loadPendingPosts()
     }
   }, [activeSection])
 
@@ -158,6 +172,73 @@ export default function AdminPanel() {
     } catch (err) {
       console.error('Error loading alignment codes:', err)
       setAlignmentCodes([])
+    }
+  }
+
+  const loadPendingPosts = async () => {
+    setLoadingPosts(true)
+    try {
+      const { data, error } = await supabase
+        .from('community_posts')
+        .select(`
+          *,
+          profiles:user_id (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setPendingPosts(data || [])
+    } catch (error) {
+      console.error('Error loading pending posts:', error)
+      Alert.alert('Error', 'Failed to load pending posts')
+    } finally {
+      setLoadingPosts(false)
+    }
+  }
+
+  const approvePost = async (postId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('community_posts')
+        .update({
+          status: 'approved',
+          approved_at: new Date().toISOString(),
+          approved_by: user.id,
+        })
+        .eq('id', postId)
+
+      if (error) throw error
+
+      Alert.alert('Success', 'Post approved and published to community')
+      loadPendingPosts()
+    } catch (error) {
+      console.error('Error approving post:', error)
+      Alert.alert('Error', 'Failed to approve post')
+    }
+  }
+
+  const rejectPost = async (postId: string) => {
+    try {
+      const { error } = await supabase
+        .from('community_posts')
+        .update({ status: 'rejected' })
+        .eq('id', postId)
+
+      if (error) throw error
+
+      Alert.alert('Success', 'Post rejected')
+      loadPendingPosts()
+    } catch (error) {
+      console.error('Error rejecting post:', error)
+      Alert.alert('Error', 'Failed to reject post')
     }
   }
 
@@ -1851,6 +1932,220 @@ export default function AdminPanel() {
     </View>
   )
 
+  const renderAssetsSection = () => {
+    const tabs = [
+      { id: 'components', label: 'Components', icon: 'cube' },
+      { id: 'design-tokens', label: 'Design Tokens', icon: 'color-palette' },
+      { id: 'typography', label: 'Typography', icon: 'text' },
+      { id: 'icons', label: 'Icons', icon: 'apps' },
+      { id: 'images', label: 'Images', icon: 'image' },
+    ]
+
+    const components = [
+      {
+        name: 'WaveCircle',
+        description: 'Animated circular wave effect for visual interest',
+        file: 'components/WaveCircle.tsx',
+        usedIn: ['dashboard.tsx'],
+        preview: <View style={{ backgroundColor: '#1a1a2e', padding: 20, borderRadius: 8 }}><WaveCircle size={100} /></View>
+      },
+      {
+        name: 'PulsatingHighlight',
+        description: 'Pulsating glow effect for emphasis',
+        file: 'components/PulsatingHighlight.tsx',
+        usedIn: ['dashboard.tsx'],
+        preview: <View style={{ backgroundColor: '#1a1a2e', padding: 20, borderRadius: 8 }}><PulsatingHighlight size={100} color={ds.colors.primary.main} /></View>
+      },
+      {
+        name: 'RippleBackground',
+        description: 'Animated ripple wave background',
+        file: 'components/RippleBackground.tsx',
+        usedIn: ['Various pages'],
+        preview: <View style={{ height: 150, borderRadius: 8, overflow: 'hidden' }}><RippleBackground /></View>
+      },
+    ]
+
+    const renderComponents = () => (
+      <View>
+        {components.map((component, index) => (
+          <View key={index} style={styles.assetCard}>
+            <Text style={styles.assetCardTitle}>{component.name}</Text>
+            <Text style={styles.assetCardDescription}>{component.description}</Text>
+            <Text style={styles.assetCardMeta}>File: {component.file}</Text>
+            <Text style={styles.assetCardMeta}>Used in: {component.usedIn.join(', ')}</Text>
+            <View style={{ marginTop: 16 }}>{component.preview}</View>
+          </View>
+        ))}
+      </View>
+    )
+
+    const renderDesignTokens = () => (
+      <View>
+        <Text style={styles.sectionSubheading}>Colors</Text>
+        <View style={styles.colorGrid}>
+          {Object.entries(ds.colors.primary).map(([key, value]) => (
+            <View key={key} style={styles.colorSwatch}>
+              <View style={[styles.colorBox, { backgroundColor: value }]} />
+              <Text style={styles.colorLabel}>{key}</Text>
+              <Text style={styles.colorValue}>{value}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    )
+
+    const renderTypography = () => (
+      <View>
+        {Object.entries(ds.typography.fontSize).map(([key, value]) => (
+          <View key={key} style={styles.assetCard}>
+            <Text style={[styles.assetCardTitle, { fontSize: value.size }]}>{key}</Text>
+            <Text style={styles.assetCardMeta}>Size: {value.size}px, Line Height: {value.lineHeight}</Text>
+          </View>
+        ))}
+      </View>
+    )
+
+    const renderIcons = () => {
+      const commonIcons = ['home', 'person', 'settings', 'menu', 'close', 'checkmark', 'heart', 'star', 'search', 'add']
+      return (
+        <View style={styles.iconGrid}>
+          {commonIcons.map((icon) => (
+            <View key={icon} style={styles.iconCard}>
+              <Ionicons name={icon as any} size={32} color={ds.colors.primary.main} />
+              <Text style={styles.iconLabel}>{icon}</Text>
+            </View>
+          ))}
+        </View>
+      )
+    }
+
+    const renderImages = () => (
+      <View>
+        <Text style={styles.assetCardDescription}>Brand assets and grounding cards are stored in /assets directory</Text>
+      </View>
+    )
+
+    const renderTabContent = () => {
+      switch (assetsTab) {
+        case 'components': return renderComponents()
+        case 'design-tokens': return renderDesignTokens()
+        case 'typography': return renderTypography()
+        case 'icons': return renderIcons()
+        case 'images': return renderImages()
+        default: return renderComponents()
+      }
+    }
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Assets Catalog</Text>
+        <Text style={styles.sectionDescription}>Comprehensive view of all design assets, components, and resources</Text>
+
+        {/* Search */}
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search assets..."
+          value={assetsSearch}
+          onChangeText={setAssetsSearch}
+        />
+
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
+          {tabs.map((tab) => (
+            <Pressable
+              key={tab.id}
+              style={[styles.tab, assetsTab === tab.id && styles.tabActive]}
+              onPress={() => setAssetsTab(tab.id)}
+            >
+              <Ionicons name={tab.icon as any} size={20} color={assetsTab === tab.id ? ds.colors.primary.main : ds.colors.text.secondary} />
+              <Text style={[styles.tabText, assetsTab === tab.id && styles.tabTextActive]}>{tab.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Tab Content */}
+        {renderTabContent()}
+      </View>
+    )
+  }
+
+  const renderCommunitySection = () => (
+    <View style={styles.sectionContent}>
+      <Text style={styles.sectionTitle}>Community Post Approvals</Text>
+      <Text style={styles.subsectionDescription}>
+        Review and approve community posts before they appear on the Community Wall
+      </Text>
+
+      {loadingPosts ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading pending posts...</Text>
+        </View>
+      ) : pendingPosts.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="checkmark-circle-outline" size={48} color={ds.colors.text.tertiary} />
+          <Text style={styles.emptyStateText}>No pending posts to review</Text>
+        </View>
+      ) : (
+        <View style={styles.postsContainer}>
+          {pendingPosts.map((post: any) => (
+            <View key={post.id} style={styles.postCard}>
+              <View style={styles.postCardHeader}>
+                <View>
+                  <Text style={styles.postAuthor}>{post.author_name}</Text>
+                  <Text style={styles.postUserInfo}>
+                    {post.profiles?.first_name} {post.profiles?.last_name} ({post.profiles?.email})
+                  </Text>
+                  <Text style={styles.postDate}>
+                    {new Date(post.created_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.postContent}>{post.content}</Text>
+
+              {post.media_url && (
+                <View style={styles.postMedia}>
+                  {post.media_type === 'image' ? (
+                    <Image source={{ uri: post.media_url }} style={styles.postImage} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.videoPlaceholder}>
+                      <Ionicons name="videocam" size={32} color={ds.colors.text.tertiary} />
+                      <Text style={styles.videoPlaceholderText}>Video Attachment</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <View style={styles.postActions}>
+                <Pressable
+                  style={[styles.postActionButton, styles.approveButton]}
+                  onPress={() => approvePost(post.id)}
+                >
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                  <Text style={styles.postActionButtonText}>Approve</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.postActionButton, styles.rejectButton]}
+                  onPress={() => rejectPost(post.id)}
+                >
+                  <Ionicons name="close-circle" size={20} color="#FFFFFF" />
+                  <Text style={styles.postActionButtonText}>Reject</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  )
+
   const renderActiveSection = () => {
     switch (activeSection) {
       case 'seo': return renderSeoSection()
@@ -1860,8 +2155,10 @@ export default function AdminPanel() {
       case 'ai': return renderAISection()
       case 'chat': return renderChatSection()
       case 'training': return renderTrainingSection()
+      case 'community': return renderCommunitySection()
       case 'analytics': return renderAnalyticsSection()
       case 'users': return renderUsersSection()
+      case 'assets': return renderAssetsSection()
       default: return renderSeoSection()
     }
   }
@@ -1887,7 +2184,7 @@ export default function AdminPanel() {
       
       <View style={styles.header}>
         <Ionicons name="shield-checkmark" size={24} color={ds.colors.primary.main} />
-        <Text style={styles.headerTitle}>Admin Panel</Text>
+        <Text style={styles.headerTitle}>Admin Dashboard</Text>
         <Text style={styles.headerSubtitle}>Manage your BeAligned application settings</Text>
       </View>
 
@@ -2586,5 +2883,211 @@ const styles = StyleSheet.create({
   codeActions: {
     flexDirection: 'row',
     marginTop: ds.spacing[2],
+  },
+  searchInput: {
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.md,
+    padding: ds.spacing[3],
+    fontSize: ds.typography.fontSize.base.size,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+    marginVertical: ds.spacing[4],
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    gap: ds.spacing[2],
+    marginBottom: ds.spacing[4],
+    flexWrap: 'wrap',
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+    paddingHorizontal: ds.spacing[4],
+    paddingVertical: ds.spacing[2],
+    borderRadius: ds.borderRadius.md,
+    backgroundColor: ds.colors.background.primary,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+  },
+  tabActive: {
+    backgroundColor: ds.colors.primary.lightest,
+    borderColor: ds.colors.primary.main,
+  },
+  tabText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+  },
+  tabTextActive: {
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.semibold,
+  },
+  assetCard: {
+    backgroundColor: ds.colors.background.primary,
+    padding: ds.spacing[4],
+    borderRadius: ds.borderRadius.md,
+    marginBottom: ds.spacing[3],
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+  },
+  assetCardTitle: {
+    fontSize: ds.typography.fontSize.lg.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    marginBottom: ds.spacing[2],
+  },
+  assetCardDescription: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    marginBottom: ds.spacing[2],
+  },
+  assetCardMeta: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.tertiary,
+    marginBottom: ds.spacing[1],
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: ds.spacing[3],
+    marginTop: ds.spacing[3],
+  },
+  colorSwatch: {
+    alignItems: 'center',
+    width: 100,
+  },
+  colorBox: {
+    width: 80,
+    height: 80,
+    borderRadius: ds.borderRadius.md,
+    marginBottom: ds.spacing[2],
+  },
+  colorLabel: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    color: ds.colors.text.primary,
+  },
+  colorValue: {
+    fontSize: ds.typography.fontSize.xs.size,
+    color: ds.colors.text.tertiary,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: ds.spacing[3],
+  },
+  iconCard: {
+    alignItems: 'center',
+    padding: ds.spacing[3],
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.md,
+    width: 100,
+  },
+  iconLabel: {
+    fontSize: ds.typography.fontSize.xs.size,
+    color: ds.colors.text.secondary,
+    marginTop: ds.spacing[2],
+  },
+  // Community section styles
+  postsContainer: {
+    gap: ds.spacing[4],
+    marginTop: ds.spacing[4],
+  },
+  postCard: {
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[4],
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+    ...ds.shadows.md,
+  },
+  postCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: ds.spacing[3],
+  },
+  postAuthor: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    marginBottom: ds.spacing[1],
+  },
+  postUserInfo: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    marginBottom: ds.spacing[1],
+  },
+  postDate: {
+    fontSize: ds.typography.fontSize.xs.size,
+    color: ds.colors.text.tertiary,
+  },
+  postContent: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.primary,
+    lineHeight: ds.typography.fontSize.base.lineHeight,
+    marginBottom: ds.spacing[3],
+  },
+  postMedia: {
+    marginBottom: ds.spacing[3],
+  },
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: ds.borderRadius.md,
+  },
+  videoPlaceholder: {
+    width: '100%',
+    height: 200,
+    borderRadius: ds.borderRadius.md,
+    backgroundColor: ds.colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPlaceholderText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.tertiary,
+    marginTop: ds.spacing[2],
+  },
+  postActions: {
+    flexDirection: 'row',
+    gap: ds.spacing[3],
+  },
+  postActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ds.spacing[2],
+    paddingVertical: ds.spacing[3],
+    borderRadius: ds.borderRadius.md,
+  },
+  approveButton: {
+    backgroundColor: ds.colors.success.main,
+  },
+  rejectButton: {
+    backgroundColor: ds.colors.error.main,
+  },
+  postActionButtonText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: '#FFFFFF',
+  },
+  loadingContainer: {
+    padding: ds.spacing[8],
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+  },
+  emptyState: {
+    padding: ds.spacing[8],
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.tertiary,
+    marginTop: ds.spacing[3],
   },
 })

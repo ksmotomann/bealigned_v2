@@ -12,6 +12,7 @@ import TrialStatus from '../../components/TrialStatus'
 import FeedbackSurvey from '../../components/FeedbackSurvey'
 import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
+import { Target, Heart } from 'lucide-react-native'
 import ds from '../../styles/design-system'
 
 interface RecentReflection {
@@ -559,42 +560,53 @@ export default function Dashboard() {
 
       <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} style={styles.scrollView}>
         {/* New Header Section */}
-        <View style={styles.newHeaderSection}>
-          <View style={styles.welcomeRow}>
-            <Text style={styles.welcomeText}>👋 Welcome back, {firstName || 'Trina'}</Text>
-          </View>
+        <View style={styles.content}>
+          <View style={styles.newHeaderSection}>
+            <View style={styles.welcomeRow}>
+              <Text style={styles.welcomeText}>👋 Welcome back, {firstName || 'Trina'}</Text>
+            </View>
 
-          <View style={styles.statsRow}>
-            <WaveCircle
-              size={60}
-              color={ds.colors.primary.main}
-              waveColor={`${ds.colors.primary.main}30`}
-              waveCount={3}
-              duration={2500}
-            >
-              <View style={styles.statsCircle}>
-                {/* Circle is now just the container for the wave effect */}
+            <View style={styles.statsRow}>
+            <View style={styles.targetContainer}>
+              <WaveCircle
+                size={60}
+                color={ds.colors.primary.main}
+                waveColor={`${ds.colors.primary.main}30`}
+                waveCount={3}
+                duration={2500}
+              >
+                <Image
+                  source={require('../../assets/target_ball.png')}
+                  style={styles.statsCircle}
+                  resizeMode="contain"
+                />
+              </WaveCircle>
+              <View style={styles.targetTextContainer}>
+                <Text style={styles.targetLabel}>Last reflection: <Text style={styles.targetValue}>{completedReflections === 0 ? 'None completed' : `${daysSinceLastReflection} ${daysSinceLastReflection === 1 ? 'day' : 'days'} ago`}</Text></Text>
               </View>
-            </WaveCircle>
+            </View>
             <View style={styles.statsTextContainer}>
               <View style={styles.statsNumberContainer}>
                 <Text style={styles.statsNumber}>{completedReflections}</Text>
-                <Text style={styles.statsLabel}>Reflections Completed</Text>
+                <View style={styles.statsLabelContainer}>
+                  <Text style={styles.statsLabel}>Reflections Completed</Text>
+                  <Text style={styles.statsSubtitle}>
+                    {completedReflections === 0 ? 'No reflections completed yet.' : `You have had ${completedReflections} reflections over the past ${daysSinceRegistration} days`}
+                  </Text>
+                  {daysSinceLastReflection > 0 && (
+                    <Text style={styles.lastReflectionText}>
+                      Last reflection {daysSinceLastReflection} day{daysSinceLastReflection !== 1 ? 's' : ''} ago
+                    </Text>
+                  )}
+                </View>
               </View>
-              <Text style={styles.statsSubtitle}>
-                You have had {completedReflections} reflections over the past {daysSinceRegistration} days
-              </Text>
-              {daysSinceLastReflection > 0 && (
-                <Text style={styles.lastReflectionText}>
-                  Last reflection {daysSinceLastReflection} day{daysSinceLastReflection !== 1 ? 's' : ''} ago
-                </Text>
-              )}
             </View>
           </View>
 
           <Text style={styles.motivationalMessage}>
             Your commitment to pause, reflect, and align is creating lasting change
           </Text>
+          </View>
         </View>
         {/* Trial Status */}
         {session?.user?.id && (
@@ -669,8 +681,8 @@ export default function Dashboard() {
           {/* Your Core Why Section */}
           <View style={styles.yourCoreWhyCard}>
             <View style={styles.sectionHeader}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="heart" size={20} color={ds.colors.primary.main} />
+              <View style={styles.targetIconContainer}>
+                <Target size={20} color={ds.colors.primary.main} strokeWidth={2} />
               </View>
               <View style={styles.sectionTitleContainer}>
                 <Text style={styles.sectionTitle}>Your Core Why</Text>
@@ -687,14 +699,14 @@ export default function Dashboard() {
             >
               <View style={styles.blueFoundationalBox}>
                 <View style={styles.foundationalValueHeader}>
-                  <Ionicons name="heart" size={16} color={ds.colors.text.inverse} />
+                  <Heart size={20} color={ds.colors.primary.main} strokeWidth={2} />
                   <Text style={styles.whiteFoundationalValueTitle}>Your Child's Stability</Text>
                 </View>
                 <Text style={styles.whiteFoundationalValueDescription}>
                   This foundational value appears in 91% of your reflections, serving as your North Star for co-parenting decisions.
                 </Text>
                 <View style={styles.whiteConsistencyBadge}>
-                  <Ionicons name="checkmark-circle" size={14} color={ds.colors.text.inverse} />
+                  <Ionicons name="checkmark-circle" size={12} color="#000000" />
                   <Text style={styles.whiteConsistencyText}>Consistently identified across {completedReflections} reflections</Text>
                 </View>
               </View>
@@ -717,7 +729,7 @@ export default function Dashboard() {
               <View style={styles.sectionTitleContainer}>
                 <Text style={styles.sectionTitle}>Past Reflections</Text>
               </View>
-              <Pressable style={styles.viewAllButton}>
+              <Pressable style={styles.viewAllButton} onPress={() => router.push('/(tabs)/history')}>
                 <Text style={styles.viewAllText}>View All</Text>
                 <Ionicons name="chevron-forward" size={16} color={ds.colors.primary.main} />
               </Pressable>
@@ -743,7 +755,10 @@ export default function Dashboard() {
                         <Text style={styles.completedStatusText}>Complete</Text>
                       </View>
                     </View>
-                    <Pressable style={styles.viewReflectionButton}>
+                    <Pressable
+                      style={styles.viewReflectionButton}
+                      onPress={() => router.push(`/(tabs)/chat?session_id=${reflection.session_id}`)}
+                    >
                       <Ionicons name="eye" size={16} color={ds.colors.primary.main} />
                       <Text style={styles.viewReflectionText}>View</Text>
                     </Pressable>
@@ -878,7 +893,7 @@ export default function Dashboard() {
                 <Text style={styles.quickAccessCardDescription}>Request personalized guidance</Text>
               </Pressable>
 
-              <Pressable style={styles.quickAccessCard}>
+              <Pressable style={styles.quickAccessCard} onPress={() => router.push('/community')}>
                 <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="people" size={24} color={ds.colors.primary.main} />
                 </View>
@@ -1016,7 +1031,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: ds.spacing[10], // Increased from 6 to 10 for more white space
+    paddingHorizontal: ds.spacing[40], // 4x white space on both sides
     paddingBottom: ds.spacing[8],
   },
 
@@ -1028,47 +1043,70 @@ const styles = StyleSheet.create({
     borderRadius: ds.borderRadius.xl,
     marginTop: ds.spacing[6], // Add margin below nav
     marginBottom: ds.spacing[6],
-    marginHorizontal: ds.spacing[4], // Match other panels width
+    marginHorizontal: ds.spacing[4], // Now inside content wrapper, match other cards
     ...ds.shadows.lg,
   },
   welcomeRow: {
     marginBottom: ds.spacing[4],
   },
   welcomeText: {
-    fontSize: ds.typography.fontSize.lg.size,
+    fontSize: ds.typography.fontSize.lg.size * 1.44,
     fontWeight: ds.typography.fontWeight.medium,
     color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.base,
   },
   statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: ds.spacing[4],
   },
   statsCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: ds.colors.primary.main,
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  targetContainer: {
+    alignItems: 'flex-start',
+    marginTop: -ds.spacing[4],
+  },
+  targetTextContainer: {
+    marginTop: ds.spacing[2],
+    alignItems: 'flex-start',
+  },
+  targetLabel: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: '#1a1a1a',
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  targetValue: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
   },
   statsNumberContainer: {
-    marginLeft: ds.spacing[4],
+    marginLeft: -ds.spacing[10],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[6],
+    marginTop: ds.spacing[8],
   },
   statsNumber: {
-    fontSize: ds.typography.fontSize['3xl'].size,
+    fontSize: ds.typography.fontSize['4xl'].size * 1.2,
     fontWeight: ds.typography.fontWeight.bold,
     color: ds.colors.primary.main,
     fontFamily: ds.typography.fontFamily.heading,
-    lineHeight: ds.typography.fontSize['3xl'].size,
+    lineHeight: ds.typography.fontSize['4xl'].size * 1.2,
+  },
+  statsLabelContainer: {
+    flex: 1,
+    alignItems: 'flex-start',
   },
   statsLabel: {
-    fontSize: ds.typography.fontSize.sm.size,
+    fontSize: ds.typography.fontSize.xl.size,
     color: ds.colors.text.primary,
-    fontWeight: ds.typography.fontWeight.semibold,
-    fontFamily: ds.typography.fontFamily.base,
-    marginTop: ds.spacing[1],
+    fontWeight: ds.typography.fontWeight.bold,
+    fontFamily: ds.typography.fontFamily.heading,
   },
   statsTextContainer: {
     flex: 1,
@@ -1081,10 +1119,11 @@ const styles = StyleSheet.create({
     marginBottom: ds.spacing[1],
   },
   statsSubtitle: {
-    fontSize: ds.typography.fontSize.sm.size,
+    fontSize: ds.typography.fontSize.base.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
-    lineHeight: ds.typography.fontSize.sm.lineHeight + 2,
+    lineHeight: ds.typography.fontSize.base.lineHeight,
+    marginTop: 0,
   },
   lastReflectionText: {
     fontSize: ds.typography.fontSize.sm.size,
@@ -1093,10 +1132,9 @@ const styles = StyleSheet.create({
     marginTop: ds.spacing[1],
   },
   motivationalMessage: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.secondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
+    fontSize: ds.typography.fontSize.sm.size * 1.1,
+    color: ds.colors.primary.main,
+    textAlign: 'left',
     fontFamily: ds.typography.fontFamily.base,
     lineHeight: ds.typography.fontSize.sm.lineHeight + 4,
   },
@@ -1108,7 +1146,7 @@ const styles = StyleSheet.create({
     borderRadius: ds.borderRadius.xl,
     padding: ds.spacing[8],
     marginBottom: ds.spacing[6],
-    marginHorizontal: ds.spacing[4], // Match header section width
+    marginHorizontal: ds.spacing[4], // Reset to original - content wrapper handles the padding
     alignItems: 'center',
     ...ds.shadows.lg,
   },
@@ -1201,6 +1239,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: ds.spacing[3],
   },
+  targetIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: ds.spacing[3],
+  },
   sectionTitleContainer: {
     flex: 1,
   },
@@ -1254,38 +1301,41 @@ const styles = StyleSheet.create({
   },
   // Blue Inner Box for "Your Child's Stability"
   blueFoundationalBox: {
-    backgroundColor: ds.colors.primary.main,
+    backgroundColor: '#e3f2ff',
     borderRadius: ds.borderRadius.lg,
     padding: ds.spacing[4],
     marginVertical: ds.spacing[4],
+    marginHorizontal: ds.spacing[32],
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
   },
   whiteFoundationalValueTitle: {
-    fontSize: ds.typography.fontSize.lg.size,
+    fontSize: ds.typography.fontSize.xl.size,
     fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.inverse,
+    color: ds.colors.primary.main,
     marginLeft: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.heading,
   },
   whiteFoundationalValueDescription: {
     fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.text.inverse,
-    lineHeight: ds.typography.fontSize.base.lineHeight + 4,
+    color: ds.colors.text.secondary,
+    lineHeight: ds.typography.fontSize.base.lineHeight,
     marginBottom: ds.spacing[3],
+    marginHorizontal: ds.spacing[4],
     fontFamily: ds.typography.fontFamily.base,
-    opacity: 0.9,
   },
   whiteConsistencyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: ds.spacing[3],
     paddingVertical: ds.spacing[2],
     borderRadius: ds.borderRadius.full,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   whiteConsistencyText: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.inverse,
+    fontSize: ds.typography.fontSize.xs.size,
+    color: '#000000',
     marginLeft: ds.spacing[1],
     fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
@@ -1293,6 +1343,7 @@ const styles = StyleSheet.create({
   foundationalValueHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: ds.spacing[2],
   },
   reminderBox: {

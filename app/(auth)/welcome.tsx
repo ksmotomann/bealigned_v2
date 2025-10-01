@@ -1,11 +1,9 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, Image } from 'react-native'
 import { useRouter } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
+import { Heart, Pause, Target, ArrowRight } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import ds from '../../styles/design-system'
-import AnimatedWaveHero from '../../components/AnimatedWaveHero'
-import NavigationHeader from '../../components/NavigationHeader'
 import SEOHead from '../../components/SEOHead'
 
 export default function Welcome() {
@@ -24,122 +22,76 @@ export default function Welcome() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <SEOHead page="welcome" />
 
-      {/* Navigation Header */}
-      <NavigationHeader />
+      <View style={styles.content}>
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../assets/be_logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
 
-      {/* Main Content with Animated Wave Background */}
-      <AnimatedWaveHero style={styles.hero}>
-        <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="water-outline" size={48} color={ds.colors.primary.main} />
+        {/* Title */}
+        <Text style={styles.title}>Welcome to BeAligned™</Text>
+        <Text style={styles.subtitle}>You've taken a powerful first step.</Text>
+        <Text style={styles.description}>
+          BeAligned™ is more than an app — it's your companion in turning conflict into clarity,
+          reaction into reflection, and disconnection into understanding.
+        </Text>
+
+        {/* Your Journey Ahead */}
+        <Text style={styles.sectionTitle}>Your Journey Ahead</Text>
+
+        <View style={styles.cardsContainer}>
+          {/* Strength & Stability Card */}
+          <View style={styles.card}>
+            <View style={styles.cardIcon}>
+              <Heart size={24} color={ds.colors.primary.main} strokeWidth={2} />
             </View>
-          </View>
-
-          <Text style={styles.greeting}>
-            Welcome{firstName ? `, ${firstName}` : ''} 🌊
-          </Text>
-
-          <Text style={styles.title}>
-            You've taken a powerful first step
-          </Text>
-
-          <Text style={styles.body}>
-            BeAligned is more than an app — it's your companion in transforming conflict into clarity,
-            reaction into reflection, and tension into understanding.
-          </Text>
-
-          <View style={styles.principlesContainer}>
-            <Text style={styles.sectionTitle}>Your Journey Ahead</Text>
-
-            <View style={styles.principle}>
-              <Ionicons name="shield-checkmark-outline" size={24} color={ds.colors.text.inverse} />
-              <View style={styles.principleText}>
-                <Text style={styles.principleTitle}>Strength & Stability</Text>
-                <Text style={styles.principleDescription}>
-                  Like beryllium in water, you'll learn to communicate with grounded purpose and clarity
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.principle}>
-              <Ionicons name="git-branch-outline" size={24} color={ds.colors.text.inverse} />
-              <View style={styles.principleText}>
-                <Text style={styles.principleTitle}>Reflection Before Reaction</Text>
-                <Text style={styles.principleDescription}>
-                  Our 7-step process helps you pause, explore what's beneath the surface, and respond with intention
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.principle}>
-              <Ionicons name="heart-outline" size={24} color={ds.colors.text.inverse} />
-              <View style={styles.principleText}>
-                <Text style={styles.principleTitle}>Purpose Over Position</Text>
-                <Text style={styles.principleDescription}>
-                  Move beyond arguing over "what" to understanding "why" — aligning around what truly matters
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.quoteContainer}>
-            <Text style={styles.quote}>
-              "BeAligned is not about being perfect — it's about being intentional"
+            <Text style={styles.cardTitle}>Strength & Stability</Text>
+            <Text style={styles.cardDescription}>
+              Strength isn't force. It's grounded presence — steady, intentional, and rooted in clarity.
             </Text>
           </View>
 
-          <Text style={styles.readyText}>
-            Ready to begin your first reflection?
+          {/* Reflection Before Reaction Card */}
+          <View style={styles.card}>
+            <View style={styles.cardIcon}>
+              <Pause size={24} color={ds.colors.primary.main} strokeWidth={2} />
+            </View>
+            <Text style={styles.cardTitle}>Reflection Before Reaction</Text>
+            <Text style={styles.cardDescription}>
+              Our 7-step process helps you pause, look deeper, and respond with intention.
+            </Text>
+          </View>
+
+          {/* Purpose Over Position Card */}
+          <View style={styles.card}>
+            <View style={styles.cardIcon}>
+              <Target size={24} color={ds.colors.primary.main} strokeWidth={2} />
+            </View>
+            <Text style={styles.cardTitle}>Purpose Over Position</Text>
+            <Text style={styles.cardDescription}>
+              It's not about being right — it's about getting right — staying anchored in your why.
+            </Text>
+          </View>
+        </View>
+
+        {/* Quote Box */}
+        <View style={styles.quoteBox}>
+          <Text style={styles.quoteText}>
+            BeAligned™ isn't about perfection. It's about intention.
           </Text>
-
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => router.replace('/(tabs)/dashboard')}
-          >
-            <Text style={styles.primaryButtonText}>Enter BeAligned</Text>
-            <Ionicons name="arrow-forward" size={20} color={ds.colors.text.inverse} />
-          </Pressable>
-
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => router.push('/(tabs)/dashboard')}
-          >
-            <Text style={styles.secondaryButtonText}>Learn More About BeH2O</Text>
-          </Pressable>
-        </View>
-      </AnimatedWaveHero>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Image
-          source={require('../../assets/bealigned_logo.avif')}
-          style={styles.footerLogoImage}
-          resizeMode="contain"
-        />
-
-        <View style={styles.footerLinks}>
-          <Pressable onPress={() => router.push('/(marketing)')}>
-            <Text style={styles.footerLink}>Home</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/our-story')}>
-            <Text style={styles.footerLink}>Our Story</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/faq')}>
-            <Text style={styles.footerLink}>FAQ</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/contact')}>
-            <Text style={styles.footerLink}>Contact</Text>
-          </Pressable>
+          <Text style={styles.quoteText}>Once your values align, your next step is clear.</Text>
+          <Text style={styles.quoteTagline}>Be Strong. Be Grounded. BeAligned™</Text>
         </View>
 
-        <Text style={styles.footerDisclaimer}>
-          © 2025 BeAligned • BeH2O® is a registered trademark{'\n'}
-          BeAligned provides educational guidance and is not a substitute for professional therapy or legal advice
-        </Text>
+        {/* CTA Button */}
+        <Pressable style={styles.ctaButton} onPress={() => router.replace('/(tabs)/dashboard')}>
+          <Text style={styles.ctaButtonText}>Begin your first reflection</Text>
+          <ArrowRight size={20} color="#FFFFFF" strokeWidth={2} />
+        </Pressable>
       </View>
     </ScrollView>
   )
@@ -148,176 +100,133 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ds.colors.background.primary,
-  },
-  hero: {
-    paddingVertical: ds.spacing[20],
-    paddingHorizontal: ds.spacing[10],
-    alignItems: 'center',
-    minHeight: 600,
+    backgroundColor: '#87CEEB', // Light blue background like in the design
   },
   content: {
-    paddingHorizontal: ds.spacing[6],
-    maxWidth: 800,
+    paddingVertical: ds.spacing[16],
+    paddingHorizontal: ds.spacing[10],
+    maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
   },
-  iconContainer: {
+  logoContainer: {
     alignItems: 'center',
     marginBottom: ds.spacing[6],
   },
-  iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: ds.colors.primary.light,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  greeting: {
-    fontSize: ds.typography.fontSize['2xl'].size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.inverse,
-    textAlign: 'center',
-    marginBottom: ds.spacing[2],
-    fontFamily: ds.typography.fontFamily.heading,
+  logo: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
   },
   title: {
     fontSize: ds.typography.fontSize['3xl'].size,
     fontWeight: ds.typography.fontWeight.bold,
-    color: ds.colors.text.inverse,
+    color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: ds.spacing[4],
+    marginBottom: ds.spacing[3],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  body: {
-    fontSize: ds.typography.fontSize.lg.size,
-    lineHeight: ds.typography.fontSize.lg.lineHeight,
-    color: ds.colors.text.inverse,
+  subtitle: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: ds.spacing[8],
-    opacity: 0.95,
+    marginBottom: ds.spacing[2],
     fontFamily: ds.typography.fontFamily.base,
   },
-  principlesContainer: {
+  description: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: '#FFFFFF',
+    textAlign: 'center',
     marginBottom: ds.spacing[8],
+    lineHeight: ds.typography.fontSize.sm.lineHeight * 1.5,
+    fontFamily: ds.typography.fontFamily.base,
   },
   sectionTitle: {
-    fontSize: ds.typography.fontSize['2xl'].size,
+    fontSize: ds.typography.fontSize.xl.size,
     fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.inverse,
-    marginBottom: ds.spacing[5],
+    color: '#FFFFFF',
     textAlign: 'center',
+    marginBottom: ds.spacing[6],
     fontFamily: ds.typography.fontFamily.heading,
   },
-  principle: {
+  cardsContainer: {
     flexDirection: 'row',
-    marginBottom: ds.spacing[6],
-    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: ds.spacing[4],
+    marginBottom: ds.spacing[8],
   },
-  principleText: {
-    flex: 1,
-    marginLeft: ds.spacing[4],
-  },
-  principleTitle: {
-    fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.inverse,
-    marginBottom: ds.spacing[1],
-    fontFamily: ds.typography.fontFamily.heading,
-  },
-  principleDescription: {
-    fontSize: ds.typography.fontSize.base.size,
-    lineHeight: ds.typography.fontSize.base.lineHeight,
-    color: ds.colors.text.inverse,
-    opacity: 0.9,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  quoteContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: ds.spacing[5],
-    borderRadius: ds.borderRadius.lg,
-    marginBottom: ds.spacing[6],
-    borderLeftWidth: 3,
-    borderLeftColor: ds.colors.text.inverse,
-  },
-  quote: {
-    fontSize: ds.typography.fontSize.lg.size,
-    fontStyle: 'italic',
-    color: ds.colors.text.inverse,
-    lineHeight: ds.typography.fontSize.lg.lineHeight,
-    textAlign: 'center',
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  readyText: {
-    fontSize: ds.typography.fontSize.lg.size,
-    color: ds.colors.text.inverse,
-    textAlign: 'center',
-    marginBottom: ds.spacing[5],
-    opacity: 0.95,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  primaryButton: {
+  card: {
     backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    paddingVertical: ds.spacing[4],
-    paddingHorizontal: ds.spacing[8],
-    borderRadius: ds.borderRadius.md,
+    borderRadius: ds.borderRadius.xl,
+    padding: ds.spacing[5],
+    width: '30%',
+    minWidth: 160,
+    alignItems: 'center',
+    ...ds.shadows.md,
+  },
+  cardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: ds.colors.primary.lightest,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: ds.spacing[3],
-    ...ds.shadows.lg,
   },
-  primaryButtonText: {
-    color: ds.colors.primary.main,
-    fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    marginRight: ds.spacing[2],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  secondaryButton: {
-    paddingVertical: ds.spacing[3],
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: ds.colors.text.inverse,
+  cardTitle: {
     fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.medium,
-    opacity: 0.9,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.text.primary,
+    textAlign: 'center',
+    marginBottom: ds.spacing[2],
+    fontFamily: ds.typography.fontFamily.heading,
+  },
+  cardDescription: {
+    fontSize: ds.typography.fontSize.xs.size,
+    color: ds.colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: ds.typography.fontSize.xs.lineHeight * 1.5,
     fontFamily: ds.typography.fontFamily.base,
   },
-  footer: {
-    backgroundColor: ds.colors.neutral[800],
-    paddingVertical: ds.spacing[10],
-    paddingHorizontal: ds.spacing[10],
-    alignItems: 'center',
+  quoteBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: ds.borderRadius.xl,
+    padding: ds.spacing[6],
+    marginBottom: ds.spacing[8],
+    ...ds.shadows.md,
   },
-  footerLogoImage: {
-    width: 120,
-    height: 32,
-    marginBottom: 24,
-    tintColor: '#FFFFFF',
+  quoteText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.primary,
+    textAlign: 'center',
+    marginBottom: ds.spacing[2],
+    fontFamily: ds.typography.fontFamily.base,
   },
-  footerLinks: {
+  quoteTagline: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.primary.main,
+    textAlign: 'center',
+    marginTop: ds.spacing[2],
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  ctaButton: {
+    backgroundColor: ds.colors.primary.main,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    justifyContent: 'center',
+    gap: ds.spacing[2],
+    paddingVertical: ds.spacing[4],
+    paddingHorizontal: ds.spacing[8],
+    borderRadius: ds.borderRadius.lg,
+    ...ds.shadows.lg,
   },
-  footerLink: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.neutral[300],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  footerDivider: {
-    color: '#666666',
-    marginHorizontal: 12,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  footerDisclaimer: {
-    fontSize: ds.typography.fontSize.xs.size,
-    color: ds.colors.neutral[400],
-    textAlign: 'center',
-    lineHeight: ds.typography.fontSize.xs.lineHeight + 2,
+  ctaButtonText: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: '#FFFFFF',
     fontFamily: ds.typography.fontFamily.base,
   },
 })
