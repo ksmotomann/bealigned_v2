@@ -51,18 +51,25 @@ export default function ModernLandingPage() {
       {/* Temporary Promotional Banner */}
       <View style={styles.promoBanner}>
         <View style={styles.promoBannerContent}>
-          <Text style={styles.promoBannerTitle}>
-            Join the BeAligned™ Community — free for 7 days with code <Text style={styles.promoBannerCode}>BeBetaUser</Text>
-          </Text>
-          <Text style={styles.promoBannerSubtitle}>
-            No credit card. No strings. Just choice. Together we're learning, growing, and safeguarding childhoods.
-          </Text>
-          <Pressable
-            style={styles.promoBannerButton}
-            onPress={() => router.push('/(auth)/signup')}
-          >
-            <Text style={styles.promoBannerButtonText}>Start Free Trial</Text>
-          </Pressable>
+          <View style={styles.promoBannerLeft}>
+            <Text style={styles.promoBannerTitle}>
+              Join the BeAligned™ Community — free for 7 days with code <Text style={styles.promoBannerCode}>BeBetaUser</Text>
+            </Text>
+            <Text style={styles.promoBannerSubtitle}>
+              No credit card. No strings. Just choice. Together we're learning, growing, and safeguarding childhoods.
+            </Text>
+            <Pressable
+              style={styles.promoBannerButton}
+              onPress={() => router.push('/(auth)/signup')}
+            >
+              <Text style={styles.promoBannerButtonText}>Start Free Trial</Text>
+            </Pressable>
+          </View>
+          <View style={styles.promoBannerRight}>
+            <Text style={styles.communityLabel}>🔴 COMMUNITY REFLECTIONS</Text>
+            <Text style={styles.communityCount}>2,551</Text>
+            <Text style={styles.communitySubtext}>and growing...</Text>
+          </View>
         </View>
       </View>
 
@@ -399,7 +406,44 @@ const styles = StyleSheet.create({
     maxWidth: 1200,
     width: '100%',
     alignSelf: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 32,
+  },
+  promoBannerLeft: {
+    flex: 1,
     alignItems: 'flex-start',
+  },
+  promoBannerRight: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  communityLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  communityCount: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#0EA5E9',
+    marginBottom: 4,
+  },
+  communitySubtext: {
+    fontSize: 14,
+    color: '#0EA5E9',
+    fontStyle: 'italic',
   },
   promoBannerTitle: {
     fontSize: 24,
