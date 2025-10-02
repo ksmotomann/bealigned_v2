@@ -907,14 +907,12 @@ export default function Dashboard() {
 
           {/* Weekly Grounding Section */}
           <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="leaf" size={20} color={ds.colors.primary.main} />
+            <View style={styles.groundingHeader}>
+              <View style={styles.quickAccessIconContainer}>
+                <Ionicons name="leaf" size={24} color={ds.colors.primary.main} />
               </View>
-              <View style={styles.sectionTitleContainer}>
-                <Text style={styles.sectionTitle}>Weekly Grounding</Text>
-                <Text style={styles.sectionSubtitle}>Inspiration for your journey</Text>
-              </View>
+              <Text style={styles.quickAccessCardTitle}>Weekly Grounding</Text>
+              <Text style={styles.quickAccessCardDescription}>Inspiration for your journey</Text>
             </View>
 
             {/* Weekly Grounding Image */}
@@ -1598,6 +1596,12 @@ const styles = StyleSheet.create({
     color: ds.colors.primary.main,
     fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
+  },
+
+  // Weekly Grounding - Header
+  groundingHeader: {
+    alignItems: 'center',
+    marginBottom: ds.spacing[4],
   },
 
   // Weekly Grounding - Image Design
