@@ -17,7 +17,7 @@ The system automatically detects common deployment platforms:
 - **Vercel**: `*.vercel.app` domains
 - **Netlify**: `*.netlify.app` domains
 - **Heroku**: `*.herokuapp.com` domains
-- **Custom domains**: `bealigned.com` and subdomains
+- **Custom domains**: `bealigned.app` and subdomains
 
 ### Detection Logic
 ```typescript
@@ -36,7 +36,7 @@ const getBaseUrl = () => {
     if (hostname.includes('vercel.app') ||
         hostname.includes('netlify.app') ||
         hostname.includes('herokuapp.com') ||
-        hostname.includes('bealigned.com')) {
+        hostname.includes('bealigned.app')) {
       return `${protocol}//${hostname}`
     }
 
@@ -50,7 +50,7 @@ const getBaseUrl = () => {
   }
 
   // Mobile/native apps
-  return process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.com'
+  return process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.app'
 }
 ```
 
@@ -60,7 +60,7 @@ const getBaseUrl = () => {
 **No configuration needed** - the system automatically detects Vercel domains and uses the current deployment URL.
 
 ### 2. Custom Domain
-**No configuration needed** - if your domain includes `bealigned.com`, it's automatically detected.
+**No configuration needed** - if your domain includes `bealigned.app`, it's automatically detected.
 
 ### 3. Alternative Domain (Temporary)
 **Option A: Environment Variable**
@@ -80,7 +80,7 @@ if (hostname.includes('your-temp-domain.com')) {
 ### 4. Staging Environment
 **Environment Variable**
 ```
-EXPO_PUBLIC_BASE_URL=https://staging.bealigned.com
+EXPO_PUBLIC_BASE_URL=https://staging.bealigned.app
 ```
 
 ## Testing

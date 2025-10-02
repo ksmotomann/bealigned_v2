@@ -188,7 +188,7 @@ function generateHtmlTranscript(messages: any[], title: string, userName: string
   
   <div style="margin-top: 30px; padding: 20px; background: #f9fafb; border-radius: 8px; text-align: center; color: #6b7280; font-size: 14px;">
     <p>This transcript was generated from your BeAligned session.</p>
-    <p>Visit <a href="https://bealigned.com" style="color: #667eea;">bealigned.com</a> to continue your journey.</p>
+    <p>Visit <a href="https://bealigned.app" style="color: #667eea;">bealigned.app</a> to continue your journey.</p>
   </div>
 </body>
 </html>

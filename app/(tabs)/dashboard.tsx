@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { View, Text, ScrollView, Pressable, StyleSheet, Platform, Share, Image, Modal, Alert, TextInput, TouchableOpacity, Linking } from 'react-native'
 import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system'
+import { Asset } from 'expo-asset'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { supabase } from '../../lib/supabase'
@@ -18,6 +19,21 @@ import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
 import { Target, Heart } from 'lucide-react-native'
 import ds from '../../styles/design-system'
+
+// Conditionally import react-native-share and Facebook SDK only for native platforms
+let RNShare: any = null
+let ShareDialog: any = null
+let FBSDK: any = null
+
+if (Platform.OS !== 'web') {
+  try {
+    RNShare = require('react-native-share').default
+    FBSDK = require('react-native-fbsdk-next')
+    ShareDialog = FBSDK?.ShareDialog
+  } catch (error) {
+    console.warn('Native share libraries not available:', error)
+  }
+}
 
 interface RecentReflection {
   id: string
@@ -342,37 +358,49 @@ export default function Dashboard() {
 
   const getGroundingImageUri = async (): Promise<string | null> => {
     try {
-      // Create mapping of week numbers to actual image file names
-      const imageFiles = {
-        1: 'WK1.png', 2: 'WK2.png', 3: 'WK3.png', 4: 'WK4.png',
-        5: 'WK5.png', 6: 'WK6.png', 7: 'WK7.png', 8: 'WK8.png',
-        9: 'WK9.png', 10: 'WK10.png', 11: 'WK11.png', 12: 'WK12.png'
-      }
+      console.log('📸 Getting image URI for week:', currentWeekNumber)
 
-      const filename = imageFiles[currentWeekNumber as keyof typeof imageFiles] || 'WK1.png'
-
-      // For web, we'll use a different approach
+      // For web, return the public URL
       if (Platform.OS === 'web') {
-        return null // Will fall back to text-only sharing
+        const webUri = `/images/grounding/be_grounding_wk${currentWeekNumber}.png`
+        console.log('  - Web URI:', webUri)
+        return webUri
       }
 
-      // For mobile, copy the bundled asset to a shareable location
-      const assetUri = `${FileSystem.bundleDirectory}assets/grounding/${filename}`
-      const localUri = `${FileSystem.documentDirectory}BeAligned_Week${currentWeekNumber}_Grounding.png`
+      // For mobile, we need to use Asset.fromModule to get the local URI
+      const imageMapping = {
+        1: require('../../assets/grounding/WK1.png'),
+        2: require('../../assets/grounding/WK2.png'),
+        3: require('../../assets/grounding/WK3.png'),
+        4: require('../../assets/grounding/WK4.png'),
+        5: require('../../assets/grounding/WK5.png'),
+        6: require('../../assets/grounding/WK6.png'),
+        7: require('../../assets/grounding/WK7.png'),
+        8: require('../../assets/grounding/WK8.png'),
+        9: require('../../assets/grounding/WK9.png'),
+        10: require('../../assets/grounding/WK10.png'),
+        11: require('../../assets/grounding/WK11.png'),
+        12: require('../../assets/grounding/WK12.png'),
+      }
 
-      // Check if the asset exists and copy it
-      const assetInfo = await FileSystem.getInfoAsync(assetUri)
-      if (assetInfo.exists) {
-        await FileSystem.copyAsync({
-          from: assetUri,
-          to: localUri
-        })
-        return localUri
+      const imageModule = imageMapping[currentWeekNumber as keyof typeof imageMapping]
+      console.log('  - Image module:', imageModule)
+
+      // Load the asset and get its local URI
+      const [asset] = await Asset.loadAsync(imageModule)
+      console.log('  - Asset loaded, downloading...')
+      await asset.downloadAsync()
+
+      console.log('  - Asset localUri:', asset.localUri)
+      console.log('  - Asset uri:', asset.uri)
+
+      if (asset.localUri) {
+        return asset.localUri
       }
 
       return null
     } catch (error) {
-      console.error('Error getting image URI:', error)
+      console.error('❌ Error getting image URI:', error)
       return null
     }
   }
@@ -396,7 +424,7 @@ export default function Dashboard() {
 
       // Fallback to text-only sharing (works on all platforms)
       await Share.share({
-        message: `${message}\n\n🖼️ View Week ${currentWeekNumber} Grounding Card at: https://bealigned.com/grounding/week-${currentWeekNumber}`,
+        message: `${message}\n\n🖼️ View Week ${currentWeekNumber} Grounding Card at: https://bealigned.app/grounding/week-${currentWeekNumber}`,
         title: `Week ${currentWeekNumber} Grounding from BeAligned™`,
       })
 
@@ -432,145 +460,146 @@ export default function Dashboard() {
     const message = `Week ${currentWeekNumber} Grounding from BeAligned™\n\nBe grounded. Be clear. BeAligned.™\n\n#BeAligned #Mindfulness #CoParenting`
 
     try {
-      let shareUrl = ''
+      // Get the grounding image URI for sharing
+      const imageUri = await getGroundingImageUri()
+
       switch (platform) {
         case 'facebook':
-          console.log('🔄 Facebook sharing triggered - DEBUG MODE')
-          console.log('📊 Current week number:', currentWeekNumber)
-          console.log('💬 Message:', message)
+          // Use react-native-share for Facebook with image on mobile
+          if (Platform.OS !== 'web' && imageUri && RNShare) {
+            try {
+              console.log('🔍 Facebook Sharing Debug:')
+              console.log('  - Image URI:', imageUri)
+              console.log('  - Message:', message)
 
-          // Facebook sharing with weekly grounding card image URL
-          try {
-            // Smart URL detection for Facebook sharing
-            // This automatically works on any deployment without configuration
-            const getBaseUrl = () => {
-              if (Platform.OS === 'web') {
-                // Development: use localhost
-                if (window.location.hostname === 'localhost') {
-                  return `http://localhost:8081`
-                }
+              // Ensure the URI is in the correct format
+              const formattedUri = imageUri.startsWith('file://') ? imageUri : `file://${imageUri}`
+              console.log('  - Formatted URI:', formattedUri)
 
-                // Production: smart detection
-                const hostname = window.location.hostname
-                const protocol = window.location.protocol
-
-                // Check for common deployment patterns
-                if (hostname.includes('vercel.app') ||
-                    hostname.includes('netlify.app') ||
-                    hostname.includes('herokuapp.com') ||
-                    hostname.includes('bealigned.com')) {
-                  return `${protocol}//${hostname}`
-                }
-
-                // Environment variable override (optional)
-                if (process.env.EXPO_PUBLIC_BASE_URL) {
-                  return process.env.EXPO_PUBLIC_BASE_URL
-                }
-
-                // Fallback to current domain
-                return `${protocol}//${hostname}`
+              const shareOptions = {
+                social: RNShare.Social.FACEBOOK,
+                url: formattedUri,
+                message: message,
               }
 
-              // Mobile/native: always use production URL
-              return process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.com'
+              console.log('  - Share options:', shareOptions)
+
+              await RNShare.shareSingle(shareOptions)
+              console.log('✅ Facebook share successful')
+              setShowSocialMediaModal(false)
+              return
+            } catch (error: any) {
+              console.error('❌ Facebook share error:', error)
+              if (error.message !== 'User did not share') {
+                console.error('Full error details:', JSON.stringify(error, null, 2))
+              }
+              // Fall through to web fallback
             }
-
-            const baseUrl = getBaseUrl()
-            const imageUrl = `${baseUrl}/images/be_grounding_wk${currentWeekNumber}.png`
-            const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(imageUrl)}&quote=${encodeURIComponent(message)}`
-
-            console.log('🔧 Runtime Detection Debug:')
-            console.log('  - Platform.OS:', Platform.OS)
-            if (Platform.OS === 'web') {
-              console.log('  - window.location.hostname:', window.location.hostname)
-              console.log('  - window.location.protocol:', window.location.protocol)
-            }
-            console.log('  - Environment EXPO_PUBLIC_BASE_URL:', process.env.EXPO_PUBLIC_BASE_URL)
-            console.log('  - Detected Base URL:', baseUrl)
-            console.log('🖼️ Final Image URL:', imageUrl)
-            console.log('📤 Facebook share URL:', facebookShareUrl)
-
-            // Show user confirmation of what's being shared
-            Alert.alert(
-              'Facebook Sharing Debug',
-              `Week ${currentWeekNumber} Grounding Card:\nbe_grounding_wk${currentWeekNumber}.png\n\nImage URL:\n${imageUrl}\n\nFacebook URL:\n${facebookShareUrl}`,
-              [
-                {
-                  text: 'Cancel',
-                  style: 'cancel',
-                  onPress: () => {
-                    console.log('❌ Facebook sharing cancelled')
-                    setShowSocialMediaModal(false)
-                  }
-                },
-                {
-                  text: 'Share',
-                  onPress: async () => {
-                    console.log('✅ Facebook sharing confirmed - opening URL...')
-                    try {
-                      if (Platform.OS === 'web') {
-                        console.log('🌐 Opening in browser window...')
-                        window.open(facebookShareUrl, '_blank')
-                      } else {
-                        console.log('📱 Opening with Linking...')
-                        await Linking.openURL(facebookShareUrl)
-                      }
-                      console.log('✅ Facebook sharing completed successfully')
-                    } catch (error) {
-                      console.error('❌ Error opening Facebook URL:', error)
-                    }
-                    setShowSocialMediaModal(false)
-                  }
-                }
-              ]
-            )
-            return
-          } catch (error) {
-            console.error('❌ Facebook sharing error:', error)
-            // Fallback to basic Facebook sharing
-            shareUrl = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(message)}&u=${encodeURIComponent('https://bealigned.com')}`
-            console.log('🔄 Using fallback URL:', shareUrl)
-            await Linking.openURL(shareUrl)
-            setShowSocialMediaModal(false)
-            return
           }
+
+          // Fallback for web or if native share fails - use landing page with OG tags
+          const baseUrl = Platform.OS === 'web'
+            ? (window.location.hostname === 'localhost'
+                ? 'http://localhost:8081'
+                : `${window.location.protocol}//${window.location.hostname}`)
+            : process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.app'
+
+          // Share the grounding landing page URL (Facebook will scrape OG tags)
+          const groundingPageUrl = `${baseUrl}/grounding/${currentWeekNumber}`
+          const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(groundingPageUrl)}`
+
+          if (Platform.OS === 'web') {
+            window.open(facebookUrl, '_blank')
+          } else {
+            await Linking.openURL(facebookUrl)
+          }
+          setShowSocialMediaModal(false)
+          break
+
         case 'twitter':
-          // Check if user has credentials for Twitter
-          if (!socialMediaSettings[platform]) {
-            setSetupPlatform(platform)
-            setShowSocialMediaSetup(true)
-            setShowSocialMediaModal(false)
-            return
+          // Twitter - share landing page URL so image preview works
+          const twitterBaseUrl = Platform.OS === 'web'
+            ? (window.location.hostname === 'localhost'
+                ? 'http://localhost:8081'
+                : `${window.location.protocol}//${window.location.hostname}`)
+            : process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.app'
+
+          const twitterGroundingUrl = `${twitterBaseUrl}/grounding/${currentWeekNumber}`
+          const twitterMessage = `Week ${currentWeekNumber} Grounding from BeAligned™\n\n${twitterGroundingUrl}\n\n#BeAligned #Mindfulness #CoParenting`
+          const twitterDeepLink = `twitter://post?message=${encodeURIComponent(twitterMessage)}`
+          const twitterWebIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterMessage)}`
+
+          try {
+            await Linking.openURL(twitterDeepLink)
+          } catch {
+            // Fallback to web intent if app not installed
+            if (Platform.OS === 'web') {
+              window.open(twitterWebIntent, '_blank')
+            } else {
+              await Linking.openURL(twitterWebIntent)
+            }
           }
-          shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}`
+          setShowSocialMediaModal(false)
           break
+
         case 'linkedin':
-          // Check if user has credentials for LinkedIn
-          if (!socialMediaSettings[platform]) {
-            setSetupPlatform(platform)
-            setShowSocialMediaSetup(true)
-            setShowSocialMediaModal(false)
-            return
+          // LinkedIn - share landing page URL
+          const linkedInBaseUrl = Platform.OS === 'web'
+            ? (window.location.hostname === 'localhost'
+                ? 'http://localhost:8081'
+                : `${window.location.protocol}//${window.location.hostname}`)
+            : process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.app'
+
+          const linkedInGroundingUrl = `${linkedInBaseUrl}/grounding/${currentWeekNumber}`
+          const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(linkedInGroundingUrl)}`
+
+          if (Platform.OS === 'web') {
+            window.open(linkedInUrl, '_blank')
+          } else {
+            await Linking.openURL(linkedInUrl)
           }
-          shareUrl = `https://www.linkedin.com/sharing/share-offsite/?title=${encodeURIComponent('BeAligned Weekly Grounding')}&summary=${encodeURIComponent(message)}`
+          setShowSocialMediaModal(false)
           break
+
         case 'instagram':
-          // Instagram doesn't support direct URL sharing, provide instructions for image sharing
+          // Instagram - share image directly
+          if (Platform.OS !== 'web' && imageUri && RNShare) {
+            try {
+              await RNShare.shareSingle({
+                social: RNShare.Social.INSTAGRAM,
+                url: imageUri,
+              })
+              setShowSocialMediaModal(false)
+              return
+            } catch (error: any) {
+              if (error.message !== 'User did not share') {
+                console.error('Instagram share error:', error)
+              }
+            }
+          }
+
+          // Fallback instructions for web or if share fails
           Alert.alert(
             'Share to Instagram',
-            `Perfect! Here's how to share your Week ${currentWeekNumber} grounding card:\n\n1. Save the grounding image to your photos\n2. Open Instagram\n3. Create a new post/story\n4. Use the saved image\n5. Add this caption:\n\n"${message}"`,
-            [
-              { text: 'Got it!', onPress: () => setShowSocialMediaModal(false) }
-            ]
+            `To share on Instagram:\n\n1. Save the grounding image\n2. Open Instagram app\n3. Create a new post/story\n4. Use the saved image\n5. Add caption: "${message}"`,
+            [{ text: 'Got it!', onPress: () => setShowSocialMediaModal(false) }]
           )
-          return
-        default:
-          await Share.share({ message: message })
-          return
-      }
+          break
 
-      await Linking.openURL(shareUrl)
-      setShowSocialMediaModal(false)
+        default:
+          // Generic share - let user pick from all apps
+          if (Platform.OS !== 'web' && imageUri && RNShare) {
+            await RNShare.open({
+              url: imageUri,
+              message: message,
+              title: `Week ${currentWeekNumber} Grounding - BeAligned™`,
+            })
+          } else {
+            await Share.share({ message: message })
+          }
+          setShowSocialMediaModal(false)
+          break
+      }
     } catch (error) {
       console.error('Error sharing to social media:', error)
       Alert.alert('Error', 'Failed to share to social media. Please try again.')
@@ -603,7 +632,7 @@ export default function Dashboard() {
         <View style={styles.content}>
           <View style={styles.newHeaderSection}>
             <View style={styles.welcomeRow}>
-              <Text style={styles.welcomeText}>👋 Welcome back, {firstName || 'Trina'}</Text>
+              <Text style={styles.welcomeText}>👋 Welcome back{firstName ? `, ${firstName}` : ''}</Text>
             </View>
 
             <View style={styles.statsRow}>
@@ -907,10 +936,7 @@ export default function Dashboard() {
                 <Pressable style={styles.shareGroundingSecondaryButton} onPress={async () => {
                   try {
                     const message = `Week ${currentWeekNumber} Grounding from BeAligned™\n\nBe grounded. Be clear. BeAligned.™\n\n#BeAligned #Mindfulness #CoParenting`
-                    await Share.share({
-                      message: message,
-                      title: `Week ${currentWeekNumber} Grounding - BeAligned™`
-                    })
+                    await shareImageWithMessage(message)
                   } catch (error) {
                     console.error('Error sharing:', error)
                   }

@@ -9,6 +9,7 @@ export default function MarketingLayout() {
       <Stack.Screen name="contact" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="terms" />
+      <Stack.Screen name="grounding/[week]" />
     </Stack>
   )
 }

@@ -68,7 +68,7 @@ export default function PendingApprovalPage() {
           <Text style={styles.actionText}>
             • Check your email for the approval notification{'\n'}
             • Review our FAQ to learn more about BeAligned™{'\n'}
-            • Explore our methodology at bealigned.com
+            • Explore our methodology at bealigned.app
           </Text>
         </View>
 
