@@ -26,7 +26,9 @@ export default function MarketingFooter() {
       {/* Grey Disclaimer Banner */}
       <View style={styles.disclaimerBanner}>
         <Ionicons name="warning-outline" size={20} color="#E67E22" style={styles.warningIcon} />
-        <Text style={styles.disclaimerText}>BeAligned does not offer legal advice or therapy</Text>
+        <Text style={styles.disclaimerText}>
+          BeAligned<Text style={styles.trademark}>™</Text> does not offer legal advice or therapy
+        </Text>
       </View>
 
       {/* White Footer Section */}
@@ -49,8 +51,8 @@ export default function MarketingFooter() {
             <Pressable onPress={() => router.push('/(marketing)/contact')}>
               <Text style={styles.footerLink}>Contact</Text>
             </Pressable>
-            <Pressable onPress={() => handleExternalLink('https://thelayneproject.com/')}>
-              <Text style={styles.footerLink}>The Layne Project</Text>
+            <Pressable onPress={() => handleExternalLink('https://www.BeH2OCoparenting.com')}>
+              <Text style={styles.footerLink}>BeH2O</Text>
             </Pressable>
           </View>
         </View>
@@ -109,6 +111,10 @@ const styles = StyleSheet.create({
     fontSize: ds.typography.fontSize.sm.size,
     color: '#4A5568',
     fontFamily: ds.typography.fontFamily.base,
+  },
+  trademark: {
+    fontSize: ds.typography.fontSize.xs.size,
+    verticalAlign: 'top',
   },
   footer: {
     backgroundColor: '#FFFFFF',
