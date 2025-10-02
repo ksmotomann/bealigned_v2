@@ -9,6 +9,10 @@
       "dest": "/figma-wrapper.html"
     },
     {
+      "src": "^/grounding/([0-9]+)$",
+      "dest": "/api/og/grounding?week=$1"
+    },
+    {
       "handle": "filesystem"
     },
     {
