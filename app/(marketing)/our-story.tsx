@@ -5,6 +5,7 @@ import ds from '../../styles/design-system'
 import AnimatedWaveHero from '../../components/AnimatedWaveHero'
 import NavigationHeader from '../../components/NavigationHeader'
 import SEOHead from '../../components/SEOHead'
+import MarketingFooter from '../../components/MarketingFooter'
 
 export default function OurStory() {
   const router = useRouter()
@@ -166,40 +167,7 @@ export default function OurStory() {
       </AnimatedWaveHero>
 
       {/* Footer */}
-      <View style={styles.footer}>
-        <Image
-          source={require('../../assets/bealigned_logo.avif')}
-          style={styles.footerLogoImage}
-          resizeMode="contain"
-        />
-        
-        <View style={styles.footerLinks}>
-          <Pressable onPress={() => router.push('/(marketing)')}>
-            <Text style={styles.footerLink}>Home</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/faq')}>
-            <Text style={styles.footerLink}>FAQ</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/contact')}>
-            <Text style={styles.footerLink}>Contact</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/privacy')}>
-            <Text style={styles.footerLink}>Privacy</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/terms')}>
-            <Text style={styles.footerLink}>Terms</Text>
-          </Pressable>
-        </View>
-        
-        <Text style={styles.footerDisclaimer}>
-          © 2025 BeAligned • BeH2O® is a registered trademark{'\n'}
-          BeAligned provides educational guidance and is not a substitute for professional therapy or legal advice
-        </Text>
-      </View>
+      <MarketingFooter />
     </ScrollView>
   )
 }
@@ -423,40 +391,6 @@ const styles = StyleSheet.create({
     color: ds.colors.primary.main,
     fontSize: ds.typography.fontSize.lg.size,
     fontWeight: ds.typography.fontWeight.semibold,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  footer: {
-    backgroundColor: ds.colors.neutral[800],
-    paddingVertical: ds.spacing[10],
-    paddingHorizontal: ds.spacing[10],
-    alignItems: 'center',
-  },
-  footerLogoImage: {
-    width: 120,
-    height: 32,
-    marginBottom: 24,
-    tintColor: '#FFFFFF',
-  },
-  footerLinks: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  footerLink: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.neutral[300],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  footerDivider: {
-    color: '#666666',
-    marginHorizontal: 12,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  footerDisclaimer: {
-    fontSize: ds.typography.fontSize.xs.size,
-    color: ds.colors.neutral[400],
-    textAlign: 'center',
-    lineHeight: ds.typography.fontSize.xs.lineHeight + 2,
     fontFamily: ds.typography.fontFamily.base,
   },
 })
