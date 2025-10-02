@@ -114,14 +114,14 @@ export default function UserMenu({ user }: UserMenuProps) {
         title: 'Continue Supporting Families',
         message: `Thank you for your dedicated work supporting users on their BeAligned journeys. Your guidance and expertise help families navigate conflict with wisdom and create safer spaces for children.`,
         subMessage: `As ${userType === 'super_admin' ? 'a super admin' : userType === 'admin' ? 'an admin' : 'an expert'}, you're the backbone of this platform. Ready to continue supporting families beyond these digital walls?`,
-        buttonText: 'Continue Supporting'
+        buttonText: 'Sign Out'
       }
     } else {
       return {
         title: 'Continue Growing Differently',
         message: 'Thank you for your reflection journey with BeH2O®. The insights you\'ve discovered and the growth you\'ve experienced are yours to carry forward.',
         subMessage: 'Are you ready to sign out and continue this growth in your daily life?',
-        buttonText: 'Continue Growing'
+        buttonText: 'Sign Out'
       }
     }
   }
