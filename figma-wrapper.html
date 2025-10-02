@@ -90,11 +90,24 @@
   <div class="loading" id="loading">Loading BeAligned...</div>
   <iframe
     id="figma-frame"
-    src="https://bealigned.figma.site/"
+    src=""
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowfullscreen
     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
     onload="document.getElementById('loading').style.display='none'"
   ></iframe>
+  <script>
+    // Set iframe src based on current path
+    const iframe = document.getElementById('figma-frame');
+    const path = window.location.pathname;
+    let figmaUrl = 'https://bealigned.figma.site';
+
+    // Add path for marketing pages
+    if (path && path !== '/') {
+      figmaUrl += path;
+    }
+
+    iframe.src = figmaUrl;
+  </script>
 </body>
 </html>
