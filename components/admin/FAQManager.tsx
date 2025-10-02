@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert } from 'react-native'
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { GestureHandlerRootView, TouchableOpacity } from 'react-native-gesture-handler'
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist'
 import { supabase } from '../../lib/supabase'
 import ds from '../../styles/design-system'
@@ -171,37 +171,57 @@ export default function FAQManager() {
   }
 
   const handleDelete = async (item: FAQItem) => {
-    Alert.alert(
-      'Confirm Delete',
-      'Are you sure you want to delete this FAQ item?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true)
-              // Soft delete by setting deleted_at timestamp
-              const { error } = await supabase
-                .from('faq_items')
-                .update({ deleted_at: new Date().toISOString() })
-                .eq('id', item.id)
+    console.log('Delete button clicked for item:', item.id)
 
-              if (error) throw error
+    const confirmDelete = Platform.OS === 'web'
+      ? window.confirm('Are you sure you want to delete this FAQ item?')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Confirm Delete',
+            'Are you sure you want to delete this FAQ item?',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) }
+            ]
+          )
+        })
 
-              Alert.alert('Success', 'FAQ item deleted successfully')
-              await loadFAQItems()
-            } catch (error) {
-              console.error('Error deleting FAQ item:', error)
-              Alert.alert('Error', 'Failed to delete FAQ item')
-            } finally {
-              setLoading(false)
-            }
-          }
-        }
-      ]
-    )
+    if (!confirmDelete) {
+      console.log('Delete cancelled')
+      return
+    }
+
+    try {
+      console.log('Delete confirmed, starting soft delete...')
+      setLoading(true)
+      // Soft delete by setting deleted_at timestamp
+      const { error } = await supabase
+        .from('faq_items')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', item.id)
+
+      if (error) {
+        console.error('Supabase error:', error)
+        throw error
+      }
+
+      console.log('Delete successful')
+      if (Platform.OS === 'web') {
+        alert('FAQ item deleted successfully')
+      } else {
+        Alert.alert('Success', 'FAQ item deleted successfully')
+      }
+      await loadFAQItems()
+    } catch (error) {
+      console.error('Error deleting FAQ item:', error)
+      if (Platform.OS === 'web') {
+        alert('Failed to delete FAQ item')
+      } else {
+        Alert.alert('Error', 'Failed to delete FAQ item')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleRestore = async (item: FAQItem) => {
@@ -376,32 +396,32 @@ export default function FAQManager() {
 
         <View style={styles.itemActions}>
           {item.deleted_at ? (
-            <Pressable
+            <TouchableOpacity
               style={[styles.actionButton, styles.restoreButton]}
               onPress={() => handleRestore(item)}
             >
               <Ionicons name="refresh-outline" size={20} color={ds.colors.success} />
               <Text style={[styles.actionButtonText, styles.restoreButtonText]}>Restore</Text>
-            </Pressable>
+            </TouchableOpacity>
           ) : (
             <>
               <View style={styles.orderButtons}>
-                <Pressable
+                <TouchableOpacity
                   style={styles.orderButton}
                   onPress={() => handleMoveUp(item)}
                   disabled={loading}
                 >
                   <Ionicons name="arrow-up" size={18} color={ds.colors.text.secondary} />
-                </Pressable>
-                <Pressable
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={styles.orderButton}
                   onPress={() => handleMoveDown(item)}
                   disabled={loading}
                 >
                   <Ionicons name="arrow-down" size={18} color={ds.colors.text.secondary} />
-                </Pressable>
+                </TouchableOpacity>
               </View>
-              <Pressable
+              <TouchableOpacity
                 style={[styles.actionButton, item.is_published ? styles.unpublishButton : styles.publishButton]}
                 onPress={() => handleTogglePublish(item)}
               >
@@ -416,21 +436,24 @@ export default function FAQManager() {
                 ]}>
                   {item.is_published ? 'Unpublish' : 'Publish'}
                 </Text>
-              </Pressable>
-              <Pressable
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handleEdit(item)}
               >
                 <Ionicons name="create-outline" size={20} color={ds.colors.primary.main} />
                 <Text style={styles.actionButtonText}>Edit</Text>
-              </Pressable>
-              <Pressable
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.actionButton, styles.deleteButton]}
-                onPress={() => handleDelete(item)}
+                onPress={() => {
+                  console.log('TouchableOpacity pressed')
+                  handleDelete(item)
+                }}
               >
                 <Ionicons name="trash-outline" size={20} color={ds.colors.error} />
                 <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Delete</Text>
-              </Pressable>
+              </TouchableOpacity>
             </>
           )}
         </View>
