@@ -280,6 +280,15 @@ export default function Community() {
       />
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Back to Dashboard */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.push('/dashboard')}
+        >
+          <Ionicons name="arrow-back" size={20} color={ds.colors.primary.main} />
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
+        </TouchableOpacity>
+
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
@@ -488,6 +497,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f7ff',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+    paddingVertical: ds.spacing[4],
+    paddingHorizontal: ds.spacing[6],
+    marginTop: ds.spacing[4],
+  },
+  backButtonText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
   },
   header: {
     alignItems: 'center',

@@ -12,6 +12,24 @@ export default function ModernLandingPage() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Temporary Promotional Banner */}
+      <View style={styles.promoBanner}>
+        <View style={styles.promoBannerContent}>
+          <Text style={styles.promoBannerTitle}>
+            Join the BeAligned™ Community — free for 7 days with code <Text style={styles.promoBannerCode}>BeBetaUser</Text>
+          </Text>
+          <Text style={styles.promoBannerSubtitle}>
+            No credit card. No strings. Just choice. Together we're learning, growing, and safeguarding childhoods.
+          </Text>
+          <Pressable
+            style={styles.promoBannerButton}
+            onPress={() => router.push('/(auth)/signup')}
+          >
+            <Text style={styles.promoBannerButtonText}>Start Free Trial</Text>
+          </Pressable>
+        </View>
+      </View>
+
       {/* Navigation Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -369,6 +387,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  promoBanner: {
+    backgroundColor: '#F0F9FF',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BAE6FD',
+  },
+  promoBannerContent: {
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+    alignItems: 'flex-start',
+  },
+  promoBannerTitle: {
+    fontSize: 24,
+    fontWeight: '500',
+    color: '#0EA5E9',
+    marginBottom: 12,
+    lineHeight: 32,
+  },
+  promoBannerCode: {
+    fontWeight: '700',
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  promoBannerSubtitle: {
+    fontSize: 16,
+    color: '#0C4A6E',
+    marginBottom: 20,
+    lineHeight: 24,
+  },
+  promoBannerButton: {
+    backgroundColor: '#F4A582',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  promoBannerButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#fff',

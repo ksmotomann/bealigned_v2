@@ -267,6 +267,15 @@ export default function InboxPage() {
       <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
 
       <View style={styles.content}>
+        {/* Back to Dashboard */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.push('/dashboard')}
+        >
+          <Ionicons name="arrow-back" size={20} color={ds.colors.primary.main} />
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
+        </TouchableOpacity>
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Inbox</Text>
@@ -350,10 +359,9 @@ export default function InboxPage() {
                 <Text style={styles.emptyText}>No messages yet</Text>
               </View>
             )
-          ) : (
-            notifications.length > 0 ? (
-              <>
-                {/* Clear All Button */}
+          ) : notifications.length > 0 ? (
+            <>
+              {/* Clear All Button */}
                 <View style={styles.clearAllContainer}>
                   <TouchableOpacity
                     style={styles.clearAllButton}
@@ -399,13 +407,12 @@ export default function InboxPage() {
                   {!notification.is_read && <View style={styles.unreadDot} />}
                 </View>
               ))}
-              </>
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="notifications-outline" size={48} color={ds.colors.neutral[300]} />
-                <Text style={styles.emptyText}>No notifications</Text>
-              </View>
-            )
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="notifications-outline" size={48} color={ds.colors.neutral[300]} />
+              <Text style={styles.emptyText}>No notifications</Text>
+            </View>
           )}
         </ScrollView>
       </View>
@@ -431,6 +438,18 @@ const styles = StyleSheet.create({
     maxWidth: ds.containers.lg,
     width: '100%',
     alignSelf: 'center',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+    paddingVertical: ds.spacing[4],
+    paddingHorizontal: ds.spacing[6],
+  },
+  backButtonText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.medium,
   },
   header: {
     padding: ds.spacing[6],

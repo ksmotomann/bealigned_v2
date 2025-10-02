@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, Pressable, TextInput, Alert, ActivityIndicator, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, ActivityIndicator, ScrollView, Switch } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import ds from '../../styles/design-system'
@@ -24,10 +24,50 @@ export default function AlignmentCodesPanel() {
   const [newDescription, setNewDescription] = useState('')
   const [newMaxUses, setNewMaxUses] = useState('')
   const [creating, setCreating] = useState(false)
+  const [requireAlignmentCode, setRequireAlignmentCode] = useState(true)
 
   useEffect(() => {
     loadAlignmentCodes()
+    loadSystemSettings()
   }, [])
+
+  const loadSystemSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*')
+        .eq('setting_key', 'require_alignment_code')
+        .single()
+
+      if (error) throw error
+
+      if (data && data.setting_value) {
+        setRequireAlignmentCode(data.setting_value.enabled ?? true)
+      }
+    } catch (error) {
+      console.error('Error loading system settings:', error)
+    }
+  }
+
+  const saveSystemSettings = async (enabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .update({
+          setting_value: { enabled },
+          updated_at: new Date().toISOString(),
+          updated_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('setting_key', 'require_alignment_code')
+
+      if (error) throw error
+
+      Alert.alert('Success', 'Setting updated successfully')
+    } catch (error) {
+      console.error('Error saving system settings:', error)
+      Alert.alert('Error', 'Failed to save setting')
+    }
+  }
 
   const loadAlignmentCodes = async () => {
     try {
@@ -131,10 +171,23 @@ export default function AlignmentCodesPanel() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Alignment Codes Management</Text>
-      <Text style={styles.subtitle}>
-        Create and manage alignment codes for user tiers (admin, expert, user)
-      </Text>
+      {/* Require Alignment Code Setting */}
+      <View style={styles.settingCard}>
+        <View style={styles.settingInfo}>
+          <Text style={styles.settingLabel}>Require Alignment Code for Signup</Text>
+          <Text style={styles.settingDescription}>
+            When enabled, users must provide a valid alignment code to create an account
+          </Text>
+        </View>
+        <Switch
+          value={requireAlignmentCode}
+          onValueChange={(value) => {
+            setRequireAlignmentCode(value)
+            saveSystemSettings(value)
+          }}
+          trackColor={{ false: ds.colors.neutral[300], true: ds.colors.primary.main }}
+        />
+      </View>
 
       {/* Create New Code Button */}
       <Pressable
@@ -291,10 +344,8 @@ export default function AlignmentCodesPanel() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ds.colors.background.primary,
-    borderRadius: ds.borderRadius.xl,
+    backgroundColor: ds.colors.background.secondary,
     padding: ds.spacing[6],
-    ...ds.shadows.lg,
   },
   loadingContainer: {
     backgroundColor: ds.colors.background.primary,
@@ -303,6 +354,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...ds.shadows.lg,
+  },
+  settingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: ds.colors.background.primary,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[4],
+    marginBottom: ds.spacing[6],
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: ds.spacing[4],
+  },
+  settingLabel: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+    marginBottom: ds.spacing[1],
+  },
+  settingDescription: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+    lineHeight: 20,
   },
   title: {
     fontSize: ds.typography.fontSize['2xl'].size,

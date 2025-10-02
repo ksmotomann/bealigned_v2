@@ -40,6 +40,7 @@ export default function AdminPanel() {
     analyticsEnabled: true,
     chatbotEnabled: true,
     reflectionLimit: 10,
+    requireAlignmentCode: true,
   })
 
   const [chatConfig, setChatConfig] = useState({
@@ -117,10 +118,58 @@ export default function AdminPanel() {
     { id: 'assets', title: 'Assets Catalog', icon: 'cube-outline' },
   ]
 
+  // Load system settings
+  const loadSystemSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*')
+        .eq('setting_key', 'require_alignment_code')
+        .single()
+
+      if (error) throw error
+
+      if (data && data.setting_value) {
+        setAppConfig(prev => ({
+          ...prev,
+          requireAlignmentCode: data.setting_value.enabled ?? true
+        }))
+      }
+    } catch (error) {
+      console.error('Error loading system settings:', error)
+    }
+  }
+
+  // Save system settings
+  const saveSystemSettings = async () => {
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .update({
+          setting_value: { enabled: appConfig.requireAlignmentCode },
+          updated_at: new Date().toISOString(),
+          updated_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('setting_key', 'require_alignment_code')
+
+      if (error) throw error
+
+      Alert.alert('Success', 'System settings updated successfully')
+    } catch (error) {
+      console.error('Error saving system settings:', error)
+      Alert.alert('Error', 'Failed to save system settings')
+    }
+  }
+
   // Load saved AI configuration when component mounts or section changes
   useEffect(() => {
     if (activeSection === 'ai') {
       loadAIConfig()
+    } else if (activeSection === 'app') {
+      loadSystemSettings()
+    } else if (activeSection === 'alignment-analytics') {
+      loadSystemSettings()
+      loadAlignmentCodes()
     } else if (activeSection === 'users') {
       loadUsers()
     } else if (activeSection === 'community') {
@@ -1905,6 +1954,25 @@ export default function AdminPanel() {
       <Text style={styles.subsectionDescription}>
         Create and manage alignment codes for user tiers (admin, expert, user)
       </Text>
+
+      {/* Require Alignment Code Setting */}
+      <View style={[styles.configItem, { marginBottom: ds.spacing[6] }]}>
+        <View style={styles.configInfo}>
+          <Text style={styles.configLabel}>Require Alignment Code for Signup</Text>
+          <Text style={styles.configDescription}>
+            When enabled, users must provide a valid alignment code to create an account
+          </Text>
+        </View>
+        <Switch
+          value={appConfig.requireAlignmentCode}
+          onValueChange={(value) => {
+            setAppConfig({...appConfig, requireAlignmentCode: value})
+            // Auto-save when changed
+            setTimeout(() => saveSystemSettings(), 100)
+          }}
+          trackColor={{ false: ds.colors.neutral[300], true: ds.colors.primary.main }}
+        />
+      </View>
 
       {/* Create New Code Button */}
       <Pressable

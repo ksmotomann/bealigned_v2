@@ -51,12 +51,18 @@ export default function RootLayout() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('requires_legal_acknowledgment, terms_acknowledged_at, privacy_acknowledged_at, tour_completed_at, first_reflection_completed_at')
+        .select('requires_legal_acknowledgment, terms_acknowledged_at, privacy_acknowledged_at, tour_completed_at, first_reflection_completed_at, approval_status')
         .eq('id', userId)
         .single()
 
       if (error) {
         console.error('Error checking user onboarding status:', error)
+        return
+      }
+
+      // Check if user is pending approval - if so, route to pending approval page
+      if (data?.approval_status === 'pending') {
+        router.replace('/pending-approval')
         return
       }
 

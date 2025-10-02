@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,17 +9,96 @@ import ds from '../styles/design-system'
 
 type ContactMethod = 'email' | 'text' | 'phone'
 type CoparentingSituation = 'divorced' | 'never_married' | 'remarried'
+type CoparentingArrangement = 'two_households' | 'transitions_new' | 'long_term' | 'blended_family' | 'other'
 type ChildrenAges = '0-5' | '6-12' | '13-18' | 'over_18'
+
+// US Timezones
+const US_TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Phoenix', label: 'Arizona (MST)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HST)' },
+]
+
+// International Timezones (common ones)
+const INTERNATIONAL_TIMEZONES = [
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
+  { value: 'Europe/Berlin', label: 'Berlin (CET/CEST)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEDT/AEST)' },
+  { value: 'Pacific/Auckland', label: 'Auckland (NZDT/NZST)' },
+]
 
 export default function FreeFirstWhyPage() {
   const router = useRouter()
   const [firstName, setFirstName] = useState('')
   const [contactMethod, setContactMethod] = useState<ContactMethod>('email')
+  const [email, setEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [timeZone, setTimeZone] = useState('')
+  const [showTimeZoneDropdown, setShowTimeZoneDropdown] = useState(false)
+  const [timezones, setTimezones] = useState<typeof US_TIMEZONES>([])
   const [coparentingSituation, setCoparentingSituation] = useState<CoparentingSituation | ''>('')
+  const [coparentingArrangement, setCoparentingArrangement] = useState<CoparentingArrangement | ''>('')
+  const [showArrangementDropdown, setShowArrangementDropdown] = useState(false)
   const [childrenAges, setChildrenAges] = useState<ChildrenAges[]>([])
   const [primaryFocus, setPrimaryFocus] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    // Detect user's timezone and determine if they're in the US
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const isUS = userTimezone.startsWith('America/') || userTimezone.startsWith('Pacific/Honolulu')
+
+    if (isUS) {
+      setTimezones(US_TIMEZONES)
+    } else {
+      setTimezones([...US_TIMEZONES, ...INTERNATIONAL_TIMEZONES])
+    }
+
+    // Auto-select user's current timezone if it's in the list
+    const matchingTimezone = [...US_TIMEZONES, ...INTERNATIONAL_TIMEZONES].find(tz => tz.value === userTimezone)
+    if (matchingTimezone) {
+      setTimeZone(matchingTimezone.value)
+    }
+  }, [])
+
+  const getArrangementLabel = (arrangement: CoparentingArrangement | ''): string => {
+    switch (arrangement) {
+      case 'two_households': return 'Living in two households'
+      case 'transitions_new': return 'Transitions are new / recent'
+      case 'long_term': return 'Long-term arrangement'
+      case 'blended_family': return 'Blended family'
+      case 'other': return 'Other / prefer not to say'
+      default: return 'Select arrangement'
+    }
+  }
+
+  const formatPhoneNumber = (text: string): string => {
+    // Remove all non-digit characters
+    const cleaned = text.replace(/\D/g, '')
+
+    // Format as (XXX) XXX-XXXX
+    if (cleaned.length <= 3) {
+      return cleaned
+    } else if (cleaned.length <= 6) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`
+    } else {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`
+    }
+  }
+
+  const handlePhoneNumberChange = (text: string) => {
+    const formatted = formatPhoneNumber(text)
+    setPhoneNumber(formatted)
+  }
 
   const toggleChildrenAge = (age: ChildrenAges) => {
     if (childrenAges.includes(age)) {
@@ -35,12 +114,12 @@ export default function FreeFirstWhyPage() {
       Alert.alert('Missing Information', 'Please enter your first name.')
       return
     }
-    if (!timeZone) {
-      Alert.alert('Missing Information', 'Please select your time zone.')
+    if (contactMethod === 'email' && !email.trim()) {
+      Alert.alert('Missing Information', 'Please enter your email address.')
       return
     }
-    if (!coparentingSituation) {
-      Alert.alert('Missing Information', 'Please select your co-parenting situation.')
+    if ((contactMethod === 'text' || contactMethod === 'phone') && !phoneNumber.trim()) {
+      Alert.alert('Missing Information', 'Please enter your phone number.')
       return
     }
     if (childrenAges.length === 0) {
@@ -62,21 +141,103 @@ export default function FreeFirstWhyPage() {
         return
       }
 
+      // Get user's profile for name
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', user.id)
+        .single()
+
+      const userName = profile ? `${profile.first_name} ${profile.last_name}` : 'User'
+
+      // Auto-detect timezone if not already set
+      const detectedTimezone = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone
+
       // Insert coaching request
-      const { error } = await supabase
+      const { data: requestData, error: requestError } = await supabase
         .from('coaching_session_requests')
         .insert({
           user_id: user.id,
           first_name: firstName.trim(),
           contact_method: contactMethod,
-          time_zone: timeZone,
-          coparenting_situation: coparentingSituation,
+          contact_email: contactMethod === 'email' ? email.trim() : null,
+          contact_phone: (contactMethod === 'text' || contactMethod === 'phone') ? phoneNumber.trim() : null,
+          time_zone: detectedTimezone,
+          coparenting_situation: null, // Optional field
+          coparenting_arrangement: coparentingArrangement || null,
           children_ages: childrenAges,
           primary_focus: primaryFocus,
           status: 'pending',
         })
+        .select()
+        .single()
 
-      if (error) throw error
+      if (requestError) throw requestError
+
+      // Create message thread for the request
+      const { data: threadData, error: threadError } = await supabase
+        .from('message_threads')
+        .insert({
+          thread_type: 'support_request',
+          subject: `Free First Win Session Request - ${contactMethod}`,
+          reference_type: 'coaching_session_request',
+          reference_id: requestData.id,
+          created_by: user.id,
+        })
+        .select()
+        .single()
+
+      if (threadError) throw threadError
+
+      // Get all admins
+      const { data: admins, error: adminsError } = await supabase
+        .rpc('get_admin_ids')
+
+      if (adminsError) {
+        console.error('Error fetching admins:', adminsError)
+      }
+
+      const adminIds = admins || []
+
+      // Build participants list
+      const participants = [
+        { thread_id: threadData.id, user_id: user.id, role: 'participant' },
+        ...adminIds
+          .filter((adminId: string) => adminId !== user.id)
+          .map((adminId: string) => ({
+            thread_id: threadData.id,
+            user_id: adminId,
+            role: 'admin',
+          })),
+      ]
+
+      const { error: participantsError } = await supabase
+        .from('message_thread_participants')
+        .insert(participants)
+
+      if (participantsError) throw participantsError
+
+      // Create initial message in the thread with all details
+      const contactInfo = contactMethod === 'email' ? email.trim() : phoneNumber.trim()
+      const detailsMessage = `New Free First Win Session Request
+
+Name: ${firstName}
+Contact Method: ${contactMethod}
+Contact Info: ${contactInfo}
+Time Zone: ${detectedTimezone}
+Children's Ages: ${childrenAges.join(', ')}
+Primary Focus: ${primaryFocus}`
+
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          thread_id: threadData.id,
+          sender_id: user.id,
+          message_type: 'text',
+          content: detailsMessage,
+        })
+
+      if (messageError) throw messageError
 
       Alert.alert(
         'Request Submitted!',
@@ -94,16 +255,19 @@ export default function FreeFirstWhyPage() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
 
+      {/* Fixed Back Button */}
+      <View style={styles.fixedBackButtonContainer}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={20} color={ds.colors.primary.main} />
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={20} color={ds.colors.primary.main} />
-            <Text style={styles.backButtonText}>Back to Dashboard</Text>
-          </TouchableOpacity>
 
           {/* Header Card */}
           <View style={styles.headerCard}>
@@ -159,52 +323,31 @@ export default function FreeFirstWhyPage() {
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Time Zone */}
-            <View style={styles.formSection}>
-              <Text style={styles.label}>Time Zone</Text>
-              <View style={styles.selectContainer}>
+              {/* Contact Information Input */}
+              {contactMethod === 'email' && (
                 <TextInput
-                  style={styles.select}
-                  placeholder="Select your time zone"
+                  style={styles.input}
+                  placeholder="your@email.com"
                   placeholderTextColor={ds.colors.text.tertiary}
-                  value={timeZone}
-                  onChangeText={setTimeZone}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
                 />
-              </View>
-            </View>
+              )}
 
-            {/* Co-parenting Situation */}
-            <View style={styles.formSection}>
-              <Text style={styles.label}>Which best describes your co-parenting situation?</Text>
-              <TouchableOpacity
-                style={[styles.radioOption, coparentingSituation === 'divorced' && styles.radioOptionSelected]}
-                onPress={() => setCoparentingSituation('divorced')}
-              >
-                <View style={styles.radio}>
-                  {coparentingSituation === 'divorced' && <View style={styles.radioInner} />}
-                </View>
-                <Text style={styles.radioLabel}>Divorced</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.radioOption, coparentingSituation === 'never_married' && styles.radioOptionSelected]}
-                onPress={() => setCoparentingSituation('never_married')}
-              >
-                <View style={styles.radio}>
-                  {coparentingSituation === 'never_married' && <View style={styles.radioInner} />}
-                </View>
-                <Text style={styles.radioLabel}>Never Married</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.radioOption, coparentingSituation === 'remarried' && styles.radioOptionSelected]}
-                onPress={() => setCoparentingSituation('remarried')}
-              >
-                <View style={styles.radio}>
-                  {coparentingSituation === 'remarried' && <View style={styles.radioInner} />}
-                </View>
-                <Text style={styles.radioLabel}>Remarried</Text>
-              </TouchableOpacity>
+              {(contactMethod === 'text' || contactMethod === 'phone') && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="(555) 123-4567"
+                  placeholderTextColor={ds.colors.text.tertiary}
+                  value={phoneNumber}
+                  onChangeText={handlePhoneNumberChange}
+                  keyboardType="phone-pad"
+                  maxLength={14} // (XXX) XXX-XXXX = 14 characters
+                />
+              )}
             </View>
 
             {/* Children's Ages */}
@@ -322,8 +465,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: ds.colors.background.primary,
   },
+  fixedBackButtonContainer: {
+    position: 'absolute',
+    top: 60, // Below the header
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    backgroundColor: ds.colors.background.primary,
+    paddingHorizontal: ds.spacing[6],
+    paddingVertical: ds.spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: ds.colors.neutral[200],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   scrollView: {
     flex: 1,
+    marginTop: 50, // Space for fixed back button
   },
   scrollContent: {
     paddingBottom: ds.spacing[8],
@@ -338,7 +499,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: ds.spacing[2],
-    paddingVertical: ds.spacing[4],
+    paddingVertical: ds.spacing[2],
   },
   backButtonText: {
     fontSize: ds.typography.fontSize.sm.size,
@@ -426,6 +587,61 @@ const styles = StyleSheet.create({
   },
   optionButtonTextActive: {
     color: '#FFFFFF',
+  },
+  dropdownContainer: {
+    position: 'relative',
+    zIndex: 1000,
+  },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: ds.colors.background.secondary,
+    borderRadius: ds.borderRadius.lg,
+    padding: ds.spacing[3],
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+  },
+  dropdownTriggerText: {
+    flex: 1,
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.primary,
+  },
+  dropdownPlaceholder: {
+    color: ds.colors.text.tertiary,
+  },
+  dropdownOptions: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: ds.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+    marginTop: 4,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  dropdownScroll: {
+    maxHeight: 250,
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: ds.colors.neutral[200],
+    backgroundColor: '#FFFFFF',
+  },
+  dropdownOptionLast: {
+    borderBottomWidth: 0,
+  },
+  dropdownOptionText: {
+    flex: 1,
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.primary,
   },
   selectContainer: {
     position: 'relative',

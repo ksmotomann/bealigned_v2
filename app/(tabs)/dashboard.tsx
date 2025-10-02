@@ -12,6 +12,8 @@ import TrialStatus from '../../components/TrialStatus'
 import FeedbackSurvey from '../../components/FeedbackSurvey'
 import ResourceLibraryModal from '../../components/ResourceLibraryModal'
 import FounderSoundbiteModal from '../../components/FounderSoundbiteModal'
+import ProofOfReflectionModal from '../../components/ProofOfReflectionModal'
+import DailyWelcomeModal from '../../components/DailyWelcomeModal'
 import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
 import { Target, Heart } from 'lucide-react-native'
@@ -54,6 +56,8 @@ export default function Dashboard() {
   const [setupPlatform, setSetupPlatform] = useState('')
   const [showResourceLibrary, setShowResourceLibrary] = useState(false)
   const [showFounderSoundbite, setShowFounderSoundbite] = useState(false)
+  const [showProofOfReflection, setShowProofOfReflection] = useState(false)
+  const [showDailyWelcome, setShowDailyWelcome] = useState(false)
 
   const getStreakMessage = (streak: number, completedData: any[], weeklyGoal: number): string => {
     // Get start of current week (Monday)
@@ -93,6 +97,42 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboardData()
+  }, [])
+
+  // Check if user should see daily welcome message
+  useEffect(() => {
+    const checkDailyMessage = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user) return
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('last_daily_message_at')
+          .eq('id', session.user.id)
+          .single()
+
+        if (!profile) return
+
+        const now = new Date()
+        const lastShown = profile.last_daily_message_at ? new Date(profile.last_daily_message_at) : null
+
+        // Check if it's a new day (or never shown)
+        const shouldShow = !lastShown ||
+          (now.toDateString() !== lastShown.toDateString())
+
+        if (shouldShow) {
+          // Show after 7 seconds
+          setTimeout(() => {
+            setShowDailyWelcome(true)
+          }, 7000)
+        }
+      } catch (error) {
+        console.error('Error checking daily message:', error)
+      }
+    }
+
+    checkDailyMessage()
   }, [])
 
   // Check for completed reflection feedback survey trigger
@@ -627,6 +667,32 @@ export default function Dashboard() {
           onClose={() => setShowResourceLibrary(false)}
         />
 
+        {/* Proof of Reflection Modal */}
+        <ProofOfReflectionModal
+          visible={showProofOfReflection}
+          onClose={() => setShowProofOfReflection(false)}
+          userId={session?.user?.id || ''}
+        />
+
+        {/* Daily Welcome Modal */}
+        <DailyWelcomeModal
+          visible={showDailyWelcome}
+          onClose={async () => {
+            setShowDailyWelcome(false)
+            // Update last_daily_message_at in database
+            if (session?.user) {
+              try {
+                await supabase
+                  .from('profiles')
+                  .update({ last_daily_message_at: new Date().toISOString() })
+                  .eq('id', session.user.id)
+              } catch (error) {
+                console.error('Error updating last daily message time:', error)
+              }
+            }
+          }}
+        />
+
         {/* Founder Soundbite Modal */}
         <FounderSoundbiteModal
           visible={showFounderSoundbite}
@@ -879,7 +945,7 @@ export default function Dashboard() {
                 <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="heart" size={24} color={ds.colors.primary.main} />
                 </View>
-                <Text style={styles.quickAccessCardTitle}>Free First Why</Text>
+                <Text style={styles.quickAccessCardTitle}>Free First Win</Text>
                 <Text style={styles.quickAccessCardDescription}>Connect with a BeH2O Certified Coach</Text>
                 <Text style={styles.quickAccessCardSubtext}>FREE 15-minute coaching session</Text>
               </Pressable>
@@ -895,7 +961,10 @@ export default function Dashboard() {
                 <Text style={styles.quickAccessCardDescription}>Feelings & Needs Bank and Guardrails</Text>
               </Pressable>
 
-              <Pressable style={styles.quickAccessCard}>
+              <Pressable
+                style={styles.quickAccessCard}
+                onPress={() => setShowProofOfReflection(true)}
+              >
                 <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="document-text" size={24} color={ds.colors.primary.main} />
                 </View>
@@ -1512,6 +1581,8 @@ const styles = StyleSheet.create({
   },
   groundingImageContainer: {
     alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: ds.spacing[4],
     borderRadius: ds.borderRadius.xl,
     backgroundColor: ds.colors.background.primary,
@@ -1531,9 +1602,11 @@ const styles = StyleSheet.create({
     padding: ds.spacing[2],
   },
   groundingWeeklyImage: {
-    width: 389, // 20% bigger than 324px
-    height: 259, // 20% bigger than 216px
+    width: 389,
+    height: 389, // Perfect square
     borderRadius: ds.borderRadius.lg,
+    alignSelf: 'center',
+    marginTop: -45, // Move content up 45 pixels (~11.6%)
   },
 
   // Quick Access Section

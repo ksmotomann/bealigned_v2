@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View,
   Text,
@@ -27,9 +27,32 @@ export default function SignUp() {
   const [registrationCode, setRegistrationCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string, showPasswordReset?: boolean } | null>(null)
+  const [requireAlignmentCode, setRequireAlignmentCode] = useState(true)
   const router = useRouter()
   const { width } = useWindowDimensions()
   const isDesktop = width >= 768
+
+  // Load system settings to check if alignment code is required
+  useEffect(() => {
+    const loadSystemSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('setting_value')
+          .eq('setting_key', 'require_alignment_code')
+          .single()
+
+        if (!error && data && data.setting_value) {
+          setRequireAlignmentCode(data.setting_value.enabled ?? true)
+        }
+      } catch (error) {
+        console.error('Error loading system settings:', error)
+        // Default to requiring code on error
+        setRequireAlignmentCode(true)
+      }
+    }
+    loadSystemSettings()
+  }, [])
 
   async function signUpWithEmail() {
     setLoading(true)
@@ -51,9 +74,29 @@ export default function SignUp() {
     let data, error
     let alignmentCodeResult = null
 
-    // Validate alignment code if provided
+    // Check if alignment code is required
+    if (requireAlignmentCode && !registrationCode) {
+      setMessage({ type: 'error', text: 'Alignment code is required for signup' })
+      setLoading(false)
+      return
+    }
+
+    // Validate alignment code if provided or required
+    let requiresApproval = false
     if (registrationCode) {
       try {
+        // First check if code requires approval
+        const { data: codeDetails, error: codeCheckError } = await supabase
+          .from('alignment_codes')
+          .select('requires_approval')
+          .eq('code', registrationCode)
+          .eq('is_active', true)
+          .single()
+
+        if (!codeCheckError && codeDetails) {
+          requiresApproval = codeDetails.requires_approval || false
+        }
+
         const { data: codeData, error: codeError } = await supabase.rpc('validate_alignment_code', {
           p_code: registrationCode
         })
@@ -109,6 +152,14 @@ export default function SignUp() {
             p_code: registrationCode,
             p_user_id: data.user.id
           })
+
+          // Set approval status if code requires approval
+          if (requiresApproval) {
+            await supabase
+              .from('profiles')
+              .update({ approval_status: 'pending' })
+              .eq('id', data.user.id)
+          }
         } catch (applyError) {
           console.warn('Failed to apply alignment code after signup:', applyError)
         }
@@ -129,19 +180,30 @@ export default function SignUp() {
         setMessage({ type: 'error', text: error.message })
       }
     } else if (data?.user) {
-      // Check if email confirmation is required
-      if (data.user.email_confirmed_at) {
-        // Email already confirmed, redirect to welcome
-        setMessage({ type: 'success', text: 'Account created successfully!' })
+      // Check if the code requires approval
+      if (requiresApproval) {
+        setMessage({
+          type: 'success',
+          text: 'Account created! Your account is pending admin approval. You\'ll be notified when approved.'
+        })
         setTimeout(() => {
-          router.replace('/(auth)/welcome')
-        }, 1500)
+          router.replace('/pending-approval')
+        }, 2000)
       } else {
-        // Email confirmation required - redirect to confirmation page
-        setMessage({ type: 'success', text: 'Account created successfully!' })
-        setTimeout(() => {
-          router.replace(`/(auth)/confirm-email?email=${encodeURIComponent(email)}`)
-        }, 1000)
+        // Check if email confirmation is required
+        if (data.user.email_confirmed_at) {
+          // Email already confirmed, redirect to welcome
+          setMessage({ type: 'success', text: 'Account created successfully!' })
+          setTimeout(() => {
+            router.replace('/(auth)/welcome')
+          }, 1500)
+        } else {
+          // Email confirmation required - redirect to confirmation page
+          setMessage({ type: 'success', text: 'Account created successfully!' })
+          setTimeout(() => {
+            router.replace(`/(auth)/confirm-email?email=${encodeURIComponent(email)}`)
+          }, 1000)
+        }
       }
     }
     setLoading(false)
@@ -268,7 +330,7 @@ export default function SignUp() {
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Alignment Pass (optional)"
+                placeholder={requireAlignmentCode ? "Alignment Pass (required)" : "Alignment Pass (optional)"}
                 value={registrationCode}
                 onChangeText={setRegistrationCode}
                 autoCapitalize="characters"
