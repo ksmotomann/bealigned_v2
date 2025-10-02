@@ -167,7 +167,7 @@ export default function OurStory() {
       </AnimatedWaveHero>
 
       {/* Footer */}
-      <MarketingFooter />
+      <MarketingFooter activeLink="our-story" />
     </ScrollView>
   )
 }

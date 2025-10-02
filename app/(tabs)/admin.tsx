@@ -23,6 +23,7 @@ import AdminTrainingTranscripts from '../../components/AdminTrainingTranscripts'
 import AdminSettings from '../../components/AdminSettings'
 import CommunityManager from '../../components/admin/CommunityManager'
 import AlignmentAnalyticsManager from '../../components/admin/AlignmentAnalyticsManager'
+import FAQManager from '../../components/admin/FAQManager'
 import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
 import RippleBackground from '../../components/RippleBackground'
@@ -115,6 +116,7 @@ export default function AdminPanel() {
     { id: 'training', title: 'Training Management', icon: 'school-outline' },
     { id: 'community', title: 'Community Manager', icon: 'people-circle-outline' },
     { id: 'users', title: 'User Management', icon: 'people-outline' },
+    { id: 'faq', title: 'FAQ Management', icon: 'help-circle-outline' },
     { id: 'assets', title: 'Assets Catalog', icon: 'cube-outline' },
   ]
 
@@ -2297,6 +2299,8 @@ export default function AdminPanel() {
 
   const renderAlignmentAnalyticsSection = () => <AlignmentAnalyticsManager />
 
+  const renderFaqSection = () => <FAQManager />
+
   const renderActiveSection = () => {
     switch (activeSection) {
       case 'seo': return renderSeoSection()
@@ -2308,6 +2312,7 @@ export default function AdminPanel() {
       case 'training': return renderTrainingSection()
       case 'community': return renderCommunitySection()
       case 'users': return renderUsersSection()
+      case 'faq': return renderFaqSection()
       case 'assets': return renderAssetsSection()
       default: return renderSeoSection()
     }

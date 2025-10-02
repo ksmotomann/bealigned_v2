@@ -3,7 +3,11 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import ds from '../styles/design-system'
 
-export default function MarketingFooter() {
+interface MarketingFooterProps {
+  activeLink?: 'our-story' | 'faq' | 'contact'
+}
+
+export default function MarketingFooter({ activeLink }: MarketingFooterProps) {
   const router = useRouter()
 
   const handleExternalLink = (url: string) => {
@@ -42,14 +46,38 @@ export default function MarketingFooter() {
           />
 
           <View style={styles.footerNav}>
-            <Pressable onPress={() => router.push('/(marketing)/our-story')}>
-              <Text style={styles.footerLink}>Our Story</Text>
+            <Pressable
+              style={[styles.footerLinkContainer, activeLink === 'our-story' && styles.footerLinkContainerActive]}
+              onPress={() => router.push('/(marketing)/our-story')}
+            >
+              <Text style={[
+                styles.footerLink,
+                activeLink === 'our-story' && styles.footerLinkActive
+              ]}>
+                Our Story
+              </Text>
             </Pressable>
-            <Pressable onPress={() => router.push('/(marketing)/faq')}>
-              <Text style={styles.footerLink}>FAQ</Text>
+            <Pressable
+              style={[styles.footerLinkContainer, activeLink === 'faq' && styles.footerLinkContainerActive]}
+              onPress={() => router.push('/(marketing)/faq')}
+            >
+              <Text style={[
+                styles.footerLink,
+                activeLink === 'faq' && styles.footerLinkActive
+              ]}>
+                FAQ
+              </Text>
             </Pressable>
-            <Pressable onPress={() => router.push('/(marketing)/contact')}>
-              <Text style={styles.footerLink}>Contact</Text>
+            <Pressable
+              style={[styles.footerLinkContainer, activeLink === 'contact' && styles.footerLinkContainerActive]}
+              onPress={() => router.push('/(marketing)/contact')}
+            >
+              <Text style={[
+                styles.footerLink,
+                activeLink === 'contact' && styles.footerLinkActive
+              ]}>
+                Contact
+              </Text>
             </Pressable>
             <Pressable onPress={() => handleExternalLink('https://www.BeH2OCoparenting.com')}>
               <Text style={styles.footerLink}>BeH2O</Text>
@@ -140,11 +168,23 @@ const styles = StyleSheet.create({
     gap: ds.spacing[8],
     flexWrap: 'wrap',
   },
+  footerLinkContainer: {
+    paddingBottom: ds.spacing[1],
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  footerLinkContainerActive: {
+    borderBottomColor: ds.colors.primary.main,
+  },
   footerLink: {
     fontSize: ds.typography.fontSize.base.size * 0.9,
     color: '#4A5568',
     fontFamily: ds.typography.fontFamily.base,
     fontWeight: ds.typography.fontWeight.medium,
+  },
+  footerLinkActive: {
+    color: ds.colors.primary.main,
+    fontWeight: ds.typography.fontWeight.semibold,
   },
   divider: {
     height: 1,

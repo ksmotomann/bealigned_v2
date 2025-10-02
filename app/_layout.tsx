@@ -19,6 +19,7 @@ export default function RootLayout() {
   const [requiresTour, setRequiresTour] = useState(false)
   const [showTourModal, setShowTourModal] = useState(false)
   const [requiresFirstReflection, setRequiresFirstReflection] = useState(false)
+  const [approvalStatus, setApprovalStatus] = useState<string | null>(null)
   const router = useRouter()
   const segments = useSegments()
 
@@ -59,6 +60,9 @@ export default function RootLayout() {
         console.error('Error checking user onboarding status:', error)
         return
       }
+
+      // Set approval status
+      setApprovalStatus(data?.approval_status || 'approved')
 
       // Check if user is pending approval - if so, route to pending approval page
       if (data?.approval_status === 'pending') {
@@ -119,6 +123,18 @@ export default function RootLayout() {
 
     const inAuthGroup = segments[0] === '(auth)'
     const inTabsGroup = segments[0] === '(tabs)'
+    const onPendingApproval = segments.includes('pending-approval')
+
+    // If user is on pending-approval page, don't redirect them
+    if (onPendingApproval) {
+      return
+    }
+
+    // If user has pending approval status and tries to access tabs, redirect to pending-approval
+    if (session && approvalStatus === 'pending' && inTabsGroup) {
+      router.replace('/pending-approval')
+      return
+    }
 
     if (!session && inTabsGroup) {
       router.replace('/(auth)/login')
@@ -143,7 +159,7 @@ export default function RootLayout() {
       }
       // Remove automatic chat redirect - allow users to navigate freely during first reflection
     }
-  }, [session, segments, isLoading, isProxyContext, requiresLegalAcknowledgment, requiresTour, requiresFirstReflection])
+  }, [session, segments, isLoading, isProxyContext, requiresLegalAcknowledgment, requiresTour, requiresFirstReflection, approvalStatus])
 
   const handleLegalAcknowledgmentComplete = () => {
     setShowLegalModal(false)

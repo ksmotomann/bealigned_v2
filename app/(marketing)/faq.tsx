@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions, Image } from 'react-native'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import ds from '../../styles/design-system'
@@ -7,120 +7,77 @@ import AnimatedWaveHero from '../../components/AnimatedWaveHero'
 import NavigationHeader from '../../components/NavigationHeader'
 import SEOHead from '../../components/SEOHead'
 import MarketingFooter from '../../components/MarketingFooter'
+import { supabase } from '../../lib/supabase'
+
+interface FAQItem {
+  id: string
+  category: string
+  question: string
+  answer: string
+  display_order: number
+  is_published: boolean
+}
+
+interface FAQCategory {
+  category: string
+  questions: Array<{
+    question: string
+    answer: string
+  }>
+}
 
 export default function FAQ() {
   const router = useRouter()
   const { width } = useWindowDimensions()
   const isDesktop = width >= 768
   const [expandedFAQ, setExpandedFAQ] = useState<number | null>(null)
+  const [faqs, setFaqs] = useState<FAQCategory[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const faqs = [
-    {
-      category: "Getting Started",
-      questions: [
-        {
-          question: "What is BeAligned?",
-          answer: "BeAligned is a guided reflection tool that helps you navigate conflicts with clarity and compassion through our evidence-based 7-step process. Built on Nonviolent Communication principles, it provides scaffolding to help you develop better communication skills."
-        },
-        {
-          question: "How does BeAligned work?",
-          answer: "BeAligned guides you through seven steps: Pause, Reflect, Feel, Need, Request, Craft, and Connect. Each step helps you gain clarity about your situation and craft a message that truly expresses your needs while maintaining connection with others."
-        },
-        {
-          question: "Who is BeAligned for?",
-          answer: "BeAligned is designed for anyone who wants to improve their communication skills and navigate conflicts more effectively. Whether you're dealing with family tensions, relationship challenges, or workplace conflicts, BeAligned provides tools to help you respond rather than react."
-        },
-        {
-          question: "Do I need any special training to use BeAligned?",
-          answer: "No special training is required. BeAligned is designed to be intuitive and accessible to everyone, regardless of your background with communication tools or conflict resolution techniques."
+  useEffect(() => {
+    loadFAQs()
+  }, [])
+
+  const loadFAQs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('faq_items')
+        .select('*')
+        .eq('is_published', true)
+        .is('deleted_at', null)
+        .order('display_order')
+
+      if (error) throw error
+
+      // Transform flat array into category structure, preserving order
+      const categorizedFAQs: FAQCategory[] = []
+      const categoryMap = new Map<string, FAQCategory>()
+
+      data?.forEach((item: FAQItem) => {
+        if (!categoryMap.has(item.category)) {
+          const newCategory: FAQCategory = {
+            category: item.category,
+            questions: []
+          }
+          categoryMap.set(item.category, newCategory)
+          categorizedFAQs.push(newCategory)
         }
-      ]
-    },
-    {
-      category: "Privacy & Security",
-      questions: [
-        {
-          question: "Is my data secure and private?",
-          answer: "Yes. Your reflections are completely private and secure. We use industry-standard end-to-end encryption and never share your data with third parties. You have full control over your information and can delete it at any time."
-        },
-        {
-          question: "Can other people see my reflections?",
-          answer: "No. All your reflections are private and visible only to you. BeAligned is designed as a personal reflection space where you can explore your thoughts and feelings without judgment or external visibility."
-        },
-        {
-          question: "Is BeAligned HIPAA compliant?",
-          answer: "Yes. We maintain HIPAA compliance standards to ensure your personal health information is protected, even though BeAligned is an educational tool rather than a medical device."
-        },
-        {
-          question: "What data do you collect?",
-          answer: "We collect only the information necessary to provide the service: your reflections, account information, and usage analytics (anonymized). We never sell your data or use it for advertising purposes."
-        }
-      ]
-    },
-    {
-      category: "Usage & Features",
-      questions: [
-        {
-          question: "Is BeAligned a replacement for therapy?",
-          answer: "No. BeAligned is an educational tool that helps you practice communication skills. It's not a substitute for professional therapy, counseling, or medical advice. If you're dealing with serious mental health issues, please consult qualified professionals."
-        },
-        {
-          question: "Can I use BeAligned with my partner or family?",
-          answer: "Currently, BeAligned is designed for individual reflection. However, BeAligned Couples is coming soon, which will allow shared reflection spaces for partners to work through conflicts together."
-        },
-        {
-          question: "How often should I use BeAligned?",
-          answer: "Use BeAligned whenever you're facing a difficult conversation or conflict. Some people use it daily as a reflection practice, while others use it only when specific challenges arise. The goal is to help you internalize these skills over time."
-        },
-        {
-          question: "What if I get stuck during a reflection?",
-          answer: "That's completely normal! BeAligned includes helpful prompts and examples at each step. You can also take breaks and return to your reflection later. Remember, this is a learning process, and it's okay to struggle sometimes."
-        }
-      ]
-    },
-    {
-      category: "Pricing & Plans",
-      questions: [
-        {
-          question: "How much does BeAligned cost?",
-          answer: "BeAligned offers a free tier with core features, allowing you to complete basic reflections. Premium plans with advanced features, unlimited reflections, and priority support are available for users who want the full experience."
-        },
-        {
-          question: "What's included in the free tier?",
-          answer: "The free tier includes access to our 7-step reflection process, basic analytics, and up to 10 reflections per month. This gives you a solid foundation to experience the benefits of structured communication reflection."
-        },
-        {
-          question: "Can I cancel my subscription anytime?",
-          answer: "Yes, you can cancel your subscription at any time. There are no long-term commitments or cancellation fees. Your data remains accessible even after cancellation."
-        },
-        {
-          question: "Do you offer discounts for students or families?",
-          answer: "Yes! We offer educational discounts for students and special family plans. Contact us directly to learn more about available discounts for your situation."
-        }
-      ]
-    },
-    {
-      category: "Technical Support",
-      questions: [
-        {
-          question: "What devices and platforms does BeAligned support?",
-          answer: "BeAligned works on all modern web browsers, iOS devices, and Android devices. We're constantly improving compatibility and performance across all platforms."
-        },
-        {
-          question: "What if I'm having technical problems?",
-          answer: "If you experience any technical issues, please contact our support team through the app or email us. We typically respond within 24 hours and are committed to resolving issues quickly."
-        },
-        {
-          question: "How do I delete my account?",
-          answer: "You can delete your account and all associated data from your account settings. Once deleted, your data cannot be recovered, so please make sure you've saved any reflections you want to keep."
-        },
-        {
-          question: "Can I export my reflection data?",
-          answer: "Yes, you can export your reflection data in various formats from your account settings. This allows you to keep your reflections even if you decide to stop using the service."
-        }
-      ]
+
+        categoryMap.get(item.category)?.questions.push({
+          question: item.question,
+          answer: item.answer
+        })
+      })
+
+      setFaqs(categorizedFAQs)
+    } catch (error) {
+      console.error('Error loading FAQs:', error)
+      // Set empty array on error so page still renders
+      setFaqs([])
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
   const toggleFAQ = (index: number) => {
     setExpandedFAQ(expandedFAQ === index ? null : index)
@@ -153,40 +110,50 @@ export default function FAQ() {
       </View>
 
       {/* FAQ Sections */}
-      {faqs.map((category, categoryIndex) => (
-        <View key={categoryIndex} style={[styles.section, categoryIndex % 2 === 1 && styles.sectionGray]}>
-          <Text style={styles.categoryTitle}>{category.category}</Text>
-          
-          <View style={styles.faqContainer}>
-            {category.questions.map((faq, index) => {
-              const globalIndex = categoryIndex * 100 + index
-              const isExpanded = expandedFAQ === globalIndex
-              
-              return (
-                <View key={index} style={styles.faqItem}>
-                  <Pressable 
-                    style={styles.faqQuestion}
-                    onPress={() => toggleFAQ(globalIndex)}
-                  >
-                    <Text style={styles.questionText}>{faq.question}</Text>
-                    <Ionicons 
-                      name={isExpanded ? "chevron-up" : "chevron-down"} 
-                      size={24} 
-                      color={ds.colors.primary.main} 
-                    />
-                  </Pressable>
-                  
-                  {isExpanded && (
-                    <View style={styles.faqAnswer}>
-                      <Text style={styles.answerText}>{faq.answer}</Text>
-                    </View>
-                  )}
-                </View>
-              )
-            })}
-          </View>
+      {loading ? (
+        <View style={styles.section}>
+          <Text style={styles.loadingText}>Loading FAQs...</Text>
         </View>
-      ))}
+      ) : faqs.length === 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.emptyText}>No FAQs available at the moment.</Text>
+        </View>
+      ) : (
+        faqs.map((category, categoryIndex) => (
+          <View key={categoryIndex} style={[styles.section, categoryIndex % 2 === 1 && styles.sectionGray]}>
+            <Text style={styles.categoryTitle}>{category.category}</Text>
+
+            <View style={styles.faqContainer}>
+              {category.questions.map((faq, index) => {
+                const globalIndex = categoryIndex * 100 + index
+                const isExpanded = expandedFAQ === globalIndex
+
+                return (
+                  <View key={index} style={styles.faqItem}>
+                    <Pressable
+                      style={styles.faqQuestion}
+                      onPress={() => toggleFAQ(globalIndex)}
+                    >
+                      <Text style={styles.questionText}>{faq.question}</Text>
+                      <Ionicons
+                        name={isExpanded ? "chevron-up" : "chevron-down"}
+                        size={24}
+                        color={ds.colors.primary.main}
+                      />
+                    </Pressable>
+
+                    {isExpanded && (
+                      <View style={styles.faqAnswer}>
+                        <Text style={styles.answerText}>{faq.answer}</Text>
+                      </View>
+                    )}
+                  </View>
+                )
+              })}
+            </View>
+          </View>
+        ))
+      )}
 
       {/* Contact Section */}
       <View style={styles.section}>
@@ -230,7 +197,7 @@ export default function FAQ() {
       </AnimatedWaveHero>
 
       {/* Footer */}
-      <MarketingFooter />
+      <MarketingFooter activeLink="faq" />
     </ScrollView>
   )
 }
@@ -482,5 +449,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: ds.typography.fontSize.xs.lineHeight + 2,
     fontFamily: ds.typography.fontFamily.base,
+  },
+  loadingText: {
+    textAlign: 'center',
+    color: ds.colors.text.secondary,
+    fontSize: ds.typography.fontSize.base.size,
+    fontFamily: ds.typography.fontFamily.base,
+    paddingVertical: ds.spacing[8],
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: ds.colors.text.secondary,
+    fontSize: ds.typography.fontSize.base.size,
+    fontFamily: ds.typography.fontFamily.base,
+    paddingVertical: ds.spacing[8],
   },
 })

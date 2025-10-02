@@ -25,16 +25,28 @@ export default function NavigationHeader({ activeLink }: NavigationHeaderProps) 
         
         {isDesktop && (
           <View style={styles.nav}>
-            <Pressable onPress={() => router.push('/(marketing)')}>
+            <Pressable
+              style={[styles.navLinkContainer, activeLink === 'home' && styles.navLinkContainerActive]}
+              onPress={() => router.push('/(marketing)')}
+            >
               <Text style={[styles.navLink, activeLink === 'home' && styles.navLinkActive]}>Home</Text>
             </Pressable>
-            <Pressable onPress={() => router.push('/(marketing)/our-story')}>
+            <Pressable
+              style={[styles.navLinkContainer, activeLink === 'our-story' && styles.navLinkContainerActive]}
+              onPress={() => router.push('/(marketing)/our-story')}
+            >
               <Text style={[styles.navLink, activeLink === 'our-story' && styles.navLinkActive]}>Our Story</Text>
             </Pressable>
-            <Pressable onPress={() => router.push('/(marketing)/faq')}>
+            <Pressable
+              style={[styles.navLinkContainer, activeLink === 'faq' && styles.navLinkContainerActive]}
+              onPress={() => router.push('/(marketing)/faq')}
+            >
               <Text style={[styles.navLink, activeLink === 'faq' && styles.navLinkActive]}>FAQ</Text>
             </Pressable>
-            <Pressable onPress={() => router.push('/(marketing)/contact')}>
+            <Pressable
+              style={[styles.navLinkContainer, activeLink === 'contact' && styles.navLinkContainerActive]}
+              onPress={() => router.push('/(marketing)/contact')}
+            >
               <Text style={[styles.navLink, activeLink === 'contact' && styles.navLinkActive]}>Contact</Text>
             </Pressable>
             <Pressable style={styles.signInButton} onPress={() => router.push('/(auth)/login')}>
@@ -76,6 +88,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 32,
+  },
+  navLinkContainer: {
+    paddingBottom: ds.spacing[1],
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  navLinkContainerActive: {
+    borderBottomColor: ds.colors.primary.main,
   },
   navLink: {
     fontSize: ds.typography.fontSize.sm.size,

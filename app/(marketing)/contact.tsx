@@ -235,7 +235,7 @@ export default function Contact() {
       </AnimatedWaveHero>
 
       {/* Footer */}
-      <MarketingFooter />
+      <MarketingFooter activeLink="contact" />
     </ScrollView>
   )
 }
