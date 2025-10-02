@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons'
 import InAppNavigationHeader from '../../components/InAppNavigationHeader'
 import TrialStatus from '../../components/TrialStatus'
 import FeedbackSurvey from '../../components/FeedbackSurvey'
+import ResourceLibraryModal from '../../components/ResourceLibraryModal'
+import FounderSoundbiteModal from '../../components/FounderSoundbiteModal'
 import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
 import { Target, Heart } from 'lucide-react-native'
@@ -39,7 +41,7 @@ export default function Dashboard() {
   const [streakMessage, setStreakMessage] = useState('')
   const [weeklyGoal] = useState(5) // Default goal: 5 reflections per week (Monday-Sunday)
   const [weeklyReflections, setWeeklyReflections] = useState(0)
-  const [completedReflections, setCompletedReflections] = useState(12)
+  const [completedReflections, setCompletedReflections] = useState(0)
   const [currentWeekNumber, setCurrentWeekNumber] = useState(1)
   const [userCreatedAt, setUserCreatedAt] = useState<string | null>(null)
   const [showFeedbackSurvey, setShowFeedbackSurvey] = useState(false)
@@ -50,6 +52,8 @@ export default function Dashboard() {
   const [showSocialMediaSetup, setShowSocialMediaSetup] = useState(false)
   const [socialMediaSettings, setSocialMediaSettings] = useState<any>({})
   const [setupPlatform, setSetupPlatform] = useState('')
+  const [showResourceLibrary, setShowResourceLibrary] = useState(false)
+  const [showFounderSoundbite, setShowFounderSoundbite] = useState(false)
 
   const getStreakMessage = (streak: number, completedData: any[], weeklyGoal: number): string => {
     // Get start of current week (Monday)
@@ -113,11 +117,11 @@ export default function Dashboard() {
       if (session?.user) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('role, your_why, social_media_settings')
+          .select('user_type, your_why, social_media_settings')
           .eq('id', session.user.id)
           .single()
 
-        setIsAdmin(profileData?.role === 'admin')
+        setIsAdmin(profileData?.user_type === 'admin' || profileData?.user_type === 'super_admin')
 
         // Set user's Your Why or use default
         if (profileData?.your_why) {
@@ -129,16 +133,12 @@ export default function Dashboard() {
           setSocialMediaSettings(profileData.social_media_settings)
         }
 
-        // Get user registration date
-        const { data: userData } = await supabase
-          .from('users')
-          .select('created_at')
-          .eq('id', session.user.id)
-          .single()
+        // Get user registration date from session metadata or auth.users
+        const userCreatedDate = session.user.created_at
 
-        if (userData?.created_at) {
-          setUserCreatedAt(userData.created_at)
-          const weekNumber = calculateWeekNumber(userData.created_at)
+        if (userCreatedDate) {
+          setUserCreatedAt(userCreatedDate)
+          const weekNumber = calculateWeekNumber(userCreatedDate)
           setCurrentWeekNumber(weekNumber)
         }
 
@@ -173,8 +173,8 @@ export default function Dashboard() {
           setDaysSinceLastReflection(diffDays)
         }
 
-        if (userData?.created_at) {
-          const registrationDate = new Date(userData.created_at)
+        if (userCreatedDate) {
+          const registrationDate = new Date(userCreatedDate)
           const today = new Date()
           const diffTime = Math.abs(today.getTime() - registrationDate.getTime())
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
@@ -613,16 +613,25 @@ export default function Dashboard() {
           <TrialStatus userId={session.user.id} />
         )}
 
-        {/* Feedback Survey */}
-        {showFeedbackSurvey && (
-          <View style={styles.content}>
-            <FeedbackSurvey
-              onSubmit={handleFeedbackSurveySubmit}
-              onSkip={handleFeedbackSurveySkip}
-              reflectionId={completedReflectionId}
-            />
-          </View>
-        )}
+        {/* Feedback Survey Modal */}
+        <FeedbackSurvey
+          visible={showFeedbackSurvey}
+          onSubmit={handleFeedbackSurveySubmit}
+          onSkip={handleFeedbackSurveySkip}
+          reflectionId={completedReflectionId}
+        />
+
+        {/* Resource Library Modal */}
+        <ResourceLibraryModal
+          visible={showResourceLibrary}
+          onClose={() => setShowResourceLibrary(false)}
+        />
+
+        {/* Founder Soundbite Modal */}
+        <FounderSoundbiteModal
+          visible={showFounderSoundbite}
+          onClose={() => setShowFounderSoundbite(false)}
+        />
 
         <View style={styles.content}>
           {/* Main Reflection Action Area */}
@@ -852,7 +861,10 @@ export default function Dashboard() {
             <Text style={styles.quickAccessSubtitle}>Tools and support for your co-parenting journey</Text>
 
             <View style={styles.quickAccessGrid}>
-              <Pressable style={styles.quickAccessCard}>
+              <Pressable
+                style={styles.quickAccessCard}
+                onPress={() => setShowFeedbackSurvey(true)}
+              >
                 <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="star" size={24} color={ds.colors.primary.main} />
                 </View>
@@ -860,7 +872,10 @@ export default function Dashboard() {
                 <Text style={styles.quickAccessCardDescription}>Share your reflection experience</Text>
               </Pressable>
 
-              <Pressable style={styles.quickAccessCard}>
+              <Pressable
+                style={styles.quickAccessCard}
+                onPress={() => router.push('/free-first-why')}
+              >
                 <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="heart" size={24} color={ds.colors.primary.main} />
                 </View>
@@ -869,7 +884,10 @@ export default function Dashboard() {
                 <Text style={styles.quickAccessCardSubtext}>FREE 15-minute coaching session</Text>
               </Pressable>
 
-              <Pressable style={styles.quickAccessCard}>
+              <Pressable
+                style={styles.quickAccessCard}
+                onPress={() => setShowResourceLibrary(true)}
+              >
                 <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="library" size={24} color={ds.colors.primary.main} />
                 </View>
@@ -885,7 +903,10 @@ export default function Dashboard() {
                 <Text style={styles.quickAccessCardDescription}>Request personalized certificate</Text>
               </Pressable>
 
-              <Pressable style={styles.quickAccessCard}>
+              <Pressable
+                style={styles.quickAccessCard}
+                onPress={() => setShowFounderSoundbite(true)}
+              >
                 <View style={styles.quickAccessIconContainer}>
                   <Ionicons name="mic" size={24} color={ds.colors.primary.main} />
                 </View>

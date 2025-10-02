@@ -193,7 +193,7 @@ export default function History() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader />
+      <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
       
       <View style={styles.header}>
         <Text style={styles.title}>Reflection History</Text>

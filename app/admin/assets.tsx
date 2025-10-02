@@ -378,7 +378,7 @@ export default function AdminAssetsPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader />
+      <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
 
       <View style={styles.header}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>

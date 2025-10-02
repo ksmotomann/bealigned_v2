@@ -222,3 +222,4 @@ npx expo r -c
 **Remember:** The goal is not to replicate the GPT through code, but to create an environment where AI + vector content can naturally produce GPT-aligned responses.
 - just because you can't access the databae doesn't mean you should make stuff up - trying fixing the db connection issue anytime you can't connect and we would benefit from directly access db content
 - i prefer to enter sql updates directly in console
+- StandardModal object should be used for the creation of all new modals

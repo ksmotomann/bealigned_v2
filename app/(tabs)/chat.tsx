@@ -3,6 +3,7 @@ import * as Clipboard from 'expo-clipboard'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
 import { useReflectionSession } from '../../hooks/useReflectionSession'
 import { usePhasePromptsEnhanced } from '../../hooks/usePhasePromptsEnhanced'
@@ -17,6 +18,7 @@ import InAppNavigationHeader from '../../components/InAppNavigationHeader'
 import ds from '../../styles/design-system'
 
 export default function Chat() {
+  const router = useRouter()
   const { width } = useWindowDimensions()
   const isTablet = width >= 768
   const { adminViewEnabled, isActualAdmin, setIsActualAdmin } = useAdmin()
@@ -774,7 +776,7 @@ export default function Chat() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader />
+      <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
       
       <View style={[styles.reflectionHeader, !isTablet && styles.mobileReflectionHeader]}>
         <View style={styles.reflectionHeaderContent}>

@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import { useSEO } from '../../context/SEOContext'
 import { generateSitemap } from '../../utils/sitemap'
 import InAppNavigationHeader from '../../components/InAppNavigationHeader'
@@ -27,6 +28,7 @@ import PulsatingHighlight from '../../components/PulsatingHighlight'
 import RippleBackground from '../../components/RippleBackground'
 
 export default function AdminPanel() {
+  const router = useRouter()
   const { seoData: contextSeoData, updateSEOData } = useSEO()
   const [activeSection, setActiveSection] = useState('seo')
   const [localSeoData, setLocalSeoData] = useState(contextSeoData)
@@ -2245,7 +2247,7 @@ export default function AdminPanel() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader />
+      <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
       
       {/* Success/Error Message Toast */}
       {saveMessage && (

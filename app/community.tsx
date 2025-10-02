@@ -272,7 +272,7 @@ export default function Community() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader />
+      <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
 
       <ShareYourWhyModal
         visible={showShareModal}

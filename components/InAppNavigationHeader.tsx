@@ -13,9 +13,12 @@ interface InAppNavigationHeaderProps {
 export default function InAppNavigationHeader({ onLogoPress }: InAppNavigationHeaderProps) {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     getCurrentUser()
+    loadUnreadCount()
+    subscribeToNotifications()
   }, [])
 
   async function getCurrentUser() {
@@ -24,6 +27,67 @@ export default function InAppNavigationHeader({ onLogoPress }: InAppNavigationHe
       setUser(user)
     } catch (error) {
       console.error('Error getting user:', error)
+    }
+  }
+
+  async function loadUnreadCount() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Count unread notifications
+      const { count: notificationCount } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false)
+
+      // Count threads with unread messages
+      const { data: threads, error: threadsError } = await supabase
+        .from('message_thread_participants')
+        .select(`
+          thread_id,
+          last_read_at,
+          message_threads!inner(updated_at)
+        `)
+        .eq('user_id', user.id)
+
+      if (threadsError) {
+        console.error('Error loading threads:', threadsError)
+      }
+
+      let unreadThreadCount = 0
+      if (threads) {
+        unreadThreadCount = threads.filter(participant => {
+          const lastRead = participant.last_read_at ? new Date(participant.last_read_at) : new Date(0)
+          const threadUpdated = new Date((participant.message_threads as any).updated_at)
+          return threadUpdated > lastRead
+        }).length
+      }
+
+      setUnreadCount((notificationCount || 0) + unreadThreadCount)
+    } catch (error) {
+      console.error('Error loading unread count:', error)
+    }
+  }
+
+  function subscribeToNotifications() {
+    const channel = supabase
+      .channel('notifications-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        () => loadUnreadCount()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        () => loadUnreadCount()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
   }
 
@@ -39,6 +103,21 @@ export default function InAppNavigationHeader({ onLogoPress }: InAppNavigationHe
         </Pressable>
         
         <View style={styles.rightSection}>
+          {/* Notification Bell */}
+          <Pressable
+            style={styles.bellIcon}
+            onPress={() => router.push('/inbox')}
+          >
+            <Ionicons name="notifications-outline" size={24} color={ds.colors.text.primary} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+
           <UserMenu user={user} />
         </View>
 
@@ -76,5 +155,27 @@ const styles = StyleSheet.create({
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: ds.spacing[4],
+  },
+  bellIcon: {
+    position: 'relative',
+    padding: ds.spacing[2],
+  },
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
   },
 })

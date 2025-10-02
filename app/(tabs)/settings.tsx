@@ -979,7 +979,7 @@ export default function Settings() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <InAppNavigationHeader />
+        <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
@@ -989,7 +989,7 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <InAppNavigationHeader />
+      <InAppNavigationHeader onLogoPress={() => router.push('/dashboard')} />
 
       <View style={styles.header}>
         <Ionicons name="settings" size={24} color={ds.colors.primary.main} />
