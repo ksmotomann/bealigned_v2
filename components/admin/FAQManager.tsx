@@ -348,30 +348,31 @@ export default function FAQManager() {
 
   const renderFAQItem = ({ item, drag, isActive }: RenderItemParams<FAQItem>) => (
     <ScaleDecorator>
-      <Pressable
-        onLongPress={drag}
-        disabled={isActive}
-        style={[styles.itemCard, isActive && styles.itemCardActive]}
-      >
-        <View style={styles.itemHeader}>
-          <View style={styles.itemHeaderLeft}>
-            <Text style={styles.itemCategory}>{item.category}</Text>
-            {!item.is_published && (
-              <View style={styles.draftBadge}>
-                <Text style={styles.draftBadgeText}>Draft</Text>
-              </View>
-            )}
-            {item.deleted_at && (
-              <View style={styles.deletedBadge}>
-                <Text style={styles.deletedBadgeText}>Deleted</Text>
-              </View>
-            )}
+      <View style={[styles.itemCard, isActive && styles.itemCardActive]}>
+        <Pressable
+          onLongPress={drag}
+          disabled={isActive}
+        >
+          <View style={styles.itemHeader}>
+            <View style={styles.itemHeaderLeft}>
+              <Text style={styles.itemCategory}>{item.category}</Text>
+              {!item.is_published && (
+                <View style={styles.draftBadge}>
+                  <Text style={styles.draftBadgeText}>Draft</Text>
+                </View>
+              )}
+              {item.deleted_at && (
+                <View style={styles.deletedBadge}>
+                  <Text style={styles.deletedBadgeText}>Deleted</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.itemOrder}>Order: {item.display_order}</Text>
           </View>
-          <Text style={styles.itemOrder}>Order: {item.display_order}</Text>
-        </View>
 
-        <Text style={styles.itemQuestion}>{item.question}</Text>
-        <Text style={styles.itemAnswer} numberOfLines={3}>{item.answer}</Text>
+          <Text style={styles.itemQuestion}>{item.question}</Text>
+          <Text style={styles.itemAnswer} numberOfLines={3}>{item.answer}</Text>
+        </Pressable>
 
         <View style={styles.itemActions}>
           {item.deleted_at ? (
@@ -433,7 +434,7 @@ export default function FAQManager() {
             </>
           )}
         </View>
-      </Pressable>
+      </View>
     </ScaleDecorator>
   )
 
