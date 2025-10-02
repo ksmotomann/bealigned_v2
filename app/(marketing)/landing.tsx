@@ -15,12 +15,11 @@ export default function ModernLandingPage() {
 
   useEffect(() => {
     const fetchReflectionCount = async () => {
-      const { count, error } = await supabase
-        .from('reflection_sessions')
-        .select('*', { count: 'exact', head: true })
+      const { data, error } = await supabase
+        .rpc('get_public_reflection_count')
 
-      if (!error && count !== null) {
-        setReflectionCount(count)
+      if (!error && data !== null) {
+        setReflectionCount(data)
       }
     }
 
