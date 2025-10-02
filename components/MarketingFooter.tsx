@@ -49,7 +49,7 @@ export default function MarketingFooter() {
             <Pressable onPress={() => router.push('/(marketing)/contact')}>
               <Text style={styles.footerLink}>Contact</Text>
             </Pressable>
-            <Pressable onPress={() => handleExternalLink('https://thelayne.org')}>
+            <Pressable onPress={() => handleExternalLink('https://thelayneproject.com/')}>
               <Text style={styles.footerLink}>The Layne Project</Text>
             </Pressable>
           </View>
