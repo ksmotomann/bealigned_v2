@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, StyleSheet, Pressable, TextInput, Alert, ActivityIndicator, ScrollView, Switch } from 'react-native'
+import { View, Text, StyleSheet, Pressable, TextInput, Platform, ActivityIndicator, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
 import ds from '../../styles/design-system'
@@ -13,328 +13,386 @@ interface AlignmentCode {
   current_uses: number
   is_active: boolean
   created_at: string
+  trial_days: number
+  subscription_tier: string
+}
+
+interface CodeAnalytics {
+  code: string
+  total_active_users: number
+  avg_logins_per_user: number
+  avg_minutes_per_session: number
+  extensions_percentage: number
+  conversion_percentage: number
+  expiring_in_14_days: number
+}
+
+interface CodeWithAnalytics extends AlignmentCode {
+  analytics: CodeAnalytics
 }
 
 export default function AlignmentCodesPanel() {
-  const [alignmentCodes, setAlignmentCodes] = useState<AlignmentCode[]>([])
+  const [alignmentCodes, setAlignmentCodes] = useState<CodeWithAnalytics[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [newCode, setNewCode] = useState('')
-  const [newTier, setNewTier] = useState('user')
-  const [newDescription, setNewDescription] = useState('')
-  const [newMaxUses, setNewMaxUses] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [requireAlignmentCode, setRequireAlignmentCode] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState('All Types')
+  const [filterTime, setFilterTime] = useState('All Time')
+
+  // Global stats
+  const [totalActiveUsers, setTotalActiveUsers] = useState(0)
+  const [totalExpiring, setTotalExpiring] = useState(0)
+  const [avgExtensions, setAvgExtensions] = useState(0)
+  const [avgConversion, setAvgConversion] = useState(0)
 
   useEffect(() => {
-    loadAlignmentCodes()
-    loadSystemSettings()
+    loadAlignmentCodesWithAnalytics()
   }, [])
 
-  const loadSystemSettings = async () => {
+  const loadAlignmentCodesWithAnalytics = async () => {
     try {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*')
-        .eq('setting_key', 'require_alignment_code')
-        .single()
+      setLoading(true)
 
-      if (error) throw error
-
-      if (data && data.setting_value) {
-        setRequireAlignmentCode(data.setting_value.enabled ?? true)
-      }
-    } catch (error) {
-      console.error('Error loading system settings:', error)
-    }
-  }
-
-  const saveSystemSettings = async (enabled: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('system_settings')
-        .update({
-          setting_value: { enabled },
-          updated_at: new Date().toISOString(),
-          updated_by: (await supabase.auth.getUser()).data.user?.id
-        })
-        .eq('setting_key', 'require_alignment_code')
-
-      if (error) throw error
-
-      Alert.alert('Success', 'Setting updated successfully')
-    } catch (error) {
-      console.error('Error saving system settings:', error)
-      Alert.alert('Error', 'Failed to save setting')
-    }
-  }
-
-  const loadAlignmentCodes = async () => {
-    try {
-      const { data, error } = await supabase
+      // Fetch all alignment codes
+      const { data: codes, error: codesError } = await supabase
         .from('alignment_codes')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('code', { ascending: true })
 
-      if (error) throw error
-      setAlignmentCodes(data || [])
+      if (codesError) throw codesError
+
+      if (!codes) {
+        setAlignmentCodes([])
+        setLoading(false)
+        return
+      }
+
+      // Fetch analytics for each code
+      const codesWithAnalytics: CodeWithAnalytics[] = []
+      let globalActiveUsers = 0
+      let globalExpiring = 0
+      let totalExtensionsPercentage = 0
+      let totalConversionPercentage = 0
+      let codeCount = 0
+
+      for (const code of codes) {
+        try {
+          const { data: analyticsData, error: analyticsError } = await supabase
+            .rpc('get_alignment_code_analytics', { p_code: code.code })
+
+          if (!analyticsError && analyticsData && analyticsData.length > 0) {
+            const analytics = analyticsData[0]
+            codesWithAnalytics.push({
+              ...code,
+              analytics: {
+                code: analytics.code,
+                total_active_users: analytics.total_active_users || 0,
+                avg_logins_per_user: parseFloat(analytics.avg_logins_per_user) || 0,
+                avg_minutes_per_session: parseFloat(analytics.avg_minutes_per_session) || 0,
+                extensions_percentage: parseFloat(analytics.extensions_percentage) || 0,
+                conversion_percentage: parseFloat(analytics.conversion_percentage) || 0,
+                expiring_in_14_days: analytics.expiring_in_14_days || 0,
+              }
+            })
+
+            globalActiveUsers += analytics.total_active_users || 0
+            globalExpiring += analytics.expiring_in_14_days || 0
+            totalExtensionsPercentage += parseFloat(analytics.extensions_percentage) || 0
+            totalConversionPercentage += parseFloat(analytics.conversion_percentage) || 0
+            codeCount++
+          } else {
+            // No analytics yet for this code
+            codesWithAnalytics.push({
+              ...code,
+              analytics: {
+                code: code.code,
+                total_active_users: 0,
+                avg_logins_per_user: 0,
+                avg_minutes_per_session: 0,
+                extensions_percentage: 0,
+                conversion_percentage: 0,
+                expiring_in_14_days: 0,
+              }
+            })
+          }
+        } catch (error) {
+          console.error(`Error loading analytics for code ${code.code}:`, error)
+          // Add code with zero analytics
+          codesWithAnalytics.push({
+            ...code,
+            analytics: {
+              code: code.code,
+              total_active_users: 0,
+              avg_logins_per_user: 0,
+              avg_minutes_per_session: 0,
+              extensions_percentage: 0,
+              conversion_percentage: 0,
+              expiring_in_14_days: 0,
+            }
+          })
+        }
+      }
+
+      setAlignmentCodes(codesWithAnalytics)
+      setTotalActiveUsers(globalActiveUsers)
+      setTotalExpiring(globalExpiring)
+      setAvgExtensions(codeCount > 0 ? totalExtensionsPercentage / codeCount : 0)
+      setAvgConversion(codeCount > 0 ? totalConversionPercentage / codeCount : 0)
+
     } catch (error) {
       console.error('Error loading alignment codes:', error)
-      Alert.alert('Error', 'Failed to load alignment codes')
+      if (Platform.OS === 'web') {
+        window.alert('Failed to load alignment codes')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const createAlignmentCode = async () => {
-    if (!newCode.trim() || !newDescription.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields')
-      return
-    }
-
-    setCreating(true)
-    try {
-      const { data: userData, error: userError } = await supabase.auth.getUser()
-      if (userError) {
-        Alert.alert('Error', 'Not authenticated')
-        return
-      }
-
-      const { error } = await supabase
-        .from('alignment_codes')
-        .insert({
-          code: newCode.trim().toUpperCase(),
-          user_type: newTier,
-          description: newDescription.trim(),
-          max_uses: newMaxUses ? parseInt(newMaxUses) : null,
-          created_by: userData.user?.id
-        })
-
-      if (error) {
-        if (error.code === '23505') {
-          Alert.alert('Error', 'This alignment code already exists')
-        } else {
-          Alert.alert('Error', error.message)
-        }
-        return
-      }
-
-      Alert.alert('Success', 'Alignment code created successfully!')
-      setNewCode('')
-      setNewDescription('')
-      setNewMaxUses('')
-      setNewTier('user')
-      setShowCreateForm(false)
-      loadAlignmentCodes()
-    } catch (err) {
-      Alert.alert('Error', 'Failed to create alignment code')
-    } finally {
-      setCreating(false)
-    }
+  const getTypeIcon = (type: string) => {
+    if (type.toLowerCase().includes('pilot')) return '🧪'
+    if (type.toLowerCase().includes('beta')) return '⚗️'
+    if (type.toLowerCase().includes('qa') || type.toLowerCase().includes('free')) return '🎁'
+    return '👤'
   }
 
-  const deactivateAlignmentCode = async (codeId: string) => {
-    Alert.alert(
-      'Deactivate Code',
-      'Are you sure you want to deactivate this alignment code?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Deactivate',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('alignment_codes')
-                .update({ is_active: false })
-                .eq('id', codeId)
-
-              if (error) throw error
-              Alert.alert('Success', 'Alignment code deactivated')
-              loadAlignmentCodes()
-            } catch (err) {
-              Alert.alert('Error', 'Failed to deactivate code')
-            }
-          }
-        }
-      ]
-    )
+  const getPercentageColor = (percentage: number) => {
+    if (percentage >= 70) return '#10B981' // green
+    if (percentage >= 50) return '#F59E0B' // yellow
+    if (percentage >= 30) return '#F97316' // orange
+    return '#EF4444' // red
   }
+
+  const filteredCodes = alignmentCodes.filter(code => {
+    const matchesSearch = code.code.toLowerCase().includes(searchQuery.toLowerCase())
+    // Add filter logic for type and time if needed
+    return matchesSearch
+  })
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={ds.colors.primary.main} />
+        <Text style={styles.loadingText}>Loading analytics...</Text>
       </View>
     )
   }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Require Alignment Code Setting */}
-      <View style={styles.settingCard}>
-        <View style={styles.settingInfo}>
-          <Text style={styles.settingLabel}>Require Alignment Code for Signup</Text>
-          <Text style={styles.settingDescription}>
-            When enabled, users must provide a valid alignment code to create an account
-          </Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Alignment Codes</Text>
+          <Text style={styles.subtitle}>Manage access codes and track user engagement</Text>
         </View>
-        <Switch
-          value={requireAlignmentCode}
-          onValueChange={(value) => {
-            setRequireAlignmentCode(value)
-            saveSystemSettings(value)
-          }}
-          trackColor={{ false: ds.colors.neutral[300], true: ds.colors.primary.main }}
-        />
+        <View style={styles.superAdminBadge}>
+          <Text style={styles.superAdminText}>SUPER ADMIN ACCESS</Text>
+        </View>
       </View>
 
-      {/* Create New Code Button */}
-      <Pressable
-        style={styles.createButton}
-        onPress={() => setShowCreateForm(!showCreateForm)}
-      >
-        <Ionicons name={showCreateForm ? "close" : "add"} size={20} color="#FFFFFF" />
-        <Text style={styles.createButtonText}>
-          {showCreateForm ? 'Cancel' : 'Create New Code'}
-        </Text>
-      </Pressable>
-
-      {/* Create Form */}
-      {showCreateForm && (
-        <View style={styles.createForm}>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Code</Text>
-            <TextInput
-              style={styles.input}
-              value={newCode}
-              onChangeText={setNewCode}
-              placeholder="Enter unique code (e.g., ADMIN2024)"
-              autoCapitalize="characters"
-              editable={!creating}
-            />
+      {/* Stats Cards */}
+      <View style={styles.statsGrid}>
+        <View style={styles.statCard}>
+          <View style={styles.statIcon}>
+            <Ionicons name="people" size={24} color={ds.colors.primary.main} />
           </View>
+          <Text style={styles.statValue}>{totalActiveUsers}</Text>
+          <Text style={styles.statLabel}>Total Active Users</Text>
+        </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>User Tier</Text>
-            <View style={styles.radioGroup}>
-              {[
-                { value: 'admin', label: 'Admin', description: 'Full access to all features' },
-                { value: 'expert', label: 'Expert', description: 'Advanced features and content' },
-                { value: 'user', label: 'User', description: 'Standard user access' },
-              ].map((option) => (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    styles.radioOption,
-                    newTier === option.value && styles.radioOptionActive
-                  ]}
-                  onPress={() => setNewTier(option.value)}
-                  disabled={creating}
-                >
-                  <View style={styles.radioButton}>
-                    {newTier === option.value && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                  <View style={styles.radioContent}>
-                    <Text style={styles.radioLabel}>{option.label}</Text>
-                    <Text style={styles.radioDescription}>{option.description}</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
+        <View style={styles.statCard}>
+          <View style={styles.statIcon}>
+            <Ionicons name="time" size={24} color="#F59E0B" />
           </View>
+          <Text style={styles.statValue}>{totalExpiring}</Text>
+          <Text style={styles.statLabel}>Expiring in ≤14 Days</Text>
+        </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={newDescription}
-              onChangeText={setNewDescription}
-              placeholder="Describe this alignment code's purpose"
-              multiline
-              numberOfLines={3}
-              editable={!creating}
-            />
+        <View style={styles.statCard}>
+          <View style={styles.statIcon}>
+            <Ionicons name="trending-up" size={24} color="#10B981" />
           </View>
+          <Text style={styles.statValue}>{avgExtensions.toFixed(0)}%</Text>
+          <Text style={styles.statLabel}>Avg Extensions Earned</Text>
+        </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Max Uses (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              value={newMaxUses}
-              onChangeText={setNewMaxUses}
-              placeholder="Leave empty for unlimited uses"
-              keyboardType="numeric"
-              editable={!creating}
-            />
+        <View style={styles.statCard}>
+          <View style={styles.statIcon}>
+            <Ionicons name="cash" size={24} color="#8B5CF6" />
           </View>
+          <Text style={styles.statValue}>{avgConversion.toFixed(0)}%</Text>
+          <Text style={styles.statLabel}>Avg Conversion Rate</Text>
+        </View>
+      </View>
 
-          <Pressable
-            style={[styles.submitButton, creating && styles.buttonDisabled]}
-            onPress={createAlignmentCode}
-            disabled={creating}
-          >
-            {creating ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <>
-                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                <Text style={styles.submitButtonText}>Create Code</Text>
-              </>
-            )}
+      {/* Search and Filters */}
+      <View style={styles.controls}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={ds.colors.text.tertiary} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search codes..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={ds.colors.text.tertiary}
+          />
+        </View>
+
+        <View style={styles.filtersRow}>
+          <Pressable style={styles.filterButton}>
+            <Text style={styles.filterButtonText}>{filterType}</Text>
+            <Ionicons name="chevron-down" size={16} color={ds.colors.text.secondary} />
+          </Pressable>
+
+          <Pressable style={styles.filterButton}>
+            <Text style={styles.filterButtonText}>{filterTime}</Text>
+            <Ionicons name="chevron-down" size={16} color={ds.colors.text.secondary} />
           </Pressable>
         </View>
-      )}
+      </View>
 
-      {/* Existing Codes */}
-      <Text style={styles.sectionTitle}>Existing Codes</Text>
+      {/* Action Buttons */}
+      <View style={styles.actions}>
+        <Pressable style={styles.primaryButton}>
+          <Ionicons name="add" size={20} color="#FFFFFF" />
+          <Text style={styles.primaryButtonText}>Create New Code</Text>
+        </Pressable>
 
-      {alignmentCodes.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>
-            No alignment codes created yet. Create your first code above.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.codesList}>
-          {alignmentCodes.map((code) => (
-            <View key={code.id} style={styles.codeCard}>
-              <View style={styles.codeHeader}>
-                <Text style={styles.codeText}>{code.code}</Text>
-                <View style={[styles.tierBadge, {
-                  backgroundColor:
-                    code.user_type === 'admin' ? '#EF4444' :
-                    code.user_type === 'expert' ? '#F59E0B' :
-                    '#10B981'
-                }]}>
-                  <Text style={styles.tierText}>{code.user_type.toUpperCase()}</Text>
+        <Pressable style={styles.secondaryButton}>
+          <Ionicons name="download-outline" size={20} color={ds.colors.text.primary} />
+          <Text style={styles.secondaryButtonText}>Export Report</Text>
+        </Pressable>
+
+        <Pressable style={styles.secondaryButton}>
+          <Ionicons name="settings-outline" size={20} color={ds.colors.text.primary} />
+          <Text style={styles.secondaryButtonText}>Tools</Text>
+        </Pressable>
+      </View>
+
+      {/* Data Table Header */}
+      <Text style={styles.sectionTitle}>Alignment Codes Overview</Text>
+      <Text style={styles.sectionSubtitle}>
+        Comprehensive tracking of all access codes and user engagement metrics. Click on any code row to view and manage its notification schedule.
+      </Text>
+
+      {/* Data Table */}
+      <View style={styles.table}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+          <View style={styles.tableContent}>
+            {/* Table Header */}
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderCell, styles.codeColumn]}>Code</Text>
+              <Text style={[styles.tableHeaderCell, styles.typeColumn]}>Type</Text>
+              <Text style={[styles.tableHeaderCell, styles.numColumn]}>Active Users</Text>
+              <Text style={[styles.tableHeaderCell, styles.numColumn]}>Avg Logins/User</Text>
+              <Text style={[styles.tableHeaderCell, styles.numColumn]}>Avg Min/Session</Text>
+              <Text style={[styles.tableHeaderCell, styles.numColumn]}>Extensions %</Text>
+              <Text style={[styles.tableHeaderCell, styles.numColumn]}>Conversion %</Text>
+              <Text style={[styles.tableHeaderCell, styles.numColumn]}>Expiring ≤14d</Text>
+              <Text style={[styles.tableHeaderCell, styles.statusColumn]}>Status</Text>
+            </View>
+
+            {/* Table Rows */}
+            {filteredCodes.map((code, index) => (
+              <View
+                key={code.id}
+                style={[
+                  styles.tableRow,
+                  index % 2 === 0 && styles.tableRowEven
+                ]}
+              >
+                <View style={[styles.tableCell, styles.codeColumn]}>
+                  <Ionicons name="link-outline" size={16} color={ds.colors.text.tertiary} />
+                  <Text style={styles.codeText}>{code.code}</Text>
+                </View>
+
+                <View style={[styles.tableCell, styles.typeColumn]}>
+                  <View style={[styles.typeBadge, {
+                    backgroundColor: code.subscription_tier?.includes('pilot') ? '#EFF6FF' :
+                                   code.subscription_tier?.includes('beta') ? '#FDF4FF' :
+                                   '#F0FDF4'
+                  }]}>
+                    <Text style={styles.typeBadgeText}>
+                      {getTypeIcon(code.subscription_tier)} {code.subscription_tier || 'User'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={[styles.tableCell, styles.numColumn]}>
+                  {code.analytics.total_active_users}
+                </Text>
+
+                <Text style={[styles.tableCell, styles.numColumn]}>
+                  {code.analytics.avg_logins_per_user.toFixed(1)}
+                </Text>
+
+                <Text style={[styles.tableCell, styles.numColumn]}>
+                  {code.analytics.avg_minutes_per_session.toFixed(1)}
+                </Text>
+
+                <View style={[styles.tableCell, styles.numColumn]}>
+                  <Text style={[styles.percentageText, {
+                    color: getPercentageColor(code.analytics.extensions_percentage)
+                  }]}>
+                    {code.analytics.extensions_percentage.toFixed(0)}%
+                  </Text>
+                  <Ionicons
+                    name={code.analytics.extensions_percentage >= 50 ? "trending-up" : "trending-down"}
+                    size={12}
+                    color={getPercentageColor(code.analytics.extensions_percentage)}
+                  />
+                </View>
+
+                <View style={[styles.tableCell, styles.numColumn]}>
+                  <Text style={[styles.percentageText, {
+                    color: getPercentageColor(code.analytics.conversion_percentage)
+                  }]}>
+                    {code.analytics.conversion_percentage.toFixed(0)}%
+                  </Text>
+                  <Ionicons
+                    name={code.analytics.conversion_percentage >= 50 ? "trending-up" : "trending-down"}
+                    size={12}
+                    color={getPercentageColor(code.analytics.conversion_percentage)}
+                  />
+                </View>
+
+                <View style={[styles.tableCell, styles.numColumn]}>
+                  {code.analytics.expiring_in_14_days > 0 ? (
+                    <>
+                      <Ionicons name="alert-circle" size={16} color="#F59E0B" />
+                      <Text style={[styles.expiringText, { color: '#F59E0B' }]}>
+                        {code.analytics.expiring_in_14_days}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={styles.expiringText}>-</Text>
+                  )}
+                </View>
+
+                <View style={[styles.tableCell, styles.statusColumn]}>
+                  <View style={[styles.statusBadge, {
+                    backgroundColor: code.is_active ? '#D1FAE5' : '#FEE2E2'
+                  }]}>
+                    <View style={[styles.statusDot, {
+                      backgroundColor: code.is_active ? '#10B981' : '#EF4444'
+                    }]} />
+                    <Text style={[styles.statusText, {
+                      color: code.is_active ? '#065F46' : '#991B1B'
+                    }]}>
+                      {code.is_active ? 'Active' : 'Inactive'}
+                    </Text>
+                  </View>
                 </View>
               </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
 
-              <Text style={styles.codeDescription}>{code.description}</Text>
-
-              <View style={styles.codeStats}>
-                <Text style={styles.codeStat}>
-                  Uses: {code.current_uses || 0}
-                  {code.max_uses ? ` / ${code.max_uses}` : ' (unlimited)'}
-                </Text>
-                <Text style={styles.codeStat}>
-                  Status: {code.is_active ? 'Active' : 'Inactive'}
-                </Text>
-              </View>
-
-              {code.is_active && (
-                <Pressable
-                  style={styles.deactivateButton}
-                  onPress={() => deactivateAlignmentCode(code.id)}
-                >
-                  <Text style={styles.deactivateButtonText}>Deactivate</Text>
-                </Pressable>
-              )}
-            </View>
-          ))}
+      {filteredCodes.length === 0 && (
+        <View style={styles.emptyState}>
+          <Ionicons name="search-outline" size={48} color={ds.colors.text.tertiary} />
+          <Text style={styles.emptyText}>No alignment codes found</Text>
         </View>
       )}
     </ScrollView>
@@ -348,250 +406,286 @@ const styles = StyleSheet.create({
     padding: ds.spacing[6],
   },
   loadingContainer: {
-    backgroundColor: ds.colors.background.primary,
-    borderRadius: ds.borderRadius.xl,
-    padding: ds.spacing[12],
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    ...ds.shadows.lg,
+    backgroundColor: ds.colors.background.secondary,
+    gap: ds.spacing[3],
   },
-  settingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: ds.colors.background.primary,
-    borderWidth: 1,
-    borderColor: ds.colors.neutral[200],
-    borderRadius: ds.borderRadius.lg,
-    padding: ds.spacing[4],
-    marginBottom: ds.spacing[6],
-  },
-  settingInfo: {
-    flex: 1,
-    marginRight: ds.spacing[4],
-  },
-  settingLabel: {
+  loadingText: {
     fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.primary,
-    fontFamily: ds.typography.fontFamily.base,
-    marginBottom: ds.spacing[1],
-  },
-  settingDescription: {
-    fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
-    lineHeight: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: ds.spacing[6],
   },
   title: {
-    fontSize: ds.typography.fontSize['2xl'].size,
+    fontSize: ds.typography.fontSize['3xl'].size,
     fontWeight: ds.typography.fontWeight.bold,
     color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.heading,
-    marginBottom: ds.spacing[2],
   },
   subtitle: {
     fontSize: ds.typography.fontSize.base.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
-    marginBottom: ds.spacing[6],
+    marginTop: ds.spacing[1],
   },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: ds.spacing[2],
-    backgroundColor: ds.colors.primary.main,
-    paddingVertical: ds.spacing[3],
+  superAdminBadge: {
+    backgroundColor: '#FEF3C7',
     paddingHorizontal: ds.spacing[4],
-    borderRadius: ds.borderRadius.lg,
-    marginBottom: ds.spacing[4],
+    paddingVertical: ds.spacing[2],
+    borderRadius: ds.borderRadius.full,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
   },
-  createButtonText: {
-    fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: '#FFFFFF',
+  superAdminText: {
+    fontSize: ds.typography.fontSize.xs.size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: '#92400E',
     fontFamily: ds.typography.fontFamily.base,
   },
-  createForm: {
-    backgroundColor: ds.colors.background.secondary,
+  statsGrid: {
+    flexDirection: 'row',
+    gap: ds.spacing[4],
+    marginBottom: ds.spacing[6],
+    flexWrap: 'wrap',
+  },
+  statCard: {
+    flex: 1,
+    minWidth: 180,
+    backgroundColor: ds.colors.background.primary,
     borderRadius: ds.borderRadius.lg,
     padding: ds.spacing[5],
-    marginBottom: ds.spacing[6],
-    gap: ds.spacing[4],
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[200],
+    ...ds.shadows.sm,
   },
-  formGroup: {
-    gap: ds.spacing[2],
+  statIcon: {
+    marginBottom: ds.spacing[3],
   },
-  label: {
+  statValue: {
+    fontSize: ds.typography.fontSize['3xl'].size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.heading,
+    marginBottom: ds.spacing[1],
+  },
+  statLabel: {
     fontSize: ds.typography.fontSize.sm.size,
-    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  controls: {
+    marginBottom: ds.spacing[4],
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.md,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[300],
+    paddingHorizontal: ds.spacing[4],
+    marginBottom: ds.spacing[3],
+  },
+  searchIcon: {
+    marginRight: ds.spacing[2],
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: ds.spacing[3],
+    fontSize: ds.typography.fontSize.base.size,
     color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.base,
   },
-  input: {
+  filtersRow: {
+    flexDirection: 'row',
+    gap: ds.spacing[3],
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
     backgroundColor: ds.colors.background.primary,
     borderWidth: 1,
     borderColor: ds.colors.neutral[300],
     borderRadius: ds.borderRadius.md,
-    paddingVertical: ds.spacing[3],
+    paddingVertical: ds.spacing[2],
     paddingHorizontal: ds.spacing[4],
-    fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.text.primary,
-    fontFamily: ds.typography.fontFamily.base,
   },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  radioGroup: {
-    gap: ds.spacing[2],
-  },
-  radioOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ds.spacing[3],
-    backgroundColor: ds.colors.background.primary,
-    borderWidth: 2,
-    borderColor: ds.colors.neutral[300],
-    borderRadius: ds.borderRadius.md,
-    padding: ds.spacing[4],
-  },
-  radioOptionActive: {
-    borderColor: ds.colors.primary.main,
-    backgroundColor: ds.colors.primary.lightest,
-  },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: ds.colors.neutral[400],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioButtonInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: ds.colors.primary.main,
-  },
-  radioContent: {
-    flex: 1,
-  },
-  radioLabel: {
-    fontSize: ds.typography.fontSize.base.size,
-    fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.text.primary,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  radioDescription: {
+  filterButtonText: {
     fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
-    marginTop: ds.spacing[1],
   },
-  submitButton: {
+  actions: {
+    flexDirection: 'row',
+    gap: ds.spacing[3],
+    marginBottom: ds.spacing[6],
+    flexWrap: 'wrap',
+  },
+  primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: ds.spacing[2],
     backgroundColor: ds.colors.primary.main,
     paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[5],
     borderRadius: ds.borderRadius.lg,
+    ...ds.shadows.sm,
   },
-  submitButtonText: {
+  primaryButtonText: {
     fontSize: ds.typography.fontSize.base.size,
     fontWeight: ds.typography.fontWeight.semibold,
     color: '#FFFFFF',
     fontFamily: ds.typography.fontFamily.base,
   },
-  buttonDisabled: {
-    opacity: 0.5,
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+    backgroundColor: ds.colors.background.primary,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[300],
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[5],
+    borderRadius: ds.borderRadius.lg,
+  },
+  secondaryButtonText: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
   },
   sectionTitle: {
     fontSize: ds.typography.fontSize.xl.size,
     fontWeight: ds.typography.fontWeight.bold,
     color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.heading,
-    marginTop: ds.spacing[4],
-    marginBottom: ds.spacing[4],
+    marginBottom: ds.spacing[2],
   },
-  emptyState: {
-    backgroundColor: ds.colors.background.secondary,
-    borderRadius: ds.borderRadius.lg,
-    padding: ds.spacing[8],
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: ds.typography.fontSize.base.size,
+  sectionSubtitle: {
+    fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
-    textAlign: 'center',
+    marginBottom: ds.spacing[4],
+    lineHeight: 20,
   },
-  codesList: {
-    gap: ds.spacing[4],
-  },
-  codeCard: {
-    backgroundColor: ds.colors.background.secondary,
+  table: {
+    backgroundColor: ds.colors.background.primary,
     borderRadius: ds.borderRadius.lg,
-    padding: ds.spacing[5],
     borderWidth: 1,
     borderColor: ds.colors.neutral[200],
+    overflow: 'hidden',
   },
-  codeHeader: {
+  tableContent: {
+    minWidth: 1200,
+  },
+  tableHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: ds.colors.neutral[50],
+    borderBottomWidth: 2,
+    borderBottomColor: ds.colors.neutral[200],
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+  },
+  tableHeaderCell: {
+    fontSize: ds.typography.fontSize.xs.size,
+    fontWeight: ds.typography.fontWeight.bold,
+    color: ds.colors.text.tertiary,
+    fontFamily: ds.typography.fontFamily.base,
+    textTransform: 'uppercase',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: ds.colors.neutral[200],
+    paddingVertical: ds.spacing[4],
+    paddingHorizontal: ds.spacing[4],
+  },
+  tableRowEven: {
+    backgroundColor: ds.colors.neutral[50],
+  },
+  tableCell: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: ds.spacing[3],
+    gap: ds.spacing[2],
+  },
+  codeColumn: {
+    width: 150,
+  },
+  typeColumn: {
+    width: 140,
+  },
+  numColumn: {
+    width: 120,
+  },
+  statusColumn: {
+    width: 100,
   },
   codeText: {
-    fontSize: ds.typography.fontSize.lg.size,
-    fontWeight: ds.typography.fontWeight.bold,
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.semibold,
     color: ds.colors.text.primary,
-    fontFamily: ds.typography.fontFamily.heading,
+    fontFamily: ds.typography.fontFamily.base,
   },
-  tierBadge: {
+  typeBadge: {
     paddingHorizontal: ds.spacing[3],
     paddingVertical: ds.spacing[1],
     borderRadius: ds.borderRadius.full,
   },
-  tierText: {
+  typeBadgeText: {
     fontSize: ds.typography.fontSize.xs.size,
-    fontWeight: ds.typography.fontWeight.bold,
-    color: '#FFFFFF',
+    fontWeight: ds.typography.fontWeight.medium,
+    color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.base,
   },
-  codeDescription: {
-    fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.text.secondary,
-    fontFamily: ds.typography.fontFamily.base,
-    marginBottom: ds.spacing[3],
-    lineHeight: ds.typography.fontSize.base.lineHeight * 1.5,
-  },
-  codeStats: {
-    flexDirection: 'row',
-    gap: ds.spacing[4],
-    marginBottom: ds.spacing[3],
-  },
-  codeStat: {
-    fontSize: ds.typography.fontSize.sm.size,
-    color: ds.colors.text.tertiary,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  deactivateButton: {
-    backgroundColor: ds.colors.background.primary,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    paddingVertical: ds.spacing[2],
-    paddingHorizontal: ds.spacing[4],
-    borderRadius: ds.borderRadius.md,
-    alignSelf: 'flex-start',
-  },
-  deactivateButtonText: {
+  percentageText: {
     fontSize: ds.typography.fontSize.sm.size,
     fontWeight: ds.typography.fontWeight.semibold,
-    color: '#EF4444',
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  expiringText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.medium,
+    fontFamily: ds.typography.fontFamily.base,
+    color: ds.colors.text.primary,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+    paddingHorizontal: ds.spacing[3],
+    paddingVertical: ds.spacing[1],
+    borderRadius: ds.borderRadius.full,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: ds.typography.fontSize.xs.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: ds.spacing[12],
+    gap: ds.spacing[3],
+  },
+  emptyText: {
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
   },
 })
