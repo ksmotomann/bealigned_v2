@@ -7,19 +7,14 @@
     {
       "source": "/grounding/:week",
       "destination": "/api/og/grounding"
-    }
-  ],
-  "routes": [
-    {
-      "src": "^/(about|pricing|contact|features)?$",
-      "dest": "/figma-wrapper.html"
     },
     {
-      "handle": "filesystem"
+      "source": "/(about|pricing|contact|features)",
+      "destination": "/figma-wrapper.html"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
