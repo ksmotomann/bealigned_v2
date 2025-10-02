@@ -21,7 +21,7 @@ export default function LandingPage() {
   useEffect(() => {
     const fetchReflectionCount = async () => {
       const { count, error } = await supabase
-        .from('reflections')
+        .from('reflection_sessions')
         .select('*', { count: 'exact', head: true })
 
       if (!error && count !== null) {
