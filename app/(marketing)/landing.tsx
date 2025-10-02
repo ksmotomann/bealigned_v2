@@ -82,7 +82,10 @@ export default function ModernLandingPage() {
             </Pressable>
           </View>
           <View style={styles.promoBannerRight}>
-            <Text style={styles.communityLabel}>🔴 COMMUNITY REFLECTIONS</Text>
+            <View style={styles.communityLabelContainer}>
+              <View style={styles.communityDot} />
+              <Text style={styles.communityLabel}>COMMUNITY REFLECTIONS</Text>
+            </View>
             <Text style={styles.communityCount}>{reflectionCount.toLocaleString()}</Text>
             <Text style={styles.communitySubtext}>and growing...</Text>
           </View>
@@ -446,13 +449,23 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 8,
   },
+  communityLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  communityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF8A65',
+  },
   communityLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: '#7DD3FC',
     letterSpacing: 1.5,
-    marginBottom: 8,
-    textAlign: 'center',
   },
   communityCount: {
     fontSize: 48,
