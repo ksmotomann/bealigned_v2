@@ -19,6 +19,9 @@ export default function LandingPage() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <SEOHead page="home" />
 
+      {/* Navigation Header */}
+      <NavigationHeader activeLink="home" />
+
       {/* Temporary Promotional Banner */}
       <View style={styles.promoBanner}>
         <View style={styles.promoBannerContent}>
@@ -36,9 +39,6 @@ export default function LandingPage() {
           </Pressable>
         </View>
       </View>
-
-      {/* Navigation Header */}
-      <NavigationHeader activeLink="home" />
 
       {/* Hero Section with Animated Wave Background */}
       <AnimatedWaveHero style={styles.hero}>

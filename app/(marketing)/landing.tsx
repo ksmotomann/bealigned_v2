@@ -12,24 +12,6 @@ export default function ModernLandingPage() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Temporary Promotional Banner */}
-      <View style={styles.promoBanner}>
-        <View style={styles.promoBannerContent}>
-          <Text style={styles.promoBannerTitle}>
-            Join the BeAligned™ Community — free for 7 days with code <Text style={styles.promoBannerCode}>BeBetaUser</Text>
-          </Text>
-          <Text style={styles.promoBannerSubtitle}>
-            No credit card. No strings. Just choice. Together we're learning, growing, and safeguarding childhoods.
-          </Text>
-          <Pressable
-            style={styles.promoBannerButton}
-            onPress={() => router.push('/(auth)/signup')}
-          >
-            <Text style={styles.promoBannerButtonText}>Start Free Trial</Text>
-          </Pressable>
-        </View>
-      </View>
-
       {/* Navigation Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -63,6 +45,24 @@ export default function ModernLandingPage() {
               <Ionicons name="menu" size={28} color="#1F2937" />
             </Pressable>
           )}
+        </View>
+      </View>
+
+      {/* Temporary Promotional Banner */}
+      <View style={styles.promoBanner}>
+        <View style={styles.promoBannerContent}>
+          <Text style={styles.promoBannerTitle}>
+            Join the BeAligned™ Community — free for 7 days with code <Text style={styles.promoBannerCode}>BeBetaUser</Text>
+          </Text>
+          <Text style={styles.promoBannerSubtitle}>
+            No credit card. No strings. Just choice. Together we're learning, growing, and safeguarding childhoods.
+          </Text>
+          <Pressable
+            style={styles.promoBannerButton}
+            onPress={() => router.push('/(auth)/signup')}
+          >
+            <Text style={styles.promoBannerButtonText}>Start Free Trial</Text>
+          </Pressable>
         </View>
       </View>
 
