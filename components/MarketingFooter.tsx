@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
     gap: ds.spacing[6],
   },
   footerLogo: {
-    width: 150,
-    height: 40,
+    width: 135,
+    height: 36,
   },
   footerNav: {
     flexDirection: 'row',
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   footerLink: {
-    fontSize: ds.typography.fontSize.base.size,
+    fontSize: ds.typography.fontSize.base.size * 0.9,
     color: '#4A5568',
     fontFamily: ds.typography.fontFamily.base,
     fontWeight: ds.typography.fontWeight.medium,
