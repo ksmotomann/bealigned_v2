@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   },
   disclaimerBanner: {
     backgroundColor: '#F5F5F5',
-    paddingVertical: ds.spacing[6],
+    paddingVertical: ds.spacing[3],
     paddingHorizontal: ds.spacing[10],
     flexDirection: 'row',
     alignItems: 'center',
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     marginRight: ds.spacing[2],
   },
   disclaimerText: {
-    fontSize: ds.typography.fontSize.base.size,
+    fontSize: ds.typography.fontSize.sm.size,
     color: '#4A5568',
     fontFamily: ds.typography.fontFamily.base,
   },
