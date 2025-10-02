@@ -25,6 +25,10 @@
       "destination": "/assets/:path*"
     },
     {
+      "source": "/",
+      "destination": "/figma-wrapper.html"
+    },
+    {
       "source": "/:path*",
       "destination": "/figma-wrapper.html"
     }
