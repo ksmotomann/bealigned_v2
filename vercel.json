@@ -3,14 +3,16 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
+  "rewrites": [
+    {
+      "source": "/grounding/:week",
+      "destination": "/api/og/grounding"
+    }
+  ],
   "routes": [
     {
       "src": "^/(about|pricing|contact|features)?$",
       "dest": "/figma-wrapper.html"
-    },
-    {
-      "src": "^/grounding/([0-9]+)$",
-      "dest": "/api/og/grounding?week=$1"
     },
     {
       "handle": "filesystem"

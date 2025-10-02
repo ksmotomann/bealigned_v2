@@ -2,7 +2,10 @@
 // This handles Facebook's crawler which doesn't execute JavaScript
 
 export default function handler(req, res) {
-  const { week } = req.query;
+  // Extract week from URL path or query parameter
+  const urlPath = req.url || '';
+  const pathMatch = urlPath.match(/\/grounding\/(\d+)/);
+  const week = pathMatch ? pathMatch[1] : req.query.week;
   const weekNumber = parseInt(week, 10);
 
   // Validate week number
