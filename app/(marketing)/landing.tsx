@@ -2,6 +2,8 @@ import { View, Text, ScrollView, Pressable, StyleSheet, useWindowDimensions, Pla
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
 import { createShadow } from '../../utils/platformStyles'
 
 export default function ModernLandingPage() {
@@ -9,6 +11,21 @@ export default function ModernLandingPage() {
   const { width } = useWindowDimensions()
   const isDesktop = width >= 1024
   const isTablet = width >= 768
+  const [reflectionCount, setReflectionCount] = useState(0)
+
+  useEffect(() => {
+    const fetchReflectionCount = async () => {
+      const { count, error } = await supabase
+        .from('reflections')
+        .select('*', { count: 'exact', head: true })
+
+      if (!error && count !== null) {
+        setReflectionCount(count)
+      }
+    }
+
+    fetchReflectionCount()
+  }, [])
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -67,7 +84,7 @@ export default function ModernLandingPage() {
           </View>
           <View style={styles.promoBannerRight}>
             <Text style={styles.communityLabel}>🔴 COMMUNITY REFLECTIONS</Text>
-            <Text style={styles.communityCount}>2,551</Text>
+            <Text style={styles.communityCount}>{reflectionCount.toLocaleString()}</Text>
             <Text style={styles.communitySubtext}>and growing...</Text>
           </View>
         </View>
