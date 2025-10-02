@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, Pressable, StyleSheet, Image, Platform } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
+import { Ionicons } from '@expo/vector-icons'
 import ds from '../../../styles/design-system'
 import NavigationHeader from '../../../components/NavigationHeader'
 import SEOHead from '../../../components/SEOHead'
@@ -104,14 +105,16 @@ export default function GroundingWeekPage() {
 
       {/* Main Content */}
       <View style={styles.section}>
-        <View style={styles.headerBadge}>
-          <Text style={styles.badgeText}>Weekly Grounding</Text>
+        <View style={styles.headerCard}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="leaf" size={24} color={ds.colors.primary.main} />
+          </View>
+          <Text style={styles.cardTitle}>Weekly Grounding</Text>
+          <Text style={styles.weekTitle}>Week {weekNumber}</Text>
+          <Text style={styles.subtitle}>
+            Be grounded. Be clear. BeAligned.™
+          </Text>
         </View>
-
-        <Text style={styles.weekTitle}>Week {weekNumber}</Text>
-        <Text style={styles.subtitle}>
-          Be grounded. Be clear. BeAligned.™
-        </Text>
 
         {/* Grounding Card Image */}
         <View style={styles.imageContainer}>
@@ -182,22 +185,32 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  headerBadge: {
-    alignSelf: 'center',
-    backgroundColor: ds.colors.primary.light,
-    paddingHorizontal: ds.spacing[4],
-    paddingVertical: ds.spacing[2],
-    borderRadius: ds.borderRadius.full,
-    marginBottom: ds.spacing[4],
+  headerCard: {
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.xl,
+    padding: ds.spacing[6],
+    alignItems: 'center',
+    marginBottom: ds.spacing[8],
+    ...ds.shadows.base,
   },
-  badgeText: {
-    fontSize: ds.typography.fontSize.sm.size,
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: ds.colors.primary.light + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: ds.spacing[3],
+  },
+  cardTitle: {
+    fontSize: ds.typography.fontSize.base.size,
     fontWeight: ds.typography.fontWeight.semibold,
-    color: ds.colors.primary.main,
-    fontFamily: ds.typography.fontFamily.base,
+    color: ds.colors.text.primary,
+    marginBottom: ds.spacing[2],
+    fontFamily: ds.typography.fontFamily.heading,
   },
   weekTitle: {
-    fontSize: ds.typography.fontSize['4xl'].size,
+    fontSize: ds.typography.fontSize['2xl'].size,
     fontWeight: ds.typography.fontWeight.bold,
     color: ds.colors.text.primary,
     textAlign: 'center',
@@ -205,10 +218,9 @@ const styles = StyleSheet.create({
     fontFamily: ds.typography.fontFamily.heading,
   },
   subtitle: {
-    fontSize: ds.typography.fontSize.lg.size,
+    fontSize: ds.typography.fontSize.base.size,
     color: ds.colors.text.secondary,
     textAlign: 'center',
-    marginBottom: ds.spacing[10],
     fontFamily: ds.typography.fontFamily.base,
   },
   imageContainer: {
