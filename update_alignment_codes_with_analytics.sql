@@ -201,8 +201,8 @@ INSERT INTO public.alignment_codes (
     ('ALIGN-09', 'user', 'Pilot Partner Code 9', 'pilot_partner', 45, 49.95, 79.95, true),
     ('ALIGN-10', 'user', 'Pilot Partner Code 10', 'pilot_partner', 45, 49.95, 79.95, true),
 
-    -- BeBetalizer (Beta type)
-    ('BeBetalizer', 'expert', 'Beta Tester Access', 'beta', 90, 0, 0, true),
+    -- BeBetaUser (Beta type)
+    ('BeBetaUser', 'expert', 'Beta Tester Access', 'beta', 90, 0, 0, true),
 
     -- BE-FREE-1YR (QA type)
     ('BE-FREE-1YR', 'expert', 'QA Team - 1 Year Free Access', 'free', 365, 0, 0, true)
