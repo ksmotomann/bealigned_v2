@@ -22,7 +22,7 @@ import { supabase } from '../../lib/supabase'
 import AdminTrainingTranscripts from '../../components/AdminTrainingTranscripts'
 import AdminSettings from '../../components/AdminSettings'
 import CommunityManager from '../../components/admin/CommunityManager'
-import AlignmentAnalyticsManager from '../../components/admin/AlignmentAnalyticsManager'
+import AlignmentCodesPanel from '../../components/admin/AlignmentCodesPanel'
 import FAQManager from '../../components/admin/FAQManager'
 import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
@@ -31,7 +31,7 @@ import RippleBackground from '../../components/RippleBackground'
 export default function AdminPanel() {
   const router = useRouter()
   const { seoData: contextSeoData, updateSEOData } = useSEO()
-  const [activeSection, setActiveSection] = useState('seo')
+  const [activeSection, setActiveSection] = useState('alignment-codes')
   const [localSeoData, setLocalSeoData] = useState(contextSeoData)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   
@@ -93,12 +93,6 @@ export default function AdminPanel() {
     newThisWeek: 0
   })
 
-  // Analytics state
-  const [analyticsData, setAnalyticsData] = useState([])
-  const [topPerformingCodes, setTopPerformingCodes] = useState([])
-  const [recentUsage, setRecentUsage] = useState([])
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
-  const [analyticsTab, setAnalyticsTab] = useState('overview')
   const [assetsTab, setAssetsTab] = useState('components')
   const [assetsSearch, setAssetsSearch] = useState('')
 
@@ -107,10 +101,10 @@ export default function AdminPanel() {
   const [loadingPosts, setLoadingPosts] = useState(false)
 
   const adminSections = [
+    { id: 'alignment-codes', title: 'Alignment Codes', icon: 'key-outline' },
     { id: 'seo', title: 'SEO Management', icon: 'search-outline' },
     { id: 'content', title: 'Content Management', icon: 'document-text-outline' },
     { id: 'config', title: 'App Configuration', icon: 'settings-outline' },
-    { id: 'alignment-analytics', title: 'Alignment Codes', icon: 'key-outline' },
     { id: 'ai', title: 'AI Configuration', icon: 'bulb-outline' },
     { id: 'chat', title: 'Chat Settings', icon: 'chatbubbles-outline' },
     { id: 'training', title: 'Training Management', icon: 'school-outline' },
@@ -2295,18 +2289,18 @@ export default function AdminPanel() {
     )
   }
 
-  const renderCommunitySection = () => <CommunityManager />
+  const renderAlignmentCodesSection = () => <AlignmentCodesPanel />
 
-  const renderAlignmentAnalyticsSection = () => <AlignmentAnalyticsManager />
+  const renderCommunitySection = () => <CommunityManager />
 
   const renderFaqSection = () => <FAQManager />
 
   const renderActiveSection = () => {
     switch (activeSection) {
+      case 'alignment-codes': return renderAlignmentCodesSection()
       case 'seo': return renderSeoSection()
       case 'content': return renderContentSection()
       case 'config': return renderConfigSection()
-      case 'alignment-analytics': return renderAlignmentAnalyticsSection()
       case 'ai': return renderAISection()
       case 'chat': return renderChatSection()
       case 'training': return renderTrainingSection()
