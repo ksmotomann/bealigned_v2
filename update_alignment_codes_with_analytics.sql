@@ -189,16 +189,16 @@ INSERT INTO public.alignment_codes (
     regular_price,
     is_active
 ) VALUES
-    -- ALIGN-1 through ALIGN-10 (Pilot type)
-    ('ALIGN-1', 'user', 'Pilot Partner Code 1', 'pilot_partner', 45, 49.95, 79.95, true),
-    ('ALIGN-2', 'user', 'Pilot Partner Code 2', 'pilot_partner', 45, 49.95, 79.95, true),
-    ('ALIGN-3', 'user', 'Pilot Partner Code 3', 'pilot_partner', 45, 49.95, 79.95, true),
-    ('ALIGN-4', 'user', 'Pilot Partner Code 4', 'pilot_partner', 45, 49.95, 79.95, true),
-    ('ALIGN-5', 'user', 'Pilot Partner Code 5', 'pilot_partner', 45, 49.95, 79.95, true),
-    ('ALIGN-6', 'user', 'Pilot Partner Code 6', 'pilot_partner', 45, 49.95, 79.95, true),
-    ('ALIGN-7', 'user', 'Pilot Partner Code 7', 'pilot_partner', 45, 49.95, 79.95, true),
-    ('ALIGN-8', 'user', 'Pilot Partner Code 8', 'pilot_partner', 45, 49.95, 79.95, true),
-    ('ALIGN-9', 'user', 'Pilot Partner Code 9', 'pilot_partner', 45, 49.95, 79.95, true),
+    -- ALIGN-01 through ALIGN-10 (Pilot type) - zero-padded for proper sorting
+    ('ALIGN-01', 'user', 'Pilot Partner Code 1', 'pilot_partner', 45, 49.95, 79.95, true),
+    ('ALIGN-02', 'user', 'Pilot Partner Code 2', 'pilot_partner', 45, 49.95, 79.95, true),
+    ('ALIGN-03', 'user', 'Pilot Partner Code 3', 'pilot_partner', 45, 49.95, 79.95, true),
+    ('ALIGN-04', 'user', 'Pilot Partner Code 4', 'pilot_partner', 45, 49.95, 79.95, true),
+    ('ALIGN-05', 'user', 'Pilot Partner Code 5', 'pilot_partner', 45, 49.95, 79.95, true),
+    ('ALIGN-06', 'user', 'Pilot Partner Code 6', 'pilot_partner', 45, 49.95, 79.95, true),
+    ('ALIGN-07', 'user', 'Pilot Partner Code 7', 'pilot_partner', 45, 49.95, 79.95, true),
+    ('ALIGN-08', 'user', 'Pilot Partner Code 8', 'pilot_partner', 45, 49.95, 79.95, true),
+    ('ALIGN-09', 'user', 'Pilot Partner Code 9', 'pilot_partner', 45, 49.95, 79.95, true),
     ('ALIGN-10', 'user', 'Pilot Partner Code 10', 'pilot_partner', 45, 49.95, 79.95, true),
 
     -- BeBetalizer (Beta type)
