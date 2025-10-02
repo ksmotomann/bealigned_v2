@@ -17,6 +17,7 @@ import ds from '../../styles/design-system'
 import AnimatedWaveHero from '../../components/AnimatedWaveHero'
 import NavigationHeader from '../../components/NavigationHeader'
 import SEOHead from '../../components/SEOHead'
+import MarketingFooter from '../../components/MarketingFooter'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -129,36 +130,7 @@ export default function Login() {
       </AnimatedWaveHero>
 
       {/* Footer */}
-      <View style={styles.footer}>
-        <Image
-          source={require('../../assets/bealigned_logo.avif')}
-          style={styles.footerLogoImage}
-          resizeMode="contain"
-        />
-        
-        <View style={styles.footerLinks}>
-          <Pressable onPress={() => router.push('/(marketing)')}>
-            <Text style={styles.footerLink}>Home</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/our-story')}>
-            <Text style={styles.footerLink}>Our Story</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/faq')}>
-            <Text style={styles.footerLink}>FAQ</Text>
-          </Pressable>
-          <Text style={styles.footerDivider}>•</Text>
-          <Pressable onPress={() => router.push('/(marketing)/contact')}>
-            <Text style={styles.footerLink}>Contact</Text>
-          </Pressable>
-        </View>
-        
-        <Text style={styles.footerDisclaimer}>
-          © 2025 BeAligned • BeH2O® is a registered trademark{'\n'}
-          BeAligned provides educational guidance and is not a substitute for professional therapy or legal advice
-        </Text>
-      </View>
+      <MarketingFooter />
     </ScrollView>
   )
 }

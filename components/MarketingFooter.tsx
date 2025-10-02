@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: ds.spacing[12],
+    paddingVertical: ds.spacing[6],
     paddingHorizontal: ds.spacing[10],
   },
   footerContent: {
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: ds.spacing[8],
+    gap: ds.spacing[6],
   },
   footerLogo: {
     width: 150,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#E2E8F0',
-    marginVertical: ds.spacing[8],
+    marginVertical: ds.spacing[4],
     maxWidth: 1200,
     width: '100%',
     alignSelf: 'center',
