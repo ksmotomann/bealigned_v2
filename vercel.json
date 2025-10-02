@@ -9,28 +9,24 @@
       "destination": "/api/og/grounding"
     },
     {
-      "source": "/",
-      "destination": "/figma-wrapper.html"
+      "source": "/(login|signup|dashboard|chat|profile|settings|admin|history|subscription|welcome|session|faq|our-story)/:path*",
+      "destination": "/index.html"
     },
     {
-      "source": "/about",
-      "destination": "/figma-wrapper.html"
+      "source": "/(login|signup|dashboard|chat|profile|settings|admin|history|subscription|welcome|session|faq|our-story)",
+      "destination": "/index.html"
     },
     {
-      "source": "/pricing",
-      "destination": "/figma-wrapper.html"
+      "source": "/_expo/:path*",
+      "destination": "/_expo/:path*"
     },
     {
-      "source": "/contact",
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/features",
-      "destination": "/figma-wrapper.html"
+      "source": "/assets/:path*",
+      "destination": "/assets/:path*"
     },
     {
       "source": "/:path*",
-      "destination": "/index.html"
+      "destination": "/figma-wrapper.html"
     }
   ]
 }
