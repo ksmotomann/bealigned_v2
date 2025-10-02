@@ -11,7 +11,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web && cp figma-wrapper.html dist/",
+    "build:web": "expo export --platform web && cp figma-wrapper.html dist/ && mv dist/index.html dist/app.html && cp dist/figma-wrapper.html dist/index.html",
     "build:preview": "eas build --platform all --profile preview",
     "build:production": "eas build --platform all --profile production",
     "submit:ios": "eas submit --platform ios",

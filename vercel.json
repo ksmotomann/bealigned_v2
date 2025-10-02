@@ -10,11 +10,11 @@
     },
     {
       "source": "/(login|signup|dashboard|chat|profile|settings|admin|history|subscription|welcome|session|faq|our-story)/:path*",
-      "destination": "/index.html"
+      "destination": "/app.html"
     },
     {
       "source": "/(login|signup|dashboard|chat|profile|settings|admin|history|subscription|welcome|session|faq|our-story)",
-      "destination": "/index.html"
+      "destination": "/app.html"
     },
     {
       "source": "/_expo/:path*",
@@ -23,14 +23,6 @@
     {
       "source": "/assets/:path*",
       "destination": "/assets/:path*"
-    },
-    {
-      "source": "/",
-      "destination": "/figma-wrapper.html"
-    },
-    {
-      "source": "/:path*",
-      "destination": "/figma-wrapper.html"
     }
   ]
 }
