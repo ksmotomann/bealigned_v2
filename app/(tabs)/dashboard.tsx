@@ -880,31 +880,6 @@ export default function Dashboard() {
             </View>
           </View>
 
-          {/* Proof of Reflection Section */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="document-text" size={20} color={ds.colors.primary.main} />
-              </View>
-              <View style={styles.sectionTitleContainer}>
-                <Text style={styles.sectionTitle}>Proof of Reflection</Text>
-                <Text style={styles.sectionSubtitle}>Download your progress</Text>
-              </View>
-              <View style={styles.completedBadge}>
-                <Text style={styles.completedText}>{completedReflections} completed</Text>
-              </View>
-            </View>
-
-            <Text style={styles.proofDescription}>
-              Generate a summary of your reflection journey for legal or personal records.
-            </Text>
-
-            <Pressable style={styles.downloadButton} onPress={downloadReflectionSummary}>
-              <Ionicons name="download" size={16} color={ds.colors.primary.main} />
-              <Text style={styles.downloadButtonText}>Download Reflection Summary</Text>
-            </Pressable>
-          </View>
-
           {/* Weekly Grounding Section */}
           <View style={styles.sectionCard}>
             <View style={styles.groundingHeader}>
@@ -1570,31 +1545,6 @@ const styles = StyleSheet.create({
     fontSize: ds.typography.fontSize.sm.size,
     fontWeight: ds.typography.fontWeight.medium,
     color: ds.colors.success,
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  proofDescription: {
-    fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.text.secondary,
-    lineHeight: ds.typography.fontSize.base.lineHeight + 4,
-    marginBottom: ds.spacing[4],
-    fontFamily: ds.typography.fontFamily.base,
-  },
-  downloadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: ds.spacing[2],
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: ds.colors.primary.main,
-    paddingVertical: ds.spacing[3],
-    paddingHorizontal: ds.spacing[4],
-    borderRadius: ds.borderRadius.lg,
-  },
-  downloadButtonText: {
-    fontSize: ds.typography.fontSize.base.size,
-    color: ds.colors.primary.main,
-    fontWeight: ds.typography.fontWeight.medium,
     fontFamily: ds.typography.fontFamily.base,
   },
 
