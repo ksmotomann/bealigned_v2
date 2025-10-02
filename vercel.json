@@ -9,11 +9,23 @@
       "destination": "/api/og/grounding"
     },
     {
-      "source": "/(about|pricing|contact|features)",
+      "source": "/about",
       "destination": "/figma-wrapper.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/pricing",
+      "destination": "/figma-wrapper.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/figma-wrapper.html"
+    },
+    {
+      "source": "/features",
+      "destination": "/figma-wrapper.html"
+    },
+    {
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
