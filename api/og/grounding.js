@@ -27,23 +27,29 @@ export default function handler(req, res) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${title}</title>
+  <meta name="description" content="${description}" />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="BeAligned" />
   <meta property="og:url" content="${pageUrl}" />
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${description}" />
   <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:secure_url" content="${imageUrl}" />
+  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="${title}" />
+  <meta property="og:locale" content="en_US" />
 
   <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content="${pageUrl}" />
-  <meta property="twitter:title" content="${title}" />
-  <meta property="twitter:description" content="${description}" />
-  <meta property="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@BeAligned" />
+  <meta name="twitter:title" content="${title}" />
+  <meta name="twitter:description" content="${description}" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:image:alt" content="${title}" />
 
   <!-- Redirect to actual app page -->
   <meta http-equiv="refresh" content="0;url=/grounding/${weekNumber}" />
