@@ -9,6 +9,10 @@
       "destination": "/api/og/grounding"
     },
     {
+      "source": "/",
+      "destination": "/figma-wrapper.html"
+    },
+    {
       "source": "/about",
       "destination": "/figma-wrapper.html"
     },
