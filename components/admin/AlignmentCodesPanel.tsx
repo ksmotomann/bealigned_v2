@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, Pressable, TextInput, Platform, ActivityIndicator, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
+import StandardModal from '../StandardModal'
 import ds from '../../styles/design-system'
 
 interface AlignmentCode {
@@ -15,6 +16,8 @@ interface AlignmentCode {
   created_at: string
   trial_days: number
   subscription_tier: string
+  app_access_status: string
+  custom_landing_message: any
 }
 
 interface CodeAnalytics {
@@ -37,6 +40,20 @@ export default function AlignmentCodesPanel() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState('All Types')
   const [filterTime, setFilterTime] = useState('All Time')
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingCode, setEditingCode] = useState<CodeWithAnalytics | null>(null)
+  const [editForm, setEditForm] = useState({
+    description: '',
+    is_active: true,
+    trial_days: 30,
+    subscription_tier: 'premium',
+    app_access_status: 'full_access',
+    landing_title: '',
+    landing_message: '',
+  })
+  const [saving, setSaving] = useState(false)
 
   // Global stats
   const [totalActiveUsers, setTotalActiveUsers] = useState(0)
@@ -160,6 +177,69 @@ export default function AlignmentCodesPanel() {
     if (percentage >= 50) return '#F59E0B' // yellow
     if (percentage >= 30) return '#F97316' // orange
     return '#EF4444' // red
+  }
+
+  const handleEditCode = (code: CodeWithAnalytics) => {
+    setEditingCode(code)
+    setEditForm({
+      description: code.description || '',
+      is_active: code.is_active,
+      trial_days: code.trial_days || 30,
+      subscription_tier: code.subscription_tier || 'premium',
+      app_access_status: code.app_access_status || 'full_access',
+      landing_title: code.custom_landing_message?.title || '',
+      landing_message: code.custom_landing_message?.message || '',
+    })
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingCode) return
+
+    setSaving(true)
+    try {
+      const updateData: any = {
+        description: editForm.description,
+        is_active: editForm.is_active,
+        trial_days: editForm.trial_days,
+        subscription_tier: editForm.subscription_tier,
+        app_access_status: editForm.app_access_status,
+        updated_at: new Date().toISOString(),
+      }
+
+      // Add custom landing message if restrict_with_landing is selected
+      if (editForm.app_access_status === 'restrict_with_landing') {
+        updateData.custom_landing_message = {
+          title: editForm.landing_title,
+          message: editForm.landing_message,
+        }
+      } else {
+        updateData.custom_landing_message = null
+      }
+
+      const { error } = await supabase
+        .from('alignment_codes')
+        .update(updateData)
+        .eq('id', editingCode.id)
+
+      if (error) throw error
+
+      if (Platform.OS === 'web') {
+        window.alert('Alignment code updated successfully!')
+      }
+
+      setShowEditModal(false)
+      setEditingCode(null)
+      loadAlignmentCodesWithAnalytics()
+
+    } catch (error) {
+      console.error('Error updating alignment code:', error)
+      if (Platform.OS === 'web') {
+        window.alert('Failed to update alignment code')
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
   const filteredCodes = alignmentCodes.filter(code => {
@@ -294,12 +374,13 @@ export default function AlignmentCodesPanel() {
 
             {/* Table Rows */}
             {filteredCodes.map((code, index) => (
-              <View
+              <Pressable
                 key={code.id}
                 style={[
                   styles.tableRow,
                   index % 2 === 0 && styles.tableRowEven
                 ]}
+                onPress={() => handleEditCode(code)}
               >
                 <View style={[styles.tableCell, styles.codeColumn]}>
                   <Ionicons name="link-outline" size={16} color={ds.colors.text.tertiary} />
@@ -383,7 +464,7 @@ export default function AlignmentCodesPanel() {
                     </Text>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         </ScrollView>
@@ -395,6 +476,150 @@ export default function AlignmentCodesPanel() {
           <Text style={styles.emptyText}>No alignment codes found</Text>
         </View>
       )}
+
+      {/* Edit Code Modal */}
+      <StandardModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title={`Edit ${editingCode?.code}`}
+        subtitle="Update code settings and access control"
+        headerIcon="settings-outline"
+        maxWidth={700}
+        buttons={[
+          {
+            text: 'Cancel',
+            onPress: () => setShowEditModal(false),
+            variant: 'secondary',
+          },
+          {
+            text: 'Save Changes',
+            onPress: handleSaveEdit,
+            variant: 'primary',
+            loading: saving,
+            icon: 'checkmark',
+          },
+        ]}
+      >
+        <View style={styles.editForm}>
+          {/* Description */}
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={editForm.description}
+              onChangeText={(text) => setEditForm({ ...editForm, description: text })}
+              placeholder="Code description"
+              multiline
+              numberOfLines={2}
+            />
+          </View>
+
+          {/* Trial Days */}
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Trial Days</Text>
+            <TextInput
+              style={styles.input}
+              value={String(editForm.trial_days)}
+              onChangeText={(text) => setEditForm({ ...editForm, trial_days: parseInt(text) || 0 })}
+              placeholder="30"
+              keyboardType="numeric"
+            />
+          </View>
+
+          {/* Subscription Tier */}
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Subscription Tier</Text>
+            <TextInput
+              style={styles.input}
+              value={editForm.subscription_tier}
+              onChangeText={(text) => setEditForm({ ...editForm, subscription_tier: text })}
+              placeholder="pilot_partner, beta, premium, etc."
+            />
+          </View>
+
+          {/* App Access Status */}
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>App Access Control</Text>
+            <Text style={styles.helpText}>
+              Controls what users with this code can access
+            </Text>
+            <View style={styles.radioGroup}>
+              {[
+                { value: 'full_access', label: 'Full Access', description: 'Users can access all app features' },
+                { value: 'restrict_with_landing', label: 'Restricted with Landing Page', description: 'Show custom landing page, restrict app access' },
+                { value: 'approval_required', label: 'Approval Required', description: 'Admin approval needed before access' },
+                { value: 'disabled', label: 'Disabled', description: 'Block all access' },
+              ].map((option) => (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.radioOption,
+                    editForm.app_access_status === option.value && styles.radioOptionActive
+                  ]}
+                  onPress={() => setEditForm({ ...editForm, app_access_status: option.value })}
+                >
+                  <View style={styles.radioButton}>
+                    {editForm.app_access_status === option.value && (
+                      <View style={styles.radioButtonInner} />
+                    )}
+                  </View>
+                  <View style={styles.radioContent}>
+                    <Text style={styles.radioLabel}>{option.label}</Text>
+                    <Text style={styles.radioDescription}>{option.description}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Custom Landing Message (only if restrict_with_landing) */}
+          {editForm.app_access_status === 'restrict_with_landing' && (
+            <>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Landing Page Title</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editForm.landing_title}
+                  onChangeText={(text) => setEditForm({ ...editForm, landing_title: text })}
+                  placeholder="Welcome, BeBetaUser!"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Landing Page Message</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={editForm.landing_message}
+                  onChangeText={(text) => setEditForm({ ...editForm, landing_message: text })}
+                  placeholder="Enter the message to show on the landing page..."
+                  multiline
+                  numberOfLines={6}
+                />
+              </View>
+            </>
+          )}
+
+          {/* Active Status */}
+          <View style={styles.formGroup}>
+            <Pressable
+              style={[styles.checkboxRow]}
+              onPress={() => setEditForm({ ...editForm, is_active: !editForm.is_active })}
+            >
+              <View style={[styles.checkbox, editForm.is_active && styles.checkboxChecked]}>
+                {editForm.is_active && (
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                )}
+              </View>
+              <View>
+                <Text style={styles.checkboxLabel}>Active</Text>
+                <Text style={styles.checkboxDescription}>
+                  Users can sign up with this code
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      </StandardModal>
     </ScrollView>
   )
 }
@@ -685,6 +910,118 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  editForm: {
+    gap: ds.spacing[5],
+  },
+  formGroup: {
+    gap: ds.spacing[2],
+  },
+  label: {
+    fontSize: ds.typography.fontSize.sm.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  helpText: {
+    fontSize: ds.typography.fontSize.xs.size,
+    color: ds.colors.text.tertiary,
+    fontFamily: ds.typography.fontFamily.base,
+    marginBottom: ds.spacing[2],
+  },
+  input: {
+    backgroundColor: ds.colors.background.primary,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[300],
+    borderRadius: ds.borderRadius.md,
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    fontSize: ds.typography.fontSize.base.size,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  radioGroup: {
+    gap: ds.spacing[2],
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[3],
+    backgroundColor: ds.colors.background.primary,
+    borderWidth: 2,
+    borderColor: ds.colors.neutral[300],
+    borderRadius: ds.borderRadius.md,
+    padding: ds.spacing[4],
+  },
+  radioOptionActive: {
+    borderColor: ds.colors.primary.main,
+    backgroundColor: ds.colors.primary.lightest,
+  },
+  radioButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: ds.colors.neutral[400],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioButtonInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: ds.colors.primary.main,
+  },
+  radioContent: {
+    flex: 1,
+  },
+  radioLabel: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  radioDescription: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+    marginTop: ds.spacing[1],
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[3],
+    padding: ds.spacing[3],
+    backgroundColor: ds.colors.background.primary,
+    borderRadius: ds.borderRadius.md,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: ds.borderRadius.sm,
+    borderWidth: 2,
+    borderColor: ds.colors.neutral[400],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: ds.colors.primary.main,
+    borderColor: ds.colors.primary.main,
+  },
+  checkboxLabel: {
+    fontSize: ds.typography.fontSize.base.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: ds.colors.text.primary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  checkboxDescription: {
+    fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
     fontFamily: ds.typography.fontFamily.base,
   },
