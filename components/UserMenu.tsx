@@ -166,19 +166,24 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   const isAdmin = profile?.user_type === 'admin' || profile?.user_type === 'super_admin'
 
+  // Don't render until profile is loaded
+  if (!profile) {
+    return null
+  }
+
   return (
     <View style={styles.container}>
-      <Pressable 
+      <Pressable
         style={styles.avatarContainer}
         onPress={() => setShowDropdown(!showDropdown)}
       >
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{getInitials()}</Text>
         </View>
-        <Ionicons 
-          name={showDropdown ? "chevron-up" : "chevron-down"} 
-          size={16} 
-          color={ds.colors.text.secondary} 
+        <Ionicons
+          name={showDropdown ? "chevron-up" : "chevron-down"}
+          size={16}
+          color={ds.colors.text.secondary}
         />
       </Pressable>
 
