@@ -242,7 +242,11 @@ export default function AlignmentCodesPanel() {
 
   const filteredCodes = alignmentCodes.filter(code => {
     const matchesSearch = code.code.toLowerCase().includes(searchQuery.toLowerCase())
-    // Add filter logic for type and time if needed
+
+    // Filter by status
+    if (filterStatus === 'active' && !code.is_active) return false
+    if (filterStatus === 'inactive' && code.is_active) return false
+
     return matchesSearch
   })
 
@@ -303,7 +307,7 @@ export default function AlignmentCodesPanel() {
         </View>
       </View>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <View style={styles.controls}>
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color={ds.colors.text.tertiary} style={styles.searchIcon} />
@@ -314,6 +318,55 @@ export default function AlignmentCodesPanel() {
             onChangeText={setSearchQuery}
             placeholderTextColor={ds.colors.text.tertiary}
           />
+        </View>
+
+        <View style={styles.filtersRow}>
+          <View>
+            <Pressable
+              style={styles.filterButton}
+              onPress={() => setShowStatusDropdown(!showStatusDropdown)}
+            >
+              <Text style={styles.filterButtonText}>
+                {filterStatus === 'all' ? 'All Status' : filterStatus === 'active' ? 'Active Only' : 'Inactive Only'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={ds.colors.text.secondary} />
+            </Pressable>
+
+            {showStatusDropdown && (
+              <View style={styles.dropdown}>
+                <Pressable
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setFilterStatus('all')
+                    setShowStatusDropdown(false)
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>All Status</Text>
+                  {filterStatus === 'all' && <Ionicons name="checkmark" size={20} color={ds.colors.primary.main} />}
+                </Pressable>
+                <Pressable
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setFilterStatus('active')
+                    setShowStatusDropdown(false)
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>Active Only</Text>
+                  {filterStatus === 'active' && <Ionicons name="checkmark" size={20} color={ds.colors.primary.main} />}
+                </Pressable>
+                <Pressable
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setFilterStatus('inactive')
+                    setShowStatusDropdown(false)
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>Inactive Only</Text>
+                  {filterStatus === 'inactive' && <Ionicons name="checkmark" size={20} color={ds.colors.primary.main} />}
+                </Pressable>
+              </View>
+            )}
+          </View>
         </View>
       </View>
 
@@ -732,6 +785,33 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontSize: ds.typography.fontSize.sm.size,
     color: ds.colors.text.secondary,
+    fontFamily: ds.typography.fontFamily.base,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: ds.spacing[1],
+    backgroundColor: ds.colors.background.primary,
+    borderWidth: 1,
+    borderColor: ds.colors.neutral[300],
+    borderRadius: ds.borderRadius.md,
+    ...ds.shadows.md,
+    zIndex: 1000,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: ds.spacing[3],
+    paddingHorizontal: ds.spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: ds.colors.neutral[200],
+  },
+  dropdownItemText: {
+    fontSize: ds.typography.fontSize.sm.size,
+    color: ds.colors.text.primary,
     fontFamily: ds.typography.fontFamily.base,
   },
   actions: {
