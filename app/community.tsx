@@ -281,13 +281,13 @@ export default function Community() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Back to Dashboard */}
-        <TouchableOpacity
+        <Pressable
           style={styles.backButton}
           onPress={() => router.push('/dashboard')}
         >
           <Ionicons name="arrow-back" size={20} color={ds.colors.primary.main} />
           <Text style={styles.backButtonText}>Back to Dashboard</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Header */}
         <View style={styles.header}>

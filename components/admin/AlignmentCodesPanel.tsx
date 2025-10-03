@@ -38,8 +38,6 @@ export default function AlignmentCodesPanel() {
   const [alignmentCodes, setAlignmentCodes] = useState<CodeWithAnalytics[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterType, setFilterType] = useState('All Types')
-  const [filterTime, setFilterTime] = useState('All Time')
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
@@ -305,7 +303,7 @@ export default function AlignmentCodesPanel() {
         </View>
       </View>
 
-      {/* Search and Filters */}
+      {/* Search */}
       <View style={styles.controls}>
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color={ds.colors.text.tertiary} style={styles.searchIcon} />
@@ -316,18 +314,6 @@ export default function AlignmentCodesPanel() {
             onChangeText={setSearchQuery}
             placeholderTextColor={ds.colors.text.tertiary}
           />
-        </View>
-
-        <View style={styles.filtersRow}>
-          <Pressable style={styles.filterButton}>
-            <Text style={styles.filterButtonText}>{filterType}</Text>
-            <Ionicons name="chevron-down" size={16} color={ds.colors.text.secondary} />
-          </Pressable>
-
-          <Pressable style={styles.filterButton}>
-            <Text style={styles.filterButtonText}>{filterTime}</Text>
-            <Ionicons name="chevron-down" size={16} color={ds.colors.text.secondary} />
-          </Pressable>
         </View>
       </View>
 
