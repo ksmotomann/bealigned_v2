@@ -374,7 +374,7 @@ export default function SignUp() {
       </AnimatedWaveHero>
 
       {/* Footer */}
-      <MarketingFooter />
+      <MarketingFooter hideCTA />
     </ScrollView>
   )
 }

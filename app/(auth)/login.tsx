@@ -130,7 +130,7 @@ export default function Login() {
       </AnimatedWaveHero>
 
       {/* Footer */}
-      <MarketingFooter />
+      <MarketingFooter hideCTA />
     </ScrollView>
   )
 }

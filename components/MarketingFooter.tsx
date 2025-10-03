@@ -5,9 +5,10 @@ import ds from '../styles/design-system'
 
 interface MarketingFooterProps {
   activeLink?: 'our-story' | 'faq' | 'contact'
+  hideCTA?: boolean  // Hide the signup CTA banner (for login/signup pages)
 }
 
-export default function MarketingFooter({ activeLink }: MarketingFooterProps) {
+export default function MarketingFooter({ activeLink, hideCTA = false }: MarketingFooterProps) {
   const router = useRouter()
 
   const handleExternalLink = (url: string) => {
@@ -16,16 +17,18 @@ export default function MarketingFooter({ activeLink }: MarketingFooterProps) {
 
   return (
     <View>
-      {/* Blue CTA Banner */}
-      <View style={styles.ctaBanner}>
-        <Text style={styles.ctaText}>Join families already creating healthier conversations</Text>
-        <Pressable
-          style={styles.ctaButton}
-          onPress={() => router.push('/(auth)/signup')}
-        >
-          <Text style={styles.ctaButtonText}>Get Started Free</Text>
-        </Pressable>
-      </View>
+      {/* Blue CTA Banner - hidden on auth pages */}
+      {!hideCTA && (
+        <View style={styles.ctaBanner}>
+          <Text style={styles.ctaText}>Join families already creating healthier conversations</Text>
+          <Pressable
+            style={styles.ctaButton}
+            onPress={() => router.push('/(auth)/signup')}
+          >
+            <Text style={styles.ctaButtonText}>Get Started Free</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Grey Disclaimer Banner */}
       <View style={styles.disclaimerBanner}>
