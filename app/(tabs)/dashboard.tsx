@@ -465,48 +465,26 @@ export default function Dashboard() {
 
       switch (platform) {
         case 'facebook':
-          // Use react-native-share for Facebook with image on mobile
-          if (Platform.OS !== 'web' && imageUri && RNShare) {
-            try {
-              console.log('🔍 Facebook Sharing Debug:')
-              console.log('  - Image URI:', imageUri)
-              console.log('  - Message:', message)
-
-              // Ensure the URI is in the correct format
-              const formattedUri = imageUri.startsWith('file://') ? imageUri : `file://${imageUri}`
-              console.log('  - Formatted URI:', formattedUri)
-
-              const shareOptions = {
-                social: RNShare.Social.FACEBOOK,
-                url: formattedUri,
-                message: message,
-              }
-
-              console.log('  - Share options:', shareOptions)
-
-              await RNShare.shareSingle(shareOptions)
-              console.log('✅ Facebook share successful')
-              setShowSocialMediaModal(false)
-              return
-            } catch (error: any) {
-              console.error('❌ Facebook share error:', error)
-              if (error.message !== 'User did not share') {
-                console.error('Full error details:', JSON.stringify(error, null, 2))
-              }
-              // Fall through to web fallback
-            }
-          }
-
-          // Fallback for web or if native share fails - use landing page with OG tags
+          // Facebook sharing always uses the grounding page URL so FB can scrape OG tags
+          // Determine the base URL
           const baseUrl = Platform.OS === 'web'
-            ? (window.location.hostname === 'localhost'
+            ? (typeof window !== 'undefined' && window.location.hostname === 'localhost'
                 ? 'http://localhost:8081'
-                : `${window.location.protocol}//${window.location.hostname}`)
+                : typeof window !== 'undefined'
+                  ? `${window.location.protocol}//${window.location.hostname}`
+                  : 'https://bealigned.app')
             : process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.app'
 
-          // Share the grounding landing page URL (Facebook will scrape OG tags)
+          console.log('🔍 Facebook Sharing Debug:')
+          console.log('  - Base URL:', baseUrl)
+          console.log('  - Week Number:', currentWeekNumber)
+
+          // Share the grounding landing page URL (Facebook will scrape OG tags for image)
           const groundingPageUrl = `${baseUrl}/grounding/${currentWeekNumber}`
+          console.log('  - Grounding Page URL:', groundingPageUrl)
+
           const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(groundingPageUrl)}`
+          console.log('  - Facebook Share URL:', facebookUrl)
 
           if (Platform.OS === 'web') {
             window.open(facebookUrl, '_blank')
