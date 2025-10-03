@@ -70,9 +70,19 @@ export default function UserMenu({ user }: UserMenuProps) {
   }
 
   const getInitials = () => {
-    const firstName = profile?.first_name || user?.firstName || ''
-    const lastName = profile?.last_name || user?.lastName || ''
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || user?.email?.charAt(0).toUpperCase() || '?'
+    // Wait for profile to load to avoid showing wrong initials
+    if (!profile) {
+      return user?.email?.charAt(0).toUpperCase() || '?'
+    }
+
+    const firstName = profile.first_name || ''
+    const lastName = profile.last_name || ''
+
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+    }
+
+    return user?.email?.charAt(0).toUpperCase() || '?'
   }
 
   const getDisplayName = () => {
