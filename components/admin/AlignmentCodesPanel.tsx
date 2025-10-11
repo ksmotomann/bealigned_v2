@@ -38,6 +38,8 @@ export default function AlignmentCodesPanel() {
   const [alignmentCodes, setAlignmentCodes] = useState<CodeWithAnalytics[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false)
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false)
