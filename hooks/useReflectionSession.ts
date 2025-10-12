@@ -666,46 +666,26 @@ export function useReflectionSession(
       // Using default preferences since we're sending simplified requests
       const userPreferences = { showPhasePrompts: false, autoAdvanceSteps: true }
 
-      // Feature flag: Use chat-v2 (Flow Engine) or original chat
-      const useChatV2 = process.env.EXPO_PUBLIC_USE_CHAT_V2 === 'true'
-      const chatFunction = useChatV2 ? 'chat-v2' : 'chat'
+      // Use chat-v2 (Flow Engine) as default
+      debug.ai('🎯 Using chat-v2 (Flow Engine with readiness-based progression)')
 
-      debug.ai(`🎯 Using ${chatFunction} (EXPO_PUBLIC_USE_CHAT_V2=${process.env.EXPO_PUBLIC_USE_CHAT_V2})`)
+      // chat-v2: Flow Engine with readiness scoring
+      const response = await supabase.functions.invoke('chat-v2', {
+        body: {
+          userInput: input,
+          currentPhase: getPhaseNameFromNumber(session.currentStep),
+          flowState: session.flowState || {
+            readiness: 0.0,
+            context: {},
+            lastPrompt: "",
+            lastResponse: "",
+            conversationHistory: []
+          },
+          sessionId: session.id
+        }
+      })
 
-      let data, error
-
-      if (useChatV2) {
-        // chat-v2: Flow Engine with readiness scoring
-        const response = await supabase.functions.invoke('chat-v2', {
-          body: {
-            userInput: input,
-            currentPhase: getPhaseNameFromNumber(session.currentStep),
-            flowState: session.flowState || {
-              readiness: 0.0,
-              context: {},
-              lastPrompt: "",
-              lastResponse: "",
-              conversationHistory: []
-            },
-            sessionId: session.id
-          }
-        })
-        data = response.data
-        error = response.error
-      } else {
-        // Original chat function
-        const response = await supabase.functions.invoke('chat', {
-          body: {
-            userInput: input,
-            currentPhase: session.currentStep,
-            conversationHistory: [], // TEMPORARY: Force empty to test phase advancement
-            sessionContext: {},
-            sessionId: session.id
-          }
-        })
-        data = response.data
-        error = response.error
-      }
+      const { data, error } = response
       debug.ai('📥 Function response - data:', data, 'error:', error)
       debug.log('🔍 DEBUG: data.response =', data?.response)
       debug.log('🔍 DEBUG: data.content =', data?.content)
