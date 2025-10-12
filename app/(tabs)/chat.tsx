@@ -12,10 +12,13 @@ import { NeedSelector } from '../../components/NeedSelector'
 import { TypingIndicator } from '../../components/TypingIndicator'
 import { MarkdownText } from '../../components/MarkdownText'
 import { RichText } from '../../components/RichText'
+import { QuickReplyButtons } from '../../components/QuickReplyButtons'
+import { detectQuickReplies, shouldShowQuickReplies } from '../../lib/quickReplyDetector'
 import { supabase } from '../../lib/supabase'
 import { useAdmin } from '../../contexts/AdminContext'
 import InAppNavigationHeader from '../../components/InAppNavigationHeader'
 import ds from '../../styles/design-system'
+import debug from '../../lib/debugLogger'
 
 export default function Chat() {
   const router = useRouter()
@@ -87,12 +90,6 @@ export default function Chat() {
     }, 5000)
     return () => clearTimeout(timer)
   }, [])
-  
-  // Debug logging
-  console.log('Chat messages:', messages)
-  console.log('Using Function-Enhanced Assistant with 100% GPT alignment')
-  console.log('Admin status:', { adminViewEnabled, isActualAdmin, showAdminInput })
-  console.log('Loading state:', { loading, forceHideLoading, messagesLength: messages.length })
 
   // Check if user is admin
   useEffect(() => {
@@ -232,24 +229,61 @@ export default function Chat() {
     }
   }
 
+  const handleCompleteReflection = async () => {
+    if (!session.id) return
+
+    try {
+      // Mark session as completed in database
+      await supabase
+        .from('reflection_sessions')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', session.id)
+
+      // Reload session history to show completed status
+      await loadSessionHistory()
+
+      // Show success message
+      Alert.alert(
+        '✨ Reflection Complete',
+        'Great work! Your reflection has been saved. You can review it anytime from your history.',
+        [
+          {
+            text: 'View Dashboard',
+            onPress: () => router.push('/dashboard')
+          },
+          {
+            text: 'Start New Reflection',
+            onPress: () => startNewSession()
+          }
+        ]
+      )
+    } catch (error) {
+      console.error('Error completing reflection:', error)
+      Alert.alert('Error', 'Failed to complete reflection. Please try again.')
+    }
+  }
+
   // Export chat as PDF
   const handleExportPDF = async () => {
-    console.log('🔵 PDF Export button clicked!')
-    console.log('📊 Session info:', { 
-      sessionId: session.id, 
+    debug.log('🔵 PDF Export button clicked!')
+    debug.log('📊 Session info:', {
+      sessionId: session.id,
       messagesLength: messages.length,
       sessionExists: !!session,
       firstMessage: messages[0]?.content?.substring(0, 50)
     })
-    
+
     if (!session.id || messages.length === 0) {
-      console.log('❌ No session or messages to export')
+      debug.log('❌ No session or messages to export')
       Alert.alert('No Chat to Export', 'Start a chat session first to export it as PDF.')
       return
     }
 
     try {
-      console.log('🚀 Calling export-pdf function...')
+      debug.log('🚀 Calling export-pdf function...')
       
       // Get the auth token for the request
       const { data: { session: authSession } } = await supabase.auth.getSession()
@@ -271,7 +305,7 @@ export default function Chat() {
         })
       })
 
-      console.log('📥 Export response received:', response.status)
+      debug.log('📥 Export response received:', response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -282,7 +316,7 @@ export default function Chat() {
 
       // Get PDF as blob
       const blob = await response.blob()
-      console.log('💾 Processing PDF download... Blob size:', blob.size)
+      debug.log('💾 Processing PDF download... Blob size:', blob.size)
       
       if (blob.size === 0) {
         Alert.alert('Export Failed', 'Empty PDF received')
@@ -316,34 +350,34 @@ export default function Chat() {
   }
 
   const handleAdminFeedback = async () => {
-    console.log('🔵 handleAdminFeedback called')
-    console.log('🔍 adminFeedbackText:', adminFeedbackText)
-    console.log('🔍 session:', session?.id)
-    
+    debug.log('🔵 handleAdminFeedback called')
+    debug.log('🔍 adminFeedbackText:', adminFeedbackText)
+    debug.log('🔍 session:', session?.id)
+
     // Prevent double submissions
     if (isSubmittingAdminFeedback) {
-      console.log('⚠️ Already submitting feedback, ignoring duplicate request')
+      debug.log('⚠️ Already submitting feedback, ignoring duplicate request')
       return
     }
-    
+
     if (!adminFeedbackText.trim()) {
-      console.log('❌ Admin feedback is empty, not submitting')
+      debug.log('❌ Admin feedback is empty, not submitting')
       Alert.alert('Error', 'Please enter feedback before submitting.')
       return
     }
 
     if (!session?.id) {
-      console.log('❌ No active session found')
+      debug.log('❌ No active session found')
       Alert.alert('Error', 'No active session found. Please start a chat session first.')
       return
     }
 
     // Set loading state
     setIsSubmittingAdminFeedback(true)
-    console.log('🔄 Setting loading state to true')
+    debug.log('🔄 Setting loading state to true')
 
     try {
-      console.log('🎯 Submitting admin feedback:', {
+      debug.log('🎯 Submitting admin feedback:', {
         sessionId: session.id,
         phase: session.currentStep,
         feedbackText: adminFeedbackText,
@@ -371,14 +405,14 @@ export default function Chat() {
         }
       })
 
-      console.log('🔍 Raw result:', result)
-      
+      debug.log('🔍 Raw result:', result)
+
       if (result.error) {
         console.error('❌ Supabase function error:', result.error)
         Alert.alert('Error', `Failed to submit feedback: ${result.error.message || 'Unknown error'}`)
       } else {
-        console.log('✅ Admin feedback processed successfully:', result.data)
-        console.log('🔍 Response data structure:', JSON.stringify(result.data, null, 2))
+        debug.log('✅ Admin feedback processed successfully:', result.data)
+        debug.log('🔍 Response data structure:', JSON.stringify(result.data, null, 2))
         
         const data = result.data
         const actions = data.immediateActions || []
@@ -413,8 +447,8 @@ export default function Chat() {
         
         // Step 3: If a corrected response was generated, replace the last AI message
         if (data.correctedResponse && data.isAboutLastResponse) {
-          console.log('🔄 Replacing last AI message with corrected response')
-          
+          debug.log('🔄 Replacing last AI message with corrected response')
+
           const lastAIMessage = messages.filter(m => m.role === 'assistant').slice(-1)[0]
           if (lastAIMessage) {
             // Remove the last AI message and add the corrected one
@@ -431,7 +465,7 @@ export default function Chat() {
             updateMessages(() => [...correctedMessages, correctedAIMessage])
             
             // Save corrected message to database
-            await supabase.from('chat_messages').insert({
+            await supabase.from('reflection_messages').insert({
               session_id: session.id,
               role: 'assistant',
               content: data.correctedResponse,
@@ -450,12 +484,12 @@ export default function Chat() {
 
         // Show acknowledgment message
         const acknowledgeMessage = data.acknowledgmentMessage || message.trim()
-        console.log('🔔 Showing acknowledgment alert:', acknowledgeMessage)
-        
+        debug.log('🔔 Showing acknowledgment alert:', acknowledgeMessage)
+
         Alert.alert(
-          'Feedback Processed ✅', 
+          'Feedback Processed ✅',
           acknowledgeMessage,
-          [{ text: 'OK', onPress: () => console.log('Alert dismissed') }]
+          [{ text: 'OK', onPress: () => debug.log('Alert dismissed') }]
         )
         setAdminFeedbackText('')
       }
@@ -466,18 +500,25 @@ export default function Chat() {
     } finally {
       // Always reset loading state
       setIsSubmittingAdminFeedback(false)
-      console.log('🔄 Setting loading state to false')
+      debug.log('🔄 Setting loading state to false')
     }
   }
 
   const renderMessage = (message: any, index: number) => {
     const isUser = message.role === 'user'
+    const isLastMessage = index === messages.length - 1
 
     // Get the previous user message for AI responses
     const messageIndex = messages.findIndex(m => m.id === message.id)
     const previousUserMessage = !isUser && messageIndex > 0
       ? messages[messageIndex - 1]?.content
       : undefined
+
+    // Detect quick reply buttons for AI messages
+    const messageContent = typeof message.content === 'string' ? message.content : ''
+    const quickReplies = !isUser && shouldShowQuickReplies(message.id, messages, isLastMessage)
+      ? detectQuickReplies(messageContent)
+      : null
 
     // Phase headers are now database-driven via dedicated messages with isPhaseHeader: true
     // No need for automatic frontend phase transition detection
@@ -585,10 +626,25 @@ export default function Chat() {
                   </>
                 )}
               </View>
+
+              {/* Quick Reply Buttons for yes/no questions */}
+              {quickReplies && quickReplies.length > 0 && (
+                <QuickReplyButtons
+                  buttons={quickReplies}
+                  onPress={(value) => {
+                    setInputText(value)
+                    // Auto-send the quick reply
+                    setTimeout(() => {
+                      sendMessage(value)
+                    }, 100)
+                  }}
+                  disabled={loading || aiTyping}
+                />
+              )}
             </View>
           )}
         </View>
-        
+
       </View>
     )
   }
@@ -874,7 +930,23 @@ export default function Chat() {
               <>
                 {messages.map((message, index) => renderMessage(message, index))}
                 {(aiTyping || isPhaseTransitioning) && <TypingIndicator visible={aiTyping || isPhaseTransitioning} />}
-                
+
+                {/* Complete Reflection Button - appears after Phase 7 draft message */}
+                {session.currentStep >= 7 &&
+                 !session.isComplete &&
+                 messages.length > 2 &&
+                 !aiTyping &&
+                 !isPhaseTransitioning && (
+                  <View style={styles.completeReflectionContainer}>
+                    <Pressable
+                      style={styles.completeReflectionButton}
+                      onPress={handleCompleteReflection}
+                    >
+                      <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+                      <Text style={styles.completeReflectionText}>Complete Reflection</Text>
+                    </Pressable>
+                  </View>
+                )}
               </>
             )}
           </ScrollView>
@@ -884,7 +956,7 @@ export default function Chat() {
               <Pressable
                 style={styles.adminToggleButton}
                 onPress={() => {
-                  console.log('🔄 Admin toggle pressed, current state:', showAdminInput)
+                  debug.log('🔄 Admin toggle pressed, current state:', showAdminInput)
                   setShowAdminInput(!showAdminInput)
                 }}
               >
@@ -916,11 +988,11 @@ export default function Chat() {
               
               <Pressable
                 style={[
-                  styles.adminSendButton, 
+                  styles.adminSendButton,
                   (!adminFeedbackText.trim() || isSubmittingAdminFeedback) && styles.sendButtonDisabled
                 ]}
                 onPress={() => {
-                  console.log('🔵 Admin send button pressed')
+                  debug.log('🔵 Admin send button pressed')
                   handleAdminFeedback()
                 }}
                 disabled={!adminFeedbackText.trim() || isSubmittingAdminFeedback}
@@ -1921,5 +1993,32 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: ds.colors.primary.main,
     textAlign: 'center',
+  },
+  completeReflectionContainer: {
+    alignItems: 'center',
+    paddingVertical: ds.spacing[6],
+    paddingHorizontal: ds.spacing[4],
+  },
+  completeReflectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ds.spacing[2],
+    paddingVertical: ds.spacing[4],
+    paddingHorizontal: ds.spacing[6],
+    borderRadius: ds.borderRadius.full,
+    backgroundColor: '#D1FAE5', // Gentle green background
+    borderWidth: 2,
+    borderColor: '#10B981', // Success green border
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  completeReflectionText: {
+    fontSize: ds.typography.fontSize.lg.size,
+    fontWeight: ds.typography.fontWeight.semibold,
+    color: '#065F46', // Dark green text for contrast
+    fontFamily: ds.typography.fontFamily.heading,
   },
 })
