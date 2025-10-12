@@ -3,6 +3,8 @@
  * Bypasses Supabase edge functions for faster, simpler architecture
  */
 
+import debug from './debugLogger'
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const ASSISTANT_ID = 'asst_6s1npu6RmFiNb1wlxx1DUsIX' // Function-enhanced assistant with 100% alignment
 
@@ -39,22 +41,22 @@ export class OpenAIDirectService {
   }
   
   static async sendMessage(
-    userInput: string, 
-    threadId?: string, 
+    userInput: string,
+    threadId?: string,
     conversationHistory: AssistantMessage[] = []
   ): Promise<AssistantResponse> {
-    
-    console.log('🤖 OpenAI Direct: Sending message...')
-    
+
+    debug.log('🤖 OpenAI Direct: Sending message...')
+
     // Create thread if not provided
     let currentThreadId = threadId
     if (!currentThreadId) {
-      console.log('📝 Creating new thread...')
+      debug.log('📝 Creating new thread...')
       currentThreadId = await this.createThread()
     }
-    
+
     // Add user message to thread
-    console.log('💬 Adding message to thread...')
+    debug.log('💬 Adding message to thread...')
     await fetch(`https://api.openai.com/v1/threads/${currentThreadId}/messages`, {
       method: 'POST',
       headers: {
@@ -69,7 +71,7 @@ export class OpenAIDirectService {
     })
     
     // Run the function-enhanced assistant
-    console.log('🔄 Running function-enhanced assistant...')
+    debug.log('🔄 Running function-enhanced assistant...')
     const runResponse = await fetch(`https://api.openai.com/v1/threads/${currentThreadId}/runs`, {
       method: 'POST',
       headers: {
@@ -81,15 +83,15 @@ export class OpenAIDirectService {
         assistant_id: ASSISTANT_ID
       })
     })
-    
+
     const run = await runResponse.json()
-    console.log(`✅ Run started: ${run.id}`)
-    
+    debug.log(`✅ Run started: ${run.id}`)
+
     // Poll for completion with function handling
     const completedRun = await this.pollRunWithFunctions(currentThreadId, run.id)
-    
+
     // Get the assistant's response
-    console.log('📥 Retrieving response...')
+    debug.log('📥 Retrieving response...')
     const messagesResponse = await fetch(`https://api.openai.com/v1/threads/${currentThreadId}/messages`, {
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -105,9 +107,9 @@ export class OpenAIDirectService {
     }
     
     const responseContent = assistantMessage.content[0].text.value
-    
-    console.log('✅ OpenAI Direct response received')
-    
+
+    debug.log('✅ OpenAI Direct response received')
+
     return {
       content: responseContent,
       threadId: currentThreadId,
@@ -121,8 +123,8 @@ export class OpenAIDirectService {
   }
   
   private static async pollRunWithFunctions(threadId: string, runId: string, maxAttempts = 45): Promise<any> {
-    console.log('⏳ Polling with function support...')
-    
+    debug.log('⏳ Polling with function support...')
+
     for (let i = 0; i < maxAttempts; i++) {
       const response = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
         headers: {
@@ -130,15 +132,15 @@ export class OpenAIDirectService {
           'OpenAI-Beta': 'assistants=v2'
         }
       })
-      
+
       const run = await response.json()
-      console.log(`📊 Status: ${run.status} (${i + 1}/${maxAttempts})`)
-      
+      debug.log(`📊 Status: ${run.status} (${i + 1}/${maxAttempts})`)
+
       if (run.status === 'completed') {
-        console.log('✅ Run completed')
+        debug.log('✅ Run completed')
         return run
       } else if (run.status === 'requires_action') {
-        console.log('🔧 Function call required...')
+        debug.log('🔧 Function call required...')
         await this.handleFunctionCalls(threadId, runId, run)
         // Continue polling after handling functions
       } else if (run.status === 'failed' || run.status === 'cancelled' || run.status === 'expired') {
@@ -159,13 +161,13 @@ export class OpenAIDirectService {
     const toolOutputs = []
     
     for (const toolCall of toolCalls) {
-      console.log(`📞 Function: ${toolCall.function.name}`)
-      
+      debug.log(`📞 Function: ${toolCall.function.name}`)
+
       let output = ''
-      
+
       if (toolCall.function.name === 'validate_phase2_completion') {
         const args = JSON.parse(toolCall.function.arguments)
-        console.log('✅ Phase 2 validation')
+        debug.log('✅ Phase 2 validation')
         
         if (args.emotional_responses && args.emotional_responses.length >= 2) {
           output = JSON.stringify({
@@ -184,7 +186,7 @@ export class OpenAIDirectService {
         }
         
       } else if (toolCall.function.name === 'generate_gold_standard_response') {
-        console.log('✅ Gold standard generation')
+        debug.log('✅ Gold standard generation')
         const args = JSON.parse(toolCall.function.arguments)
         
         if (args.response_type === 'validation_only') {
@@ -203,8 +205,8 @@ export class OpenAIDirectService {
         }
         
       } else if (toolCall.function.name === 'check_forbidden_patterns') {
-        console.log('✅ Pattern check')
-        
+        debug.log('✅ Pattern check')
+
         output = JSON.stringify({
           contains_forbidden: false,
           approved: true,
@@ -219,9 +221,9 @@ export class OpenAIDirectService {
         output: output
       })
     }
-    
+
     // Submit function outputs
-    console.log('📤 Submitting function outputs...')
+    debug.log('📤 Submitting function outputs...')
     await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}/submit_tool_outputs`, {
       method: 'POST',
       headers: {
@@ -233,8 +235,8 @@ export class OpenAIDirectService {
         tool_outputs: toolOutputs
       })
     })
-    
-    console.log('✅ Function outputs submitted')
+
+    debug.log('✅ Function outputs submitted')
   }
   
   private static extractPhaseFromResponse(content: string): number {

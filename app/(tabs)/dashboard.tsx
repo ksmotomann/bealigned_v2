@@ -19,6 +19,7 @@ import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
 import { Target, Heart } from 'lucide-react-native'
 import ds from '../../styles/design-system'
+import debug from '../../lib/debugLogger'
 
 // Conditionally import react-native-share and Facebook SDK only for native platforms
 let RNShare: any = null
@@ -358,12 +359,12 @@ export default function Dashboard() {
 
   const getGroundingImageUri = async (): Promise<string | null> => {
     try {
-      console.log('📸 Getting image URI for week:', currentWeekNumber)
+      debug.log('📸 Getting image URI for week:', currentWeekNumber)
 
       // For web, return the public URL
       if (Platform.OS === 'web') {
         const webUri = `/images/grounding/be_grounding_wk${currentWeekNumber}.png`
-        console.log('  - Web URI:', webUri)
+        debug.log('  - Web URI:', webUri)
         return webUri
       }
 
@@ -384,15 +385,15 @@ export default function Dashboard() {
       }
 
       const imageModule = imageMapping[currentWeekNumber as keyof typeof imageMapping]
-      console.log('  - Image module:', imageModule)
+      debug.log('  - Image module:', imageModule)
 
       // Load the asset and get its local URI
       const [asset] = await Asset.loadAsync(imageModule)
-      console.log('  - Asset loaded, downloading...')
+      debug.log('  - Asset loaded, downloading...')
       await asset.downloadAsync()
 
-      console.log('  - Asset localUri:', asset.localUri)
-      console.log('  - Asset uri:', asset.uri)
+      debug.log('  - Asset localUri:', asset.localUri)
+      debug.log('  - Asset uri:', asset.uri)
 
       if (asset.localUri) {
         return asset.localUri
@@ -438,7 +439,7 @@ export default function Dashboard() {
 
   const downloadReflectionSummary = () => {
     // Implementation for downloading reflection summary
-    console.log('Downloading reflection summary...')
+    debug.log('Downloading reflection summary...')
   }
 
   const handleFeedbackSurveySubmit = () => {
@@ -475,16 +476,16 @@ export default function Dashboard() {
                   : 'https://bealigned.app')
             : process.env.EXPO_PUBLIC_BASE_URL || 'https://bealigned.app'
 
-          console.log('🔍 Facebook Sharing Debug:')
-          console.log('  - Base URL:', baseUrl)
-          console.log('  - Week Number:', currentWeekNumber)
+          debug.log('🔍 Facebook Sharing Debug:')
+          debug.log('  - Base URL:', baseUrl)
+          debug.log('  - Week Number:', currentWeekNumber)
 
           // Share the grounding landing page URL (Facebook will scrape OG tags for image)
           const groundingPageUrl = `${baseUrl}/grounding/${currentWeekNumber}`
-          console.log('  - Grounding Page URL:', groundingPageUrl)
+          debug.log('  - Grounding Page URL:', groundingPageUrl)
 
           const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(groundingPageUrl)}`
-          console.log('  - Facebook Share URL:', facebookUrl)
+          debug.log('  - Facebook Share URL:', facebookUrl)
 
           if (Platform.OS === 'web') {
             window.open(facebookUrl, '_blank')

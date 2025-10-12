@@ -27,6 +27,7 @@ import FAQManager from '../../components/admin/FAQManager'
 import WaveCircle from '../../components/WaveCircle'
 import PulsatingHighlight from '../../components/PulsatingHighlight'
 import RippleBackground from '../../components/RippleBackground'
+import debug from '../../lib/debugLogger'
 
 export default function AdminPanel() {
   const router = useRouter()
@@ -190,19 +191,19 @@ export default function AdminPanel() {
 }))
       }
     } catch (err) {
-      console.log('No existing AI config found, using defaults')
+      debug.log('No existing AI config found, using defaults')
     }
   }
 
   const loadAlignmentCodes = async () => {
     try {
-      console.log('Loading alignment codes...')
+      debug.log('Loading alignment codes...')
       const { data, error } = await supabase
         .from('alignment_codes')
         .select('*')
         .order('created_at', { ascending: false })
 
-      console.log('Alignment codes query result:', { data, error })
+      debug.log('Alignment codes query result:', { data, error })
 
       if (error) {
         console.error('Alignment codes query error:', error)
@@ -211,7 +212,7 @@ export default function AdminPanel() {
       }
 
       if (data) {
-        console.log(`Loaded ${data.length} alignment codes`)
+        debug.log(`Loaded ${data.length} alignment codes`)
         setAlignmentCodes(data)
       } else {
         setAlignmentCodes([])
@@ -395,7 +396,7 @@ export default function AdminPanel() {
   const loadUsers = async () => {
     setLoadingUsers(true)
     try {
-      console.log('🔍 Starting to load users...')
+      debug.log('🔍 Starting to load users...')
 
       // Load users with additional session data
       const { data, error } = await supabase
@@ -413,7 +414,7 @@ export default function AdminPanel() {
         `)
         .order('created_at', { ascending: false })
 
-      console.log('📊 Users query result:', { data, error, count: data?.length })
+      debug.log('📊 Users query result:', { data, error, count: data?.length })
 
       if (error) {
         console.error('❌ Error loading users:', error)
@@ -422,7 +423,7 @@ export default function AdminPanel() {
         return
       }
 
-      console.log(`✅ Successfully loaded ${data?.length || 0} users`)
+      debug.log(`✅ Successfully loaded ${data?.length || 0} users`)
       const usersData = data || []
       setUsers(usersData)
 
@@ -457,7 +458,7 @@ export default function AdminPanel() {
 
   const loadUserAlignmentCodes = async (userId: string) => {
     try {
-      console.log('🔍 Loading detailed data for user:', userId)
+      debug.log('🔍 Loading detailed data for user:', userId)
 
       // Load alignment codes, sessions, and community posts in parallel
       const [codesResult, sessionsResult, postsResult] = await Promise.all([
@@ -493,7 +494,7 @@ export default function AdminPanel() {
         console.error('❌ Error loading user alignment codes:', codesResult.error)
       }
 
-      console.log('✅ Loaded user data:', {
+      debug.log('✅ Loaded user data:', {
         codes: codesResult.data?.length || 0,
         sessions: sessionsResult.data?.length || 0,
         posts: postsResult.data?.length || 0
@@ -522,7 +523,7 @@ export default function AdminPanel() {
   }
 
   const updateUserType = async (userIds: string[], newUserType: string) => {
-    console.log(`🔄 Updating ${userIds.length} user(s) to type: ${newUserType}`)
+    debug.log(`🔄 Updating ${userIds.length} user(s) to type: ${newUserType}`)
     setUpdatingUser(true)
     closeUserTypeModal()
 
@@ -538,7 +539,7 @@ export default function AdminPanel() {
         return
       }
 
-      console.log('✅ User type updated successfully')
+      debug.log('✅ User type updated successfully')
       Alert.alert('Success', `User type${userIds.length > 1 ? 's' : ''} updated successfully!`)
       setSelectedUsers([]) // Clear selection after bulk update
       loadUsers() // Refresh the user list
@@ -619,7 +620,7 @@ export default function AdminPanel() {
   const runManualMigration = async () => {
     setMigrating(true)
     try {
-      console.log('Starting manual migration...')
+      debug.log('Starting manual migration...')
 
       // Create the alignment_codes table
       const createTableSQL = `
@@ -736,7 +737,7 @@ export default function AdminPanel() {
   const generateSitemapFile = () => {
     try {
       const sitemap = generateSitemap(contextSeoData.canonicalBase)
-      console.log('Generated sitemap:', sitemap)
+      debug.log('Generated sitemap:', sitemap)
       Alert.alert('Success', 'Sitemap generated successfully! Check console for output.')
     } catch (error) {
       Alert.alert('Error', 'Failed to generate sitemap.')
@@ -1446,7 +1447,7 @@ export default function AdminPanel() {
                           style={[styles.userActionButton, { backgroundColor: ds.colors.warning }]}
                           onPress={(e) => {
                             e.stopPropagation()
-                            console.log('⚙️ Change Type button pressed for user:', user.id)
+                            debug.log('⚙️ Change Type button pressed for user:', user.id)
                             openUserTypeModal([user.id], `${user.first_name} ${user.last_name}`)
                           }}
                           disabled={updatingUser}
@@ -1470,7 +1471,7 @@ export default function AdminPanel() {
                       selectedUsers.includes(user.id) && styles.selectedUserCard
                     ]}
                     onPress={() => {
-                      console.log('👤 User card clicked:', user.id)
+                      debug.log('👤 User card clicked:', user.id)
                       setSelectedUser(user)
                       loadUserAlignmentCodes(user.id)
                     }}

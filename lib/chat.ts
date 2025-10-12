@@ -82,15 +82,15 @@ export const REFLECTION_STEPS: ReflectionStep[] = [
     prompts: [
       'If you were in their shoes, what might they be worried about?',
       'What might your co-parent say matters most to them here?',
-      'From your child\'s point of view, what might they most want or need right now?',
+      'Even if you don\'t agree, what do you imagine they\'re feeling or needing?',
       'What might be the deeper Why behind their position?'
     ],
     validationCriteria: [
-      'Shows genuine attempt to understand other perspectives',
-      'Considers both co-parent and child viewpoints',
+      'Shows genuine attempt to understand co-parent\'s perspective',
+      'Considers their feelings, needs, or motivations',
       'Acknowledges without necessarily agreeing'
     ],
-    helpText: 'This isn\'t about agreement; it\'s about awareness. By imagining how others see the situation, you expand from "me versus you" to understanding what\'s happening in the whole family system.'
+    helpText: 'This isn\'t about agreement; it\'s about awareness. Perspective-taking doesn\'t mean you\'re wrong or they\'re right - it means you\'re expanding your view to see what might be motivating their choices.'
   },
   {
     number: 5,
@@ -103,11 +103,11 @@ export const REFLECTION_STEPS: ReflectionStep[] = [
       'What would your child hope for if they could express it?'
     ],
     validationCriteria: [
-      'Generates at least 3 different options',
-      'Options connect to both parents\' Whys',
-      'Focuses on child-centered outcomes'
+      'Considers child\'s perspective or feelings',
+      'Identifies what child might be experiencing',
+      'Reflects on child\'s needs beyond parent conflict'
     ],
-    helpText: 'Having multiple possibilities reframes from rigid positions to creative collaboration. The goal isn\'t to win - it\'s to find options that serve your shared purpose of safeguarding your child\'s well-being.'
+    helpText: 'Your child is watching, feeling, and processing this situation in their own way. By stepping into their perspective, you shift from "winning the argument" to "protecting their experience" - which is where alignment begins.'
   },
   {
     number: 6,
@@ -145,6 +145,23 @@ export const REFLECTION_STEPS: ReflectionStep[] = [
       'Expresses readiness to communicate'
     ],
     helpText: 'The CLEAR framework ensures your message is powerful yet appropriate. I\'ll craft a specific draft based on your situation, then help you refine it until it feels aligned with your values and goals.'
+  },
+  {
+    number: 8,
+    title: '🌅 *REFLECTION + INTEGRATION*',
+    description: 'Before we wrap up, take a breath and look back.',
+    prompts: [
+      'What did you learn about yourself through this reflection?',
+      'What shifted for you as you moved through these steps?',
+      'How might you carry this awareness into your next interaction?',
+      'What would alignment look like if both of you were at your best?'
+    ],
+    validationCriteria: [
+      'Reflects on personal growth or insights',
+      'Acknowledges shifts in perspective',
+      'Expresses awareness about moving forward'
+    ],
+    helpText: 'This final moment isn\'t about resolution - it\'s about integration. You\'ve done brave work moving from reaction to reflection. This closing helps you carry that awareness forward in a way that reduces conflict and creates calm for your children.'
   }
 ]
 

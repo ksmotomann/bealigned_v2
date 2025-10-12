@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, StyleSheet, ScrollView, Image } fr
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import ds from '../styles/design-system'
+import debug from '../lib/debugLogger'
 
 interface ProofOfReflectionModalProps {
   visible: boolean
@@ -98,7 +99,7 @@ export default function ProofOfReflectionModal({ visible, onClose, userId }: Pro
 
   const generateCertificate = async () => {
     // TODO: Implement certificate generation
-    console.log('Generate certificate for period:', selectedPeriod)
+    debug.log('Generate certificate for period:', selectedPeriod)
   }
 
   const getPeriodLabel = () => {

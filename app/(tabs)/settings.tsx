@@ -21,10 +21,11 @@ import AdminSettings from '../../components/AdminSettings'
 import AdminTrainingTranscripts from '../../components/AdminTrainingTranscripts'
 import ds from '../../styles/design-system'
 import { BeAlignedModal } from '../../components/BeAligned/BeAlignedModal'
+import debug from '../../lib/debugLogger'
 
 export default function Settings() {
   const router = useRouter()
-  const { adminViewEnabled, setAdminViewEnabled, isActualAdmin, setIsActualAdmin } = useAdmin()
+  const { adminViewEnabled, setAdminViewEnabled, isActualAdmin, setIsActualAdmin, debugLogging, setDebugLogging } = useAdmin()
   const [activeSection, setActiveSection] = useState('profile')
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -94,9 +95,9 @@ export default function Settings() {
     if (isActualAdmin) {
       baseSections.splice(2, 0, { id: 'reflection', title: 'Reflection Settings', icon: 'chatbubbles-outline' })
       baseSections.push({ id: 'admin', title: 'Administration', icon: 'settings-outline' })
-      console.log('✅ Administration section added to sidebar')
+      debug.log('✅ Administration section added to sidebar')
     } else {
-      console.log('❌ Administration section NOT added - isActualAdmin:', isActualAdmin)
+      debug.log('❌ Administration section NOT added - isActualAdmin:', isActualAdmin)
     }
 
     return baseSections
@@ -123,7 +124,7 @@ export default function Settings() {
         setProfile(data)
         const isAdmin = data?.user_type === 'admin' || data?.user_type === 'super_admin'
         setIsActualAdmin(isAdmin)
-        console.log('🔍 Admin Status Check:', {
+        debug.log('🔍 Admin Status Check:', {
           user_type: data?.user_type,
           isAdmin,
           email: session.user.email
@@ -486,7 +487,7 @@ export default function Settings() {
   }
 
   const renderActiveSection = () => {
-    console.log('🔧 renderActiveSection called with:', activeSection)
+    debug.log('🔧 renderActiveSection called with:', activeSection)
     switch (activeSection) {
       case 'profile':
         return renderProfileSection()
@@ -907,7 +908,7 @@ export default function Settings() {
   )
 
   const renderAdminSection = () => {
-    console.log('🔧 renderAdminSection called')
+    debug.log('🔧 renderAdminSection called')
     return (
     <View style={styles.sectionContent}>
       <Text style={styles.sectionTitle}>Administration</Text>
@@ -929,7 +930,7 @@ export default function Settings() {
       <Pressable
         style={styles.preferenceRow}
         onPress={() => {
-          console.log('🔵 Pending Approvals clicked!')
+          debug.log('🔵 Pending Approvals clicked!')
           setShowApprovals(true)
           loadPendingApprovals()
         }}
@@ -970,6 +971,30 @@ export default function Settings() {
         </View>
         <View style={[styles.toggle, adminViewEnabled && styles.toggleActive]}>
           <View style={[styles.toggleHandle, adminViewEnabled && styles.toggleHandleActive]} />
+        </View>
+      </Pressable>
+
+      <Pressable
+        style={styles.preferenceRow}
+        onPress={() => setDebugLogging(!debugLogging)}
+      >
+        <View style={styles.preferenceContent}>
+          <Ionicons
+            name={debugLogging ? "bug" : "bug-outline"}
+            size={20}
+            color={debugLogging ? ds.colors.danger : ds.colors.neutral[500]}
+          />
+          <View style={{ marginLeft: 12, flex: 1 }}>
+            <Text style={[styles.preferenceText]}>
+              Debug Logging: {debugLogging ? 'On' : 'Off'}
+            </Text>
+            <Text style={[styles.settingDescription, { marginTop: 4 }]}>
+              Enable verbose console logging for troubleshooting
+            </Text>
+          </View>
+        </View>
+        <View style={[styles.toggle, debugLogging && styles.toggleActive]}>
+          <View style={[styles.toggleHandle, debugLogging && styles.toggleHandleActive]} />
         </View>
       </Pressable>
     </View>
@@ -1036,7 +1061,7 @@ export default function Settings() {
         visible={showBeAligned}
         onClose={() => setShowBeAligned(false)}
         onComplete={(reflection) => {
-          console.log('BeAligned reflection completed:', reflection.finalMessage)
+          debug.log('BeAligned reflection completed:', reflection.finalMessage)
           // TODO: Save to Supabase if desired
         }}
       />

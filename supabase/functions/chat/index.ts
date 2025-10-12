@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { composeSystemPrompt } from './prompts.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,55 +50,86 @@ serve(async (req) => {
       .single()
 
     if (phaseError || !phasePrompt) {
+      console.log('⚠️ DATABASE QUERY FAILED - phase_prompts table empty or query error')
+      console.log('   Error:', phaseError?.message)
       throw new Error(`Failed to load phase ${currentPhase} prompt: ${phaseError?.message}`)
     }
 
-    // Build system prompt with phase guidance
-    const systemPrompt = `You are Trina, a warm and experienced co-parenting coach using the BeH2O methodology.
+    console.log('📋 DATABASE PHASE PROMPT:', {
+      phase_header: phasePrompt.phase_header,
+      ai_guidance: phasePrompt.ai_guidance ? phasePrompt.ai_guidance.substring(0, 100) + '...' : 'undefined',
+      hasGuidance: !!phasePrompt.ai_guidance
+    })
 
-Current Phase: ${phasePrompt.phase_header}
-Guidance: ${phasePrompt.ai_guidance}
+    // 🎯 VECTOR RETRIEVAL: Get relevant BeH2O content from vector database
+    console.log('🔍 VECTOR RETRIEVAL: Generating embedding for user input...')
+    let vectorContext = ''
+    try {
+      // Generate embedding for user input using OpenAI
+      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: userInput,
+          model: 'text-embedding-ada-002',
+        }),
+      })
 
-User Input: ${userInput}
+      if (embeddingResponse.ok) {
+        const embeddingData = await embeddingResponse.json()
+        const queryEmbedding = embeddingData.data[0].embedding
 
-BeH2O® Principles:
-- Be Strong: Communicate with clarity and grounded purpose
-- Flow: Be responsive, not reactive, while moving forward
-- The Third Side: Hold space for all perspectives while centering the child
-- Safeguarding Childhoods: The goal is protecting the child's experience
+        console.log('✅ Embedding generated, searching vector database...')
 
-CRITICAL INSTRUCTION: You must respond ONLY with valid JSON. Do not include any text before or after the JSON.
+        // Search for relevant chunks - EXCLUDE conversation samples, prioritize methodology
+        const { data: relevantChunks, error: vectorError } = await supabaseClient
+          .rpc('match_bealigned_chunks', {
+            query_embedding: queryEmbedding,
+            match_threshold: 0.6,  // Lowered threshold to get more results
+            match_count: 5,  // Get more chunks
+            filter_phase: null  // Don't filter by phase - get general methodology content
+          })
 
-DO NOT include phase headers like "PHASE 2: WHAT'S BENEATH THAT?" in your response.
-DO NOT include emojis like 💬 or 🌊 in your response.
-Phase headers are handled separately by the system.
+        if (!vectorError && relevantChunks && relevantChunks.length > 0) {
+          // Filter out short/incomplete chunks (likely conversation fragments)
+          const methodologyChunks = relevantChunks.filter(chunk =>
+            chunk.content && chunk.content.length > 50
+          )
 
-Your response must be in this EXACT format:
-{
-  "reply": "your warm, reflective message here",
-  "phase_status": "completed",
-  "current_phase": ${currentPhase},
-  "next_phase": ${currentPhase === 7 ? currentPhase : currentPhase + 1}
-}
+          console.log(`✅ Found ${methodologyChunks.length} relevant BeH2O content chunks (${relevantChunks.length} total before filtering)`)
+          console.log('   Similarities:', methodologyChunks.map(c => `${(c.similarity * 100).toFixed(1)}%`).join(', '))
 
-PHASE COMPLETION CRITERIA:
-Phase 1: "completed" when user has clearly NAMED their situation/concern
-Phase 2: "completed" when user has identified DEEPER EMOTIONS/FEELINGS beneath the surface
-Phase 3: "completed" when user has articulated their CORE WHY/VALUES/PRINCIPLES
-  - Look for statements like "for my kids", "to be a good parent", "to set an example", "because it's right"
-  - User has moved beyond surface concerns to deeper motivations
-Phase 4: "completed" when user has genuinely CONSIDERED CO-PARENT'S PERSPECTIVE
-Phase 5: "completed" when user has genuinely CONSIDERED CHILD'S PERSPECTIVE
-Phase 6: "completed" when user has EXPLORED POTENTIAL SOLUTIONS/OPTIONS
-Phase 7: "completed" when user has CHOSEN a specific COMMUNICATION APPROACH
+          if (methodologyChunks.length > 0) {
+            // Build context from retrieved chunks - emphasize this is GUIDANCE
+            vectorContext = '\n\n--- CRITICAL: BeH2O Methodology Guidance (Apply these principles in your response) ---\n' +
+              methodologyChunks.map((chunk, i) =>
+                `[BeH2O Principle ${i + 1}]: ${chunk.content}`
+              ).join('\n\n') +
+              '\n--- Use BeH2O voice: warm, grounded, purposeful. NOT therapeutic jargon. ---\n'
+          }
+        } else {
+          console.log('⚠️ No relevant vector content found or error:', vectorError?.message)
+        }
+      } else {
+        console.log('⚠️ Embedding API failed:', embeddingResponse.status)
+      }
+    } catch (vectorErr) {
+      console.log('⚠️ Vector retrieval failed (continuing without):', vectorErr.message)
+    }
 
-Current Phase ${currentPhase} - Set "phase_status" to "completed" if user has met the criteria above
-- Set "phase_status" to "in_progress" if they need more exploration
-- When "phase_status" is "completed", ALWAYS set "next_phase" to ${currentPhase + 1}
-- When "phase_status" is "in_progress", set "next_phase" to ${currentPhase}
-- Be natural and conversational in your "reply" field
-- NEVER include phase headers or phase transitions in your reply
-- RESPOND ONLY WITH JSON - NO OTHER TEXT`
+    // Build system prompt from governance + phase template files
+    console.log('📋 Loading governance and phase template from markdown files...')
+    const systemPrompt = await composeSystemPrompt(currentPhase, userInput, vectorContext)
+
+    console.log('🔍 SYSTEM PROMPT STRUCTURE:')
+    console.log('   Source: packages/prompts/ markdown files (governance.md + phase templates)')
+    console.log(`   Current Phase: ${currentPhase}`)
+    console.log('   Governance: Loaded from governance.md')
+    console.log(`   Phase Template: Loaded from 0${currentPhase}_*.md`)
+    console.log('   Vector Context:', vectorContext ? `${vectorContext.length} chars` : 'none')
 
     // Generate AI response
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -132,8 +164,10 @@ Current Phase ${currentPhase} - Set "phase_status" to "completed" if user has me
     const openaiData = await openaiResponse.json()
     const rawResponse = openaiData.choices[0]?.message?.content || ''
 
-    console.log('🤖 Raw AI Response:', rawResponse)
-    console.log('🔍 Full AI Response for debugging:', rawResponse)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🤖 AI RESPONSE RECEIVED')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('Raw Response:', rawResponse)
     console.log('🚨 DEBUGGING: Is AI generating phase headers?', rawResponse.includes('PHASE 2'))
     console.log('🚨 DEBUGGING: Is AI generating 💬?', rawResponse.includes('💬'))
     console.log('🚨 DEBUGGING: Is AI generating 🌊?', rawResponse.includes('🌊'))
@@ -162,11 +196,14 @@ Current Phase ${currentPhase} - Set "phase_status" to "completed" if user has me
       }
     }
 
-    console.log('✅ Structured Response:', {
-      phase_status: structuredResponse.phase_status,
-      current_phase: structuredResponse.current_phase,
-      next_phase: structuredResponse.next_phase
-    })
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('✅ PARSED STRUCTURED RESPONSE')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('   phase_status:', structuredResponse.phase_status)
+    console.log('   current_phase:', structuredResponse.current_phase)
+    console.log('   next_phase:', structuredResponse.next_phase)
+    console.log('   reply preview:', structuredResponse.reply?.substring(0, 150) + '...')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
     // If phase completed, update session only (no phase header in content)
     let nextPhase = structuredResponse.current_phase
@@ -191,10 +228,10 @@ Current Phase ${currentPhase} - Set "phase_status" to "completed" if user has me
         console.log(`📋 Next phase header: ${nextPhaseData.phase_header}`)
       }
 
-      // Update session current_step
+      // Update session current_phase
       const { error: updateError } = await supabaseClient
         .from('reflection_sessions')
-        .update({ current_step: nextPhase })
+        .update({ current_phase: nextPhase })
         .eq('id', sessionId)
 
       if (updateError) {

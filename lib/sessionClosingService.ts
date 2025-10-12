@@ -5,6 +5,7 @@
  */
 
 import { supabase } from './supabase'
+import debug from './debugLogger'
 
 export interface SessionClosing {
   type: 'closing_reflection' | 'closing_summary' | 'peace_reminder' | 'anchor_statement' | 'message_draft_clear' | 'message_to_children'
@@ -40,7 +41,7 @@ export async function generateSessionClosings(
   conversationHistory: Message[] = []
 ): Promise<SessionClosing[]> {
   try {
-    console.log('🎯 Generating contextual session closings...')
+    debug.log('🎯 Generating contextual session closings...')
     
     const { data, error } = await supabase.functions.invoke('generate-session-closing', {
       body: {
@@ -54,7 +55,7 @@ export async function generateSessionClosings(
       return getFallbackClosings(sessionContext)
     }
 
-    console.log('✅ Session closings generated:', {
+    debug.log('✅ Session closings generated:', {
       closingsCount: data.sessionClosings?.length || 0,
       types: data.sessionClosings?.map((c: SessionClosing) => c.type) || [],
       phase: data.metadata?.phase

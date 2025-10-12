@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { setDebugEnabled } from '../lib/debugLogger'
 
 interface AdminContextType {
   adminViewEnabled: boolean
   setAdminViewEnabled: (enabled: boolean) => void
   isActualAdmin: boolean
   setIsActualAdmin: (isAdmin: boolean) => void
+  debugLogging: boolean
+  setDebugLogging: (enabled: boolean) => void
 }
 
 const AdminContext = createContext<AdminContextType>({
@@ -13,14 +16,18 @@ const AdminContext = createContext<AdminContextType>({
   setAdminViewEnabled: () => {},
   isActualAdmin: false,
   setIsActualAdmin: () => {},
+  debugLogging: false,
+  setDebugLogging: () => {},
 })
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [adminViewEnabled, setAdminViewEnabledState] = useState(false)
   const [isActualAdmin, setIsActualAdmin] = useState(false)
+  const [debugLogging, setDebugLoggingState] = useState(false)
 
   useEffect(() => {
     loadAdminViewPreference()
+    loadDebugLoggingPreference()
   }, [])
 
   // Reload preferences when admin status changes
@@ -45,6 +52,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function loadDebugLoggingPreference() {
+    try {
+      const saved = await AsyncStorage.getItem('debugLogging')
+      if (saved !== null) {
+        const enabled = saved === 'true'
+        setDebugLoggingState(enabled)
+        setDebugEnabled(enabled) // Sync with debug logger
+      }
+    } catch (error) {
+      console.error('Error loading debug logging preference:', error)
+    }
+  }
+
   async function setAdminViewEnabled(enabled: boolean) {
     // Only allow admins to enable admin view
     if (enabled && !isActualAdmin) {
@@ -60,13 +80,31 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function setDebugLogging(enabled: boolean) {
+    // Only allow admins to enable debug logging
+    if (enabled && !isActualAdmin) {
+      console.warn('Non-admin user attempted to enable debug logging')
+      return
+    }
+
+    setDebugLoggingState(enabled)
+    setDebugEnabled(enabled) // Sync with debug logger immediately
+    try {
+      await AsyncStorage.setItem('debugLogging', enabled.toString())
+    } catch (error) {
+      console.error('Error saving debug logging preference:', error)
+    }
+  }
+
   return (
-    <AdminContext.Provider 
-      value={{ 
-        adminViewEnabled, 
+    <AdminContext.Provider
+      value={{
+        adminViewEnabled,
         setAdminViewEnabled,
         isActualAdmin,
-        setIsActualAdmin
+        setIsActualAdmin,
+        debugLogging,
+        setDebugLogging
       }}
     >
       {children}

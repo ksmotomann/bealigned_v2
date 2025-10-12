@@ -223,3 +223,5 @@ npx expo r -c
 - just because you can't access the databae doesn't mean you should make stuff up - trying fixing the db connection issue anytime you can't connect and we would benefit from directly access db content
 - i prefer to enter sql updates directly in console
 - StandardModal object should be used for the creation of all new modals
+- never use precise chat examples as the trigger for phase advancement - they can be used as examples but not precise or near precise matching - we must program this to be guided not directed
+- if ever in doubt about the governance for this project, refer to the .md files in assets/master in this project folder

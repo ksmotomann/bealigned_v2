@@ -4,6 +4,35 @@ import { checkPhaseCompletion, generateAIResponse } from '../lib/aiServiceKnowle
 import { getRandomWelcomePrompt, getAIGeneratedWelcome } from '../lib/welcomePrompts'
 import { generateSimplePhase7Response, SimplePhase7Context } from '../lib/simplifiedPhase7'
 import { useRouter } from 'expo-router'
+import debug from '../lib/debugLogger'
+
+// Helper function to convert phase number to phase name for chat-v2
+function getPhaseNameFromNumber(phaseNum: number): string {
+  const phaseNames: Record<number, string> = {
+    1: 'issue',
+    2: 'feelings',
+    3: 'why',
+    4: 'coparent',
+    5: 'child',
+    6: 'options',
+    7: 'message'
+  }
+  return phaseNames[phaseNum] || 'issue'
+}
+
+// Helper function to convert phase name to phase number for UI
+function getPhaseNumberFromName(phaseName: string): number {
+  const phaseNumbers: Record<string, number> = {
+    'issue': 1,
+    'feelings': 2,
+    'why': 3,
+    'coparent': 4,
+    'child': 5,
+    'options': 6,
+    'message': 7
+  }
+  return phaseNumbers[phaseName] || 1
+}
 
 export interface Message {
   id: string
@@ -24,6 +53,18 @@ export interface ReflectionSession {
   isComplete: boolean
   summary?: string
   threadId?: string | null
+  flowState?: {
+    readiness: number
+    context: Record<string, any>
+    lastPrompt: string
+    lastResponse: string
+    conversationHistory: Array<{
+      role: 'user' | 'assistant'
+      content: string
+      readiness?: number
+      timestamp: string
+    }>
+  }
 }
 
 interface UseReflectionSessionReturn {
@@ -99,7 +140,7 @@ export function useReflectionSession(
           return false
         }
 
-        console.log('✅ First reflection completion recorded!')
+        debug.session('✅ First reflection completion recorded!')
 
         // Redirect to dashboard after first reflection
         setTimeout(() => {
@@ -148,12 +189,19 @@ export function useReflectionSession(
           currentStep: existingSession.current_step || 1,
           responses: existingSession.step_data || {},
           isComplete: existingSession.status === 'completed',
-          threadId: existingSession.thread_id || null
+          threadId: existingSession.thread_id || null,
+          flowState: existingSession.flow_state || {
+            readiness: 0.0,
+            context: {},
+            lastPrompt: "",
+            lastResponse: "",
+            conversationHistory: []
+          }
         })
         
         // Load messages for this session
         const { data: messages } = await supabase
-          .from('chat_messages')
+          .from('reflection_messages')
           .select('*')
           .eq('session_id', existingSession.id)
           .order('created_at', { ascending: true })
@@ -200,7 +248,7 @@ export function useReflectionSession(
         
         // Load messages for this specific session
         const { data: messages } = await supabase
-          .from('chat_messages')
+          .from('reflection_messages')
           .select('*')
           .eq('session_id', specificSessionId)
           .order('created_at', { ascending: true })
@@ -235,7 +283,7 @@ export function useReflectionSession(
         setIsAdmin(data?.role === 'admin')
       } catch (error) {
         // If profiles table doesn't exist or user doesn't have access, assume not admin
-        console.log('Admin check failed, assuming non-admin user')
+        debug.log('Admin check failed, assuming non-admin user')
         setIsAdmin(false)
       }
     }
@@ -256,7 +304,7 @@ export function useReflectionSession(
   const startSession = async () => {
     // Prevent duplicate session creation
     if (isCreatingSession) {
-      console.log('🚫 Session creation already in progress, skipping...')
+      debug.session('🚫 Session creation already in progress, skipping...')
       return
     }
 
@@ -291,22 +339,22 @@ export function useReflectionSession(
       })
       
       // Generate natural Phase 1 greeting using enhanced BeH2O-powered welcome system
-      console.log('🎯 Using enhanced BeH2O welcome system...')
+      debug.session('🎯 Using enhanced BeH2O welcome system...')
 
       // Try AI-generated welcome with BeH2O methodology first
       let greetingContent
       try {
         greetingContent = await getAIGeneratedWelcome()
-        console.log('✅ AI welcome generation succeeded:', greetingContent?.substring(0, 100))
+        debug.ai('✅ AI welcome generation succeeded:', greetingContent?.substring(0, 100))
       } catch (welcomeError) {
         console.warn('⚠️ AI welcome generation failed, using fallback:', welcomeError)
         greetingContent = getRandomWelcomePrompt()
-        console.log('✅ Using fallback welcome:', greetingContent?.substring(0, 100))
+        debug.ai('✅ Using fallback welcome:', greetingContent?.substring(0, 100))
       }
 
-      console.log('🔍 DEBUG: Enhanced welcome content =', greetingContent)
+      debug.log('🔍 DEBUG: Enhanced welcome content =', greetingContent)
       const phase1 = phases?.[0] || { title: "PHASE 1: LET'S NAME IT" } // Database-driven fallback
-      console.log('🔍 DEBUG: Phase 1 title =', phase1.title)
+      debug.phase('🔍 DEBUG: Phase 1 title =', phase1.title)
 
       // Check if this is actually AI-generated or a static fallback
       // Static welcome patterns from the welcome prompts file
@@ -333,7 +381,7 @@ export function useReflectionSession(
 
       const responseType = isStaticFallback ? 'fallback' : 'ai_vector'
 
-      console.log('🔍 Welcome message analysis:', {
+      debug.ai('🔍 Welcome message analysis:', {
         greetingContent: greetingContent ? greetingContent.substring(0, 50) + '...' : 'undefined',
         isStaticFallback,
         responseType,
@@ -353,8 +401,8 @@ export function useReflectionSession(
           responseType // 🟢 AI-generated or 🔴 fallback
         }
       }
-      console.log('🔍 DEBUG: Final greeting message with response type:', responseType)
-      console.log('🔍 DEBUG: Final greeting content =', phase1Message.content)
+      debug.ai('🔍 DEBUG: Final greeting message with response type:', responseType)
+      debug.chat('🔍 DEBUG: Final greeting content =', phase1Message.content)
 
       setMessages([phase1Message])
       await saveMessage(data.id, phase1Message)
@@ -395,7 +443,7 @@ export function useReflectionSession(
 
     try {
       const { data, error } = await supabase
-        .from('chat_messages')
+        .from('reflection_messages')
         .insert({
           session_id: sessionId,
           owner_id: user.id,
@@ -411,7 +459,7 @@ export function useReflectionSession(
         console.error('   Content length:', String(message.content).length)
         console.error('   User ID:', user.id)
       } else {
-        console.log('✅ Message saved to database successfully')
+        debug.db('✅ Message saved to database successfully')
       }
     } catch (err) {
       console.error('❌ Database error when saving message:', err)
@@ -500,7 +548,7 @@ export function useReflectionSession(
         .update({ title })
         .eq('id', sessionId)
       
-      console.log(`Session title updated to: "${title}"`)
+      debug.session(`Session title updated to: "${title}"`)
       
       // Update local session history to avoid flashing
       if (options?.onSessionUpdated) {
@@ -535,7 +583,7 @@ export function useReflectionSession(
   }, [session, messages])
 
   const processUserInput = async (input: string, currentMessages?: Message[]) => {
-    console.log('🚀 PROCESSING USER INPUT [CODE VERSION: 2.0 - FIXED]:', {
+    debug.chat('🚀 PROCESSING USER INPUT [CODE VERSION: 2.0 - FIXED]:', {
       input: input.substring(0, 50),
       currentStep: session.currentStep,
       sessionId: session.id
@@ -569,7 +617,7 @@ export function useReflectionSession(
         metadata: msg.metadata // ✅ CRITICAL: Include metadata for phase advancement
       }))
     
-    console.log('📊 CONVERSATION HISTORY DEBUG:', {
+    debug.chat('📊 CONVERSATION HISTORY DEBUG:', {
       oldMessagesLength: messages.length,
       currentMessagesLength: messagesToUse.length,
       conversationHistoryLength: conversationHistory.length,
@@ -601,8 +649,8 @@ export function useReflectionSession(
     setIsTyping(true)
 
     try {
-      console.log('🤖 GENERATING AI RESPONSE using Enhanced Vector Assistant...')
-      console.log('📤 Request payload:', {
+      debug.ai('🤖 GENERATING AI RESPONSE using Enhanced Vector Assistant...')
+      debug.ai('📤 Request payload:', {
         userInput: input,
         currentPhase: session.currentStep,
         conversationHistory: conversationHistory
@@ -610,30 +658,61 @@ export function useReflectionSession(
 
       // Log last AI response metadata to verify it's being sent
       const lastAIMsg = conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]
-      console.log('🔍 Last AI message metadata being sent:', lastAIMsg?.metadata)
-      console.log('🔍 next_recommended_phase in last AI metadata:', lastAIMsg?.metadata?.next_recommended_phase)
+      debug.ai('🔍 Last AI message metadata being sent:', lastAIMsg?.metadata)
+      debug.phase('🔍 next_recommended_phase in last AI metadata:', lastAIMsg?.metadata?.next_recommended_phase)
       
       // COMMENTED OUT: Old Fast Assistant that was bypassing our enhanced prompts
       // Vector-based AI with knowledge retrieval (primary model)
       // Using default preferences since we're sending simplified requests
       const userPreferences = { showPhasePrompts: false, autoAdvanceSteps: true }
 
-      const { data, error } = await supabase.functions.invoke('chat', {
-        body: {
-          userInput: input,
-          currentPhase: session.currentStep,
-          conversationHistory: [], // TEMPORARY: Force empty to test phase advancement
-          sessionContext: {},
-          sessionId: session.id
-        }
-      })
-      console.log('📥 Function response - data:', data, 'error:', error)
-      console.log('🔍 DEBUG: data.response =', data?.response)
-      console.log('🔍 DEBUG: data.content =', data?.content)
-      console.log('🔍 DEBUG: data.currentPhase =', data?.currentPhase)
-      console.log('🔍 DEBUG: data.phase =', data?.phase)
-      console.log('🔍 DEBUG: typeof data =', typeof data)
-      console.log('🔍 DEBUG: data keys =', data ? Object.keys(data) : 'no data')
+      // Feature flag: Use chat-v2 (Flow Engine) or original chat
+      const useChatV2 = process.env.EXPO_PUBLIC_USE_CHAT_V2 === 'true'
+      const chatFunction = useChatV2 ? 'chat-v2' : 'chat'
+
+      debug.ai(`🎯 Using ${chatFunction} (EXPO_PUBLIC_USE_CHAT_V2=${process.env.EXPO_PUBLIC_USE_CHAT_V2})`)
+
+      let data, error
+
+      if (useChatV2) {
+        // chat-v2: Flow Engine with readiness scoring
+        const response = await supabase.functions.invoke('chat-v2', {
+          body: {
+            userInput: input,
+            currentPhase: getPhaseNameFromNumber(session.currentStep),
+            flowState: session.flowState || {
+              readiness: 0.0,
+              context: {},
+              lastPrompt: "",
+              lastResponse: "",
+              conversationHistory: []
+            },
+            sessionId: session.id
+          }
+        })
+        data = response.data
+        error = response.error
+      } else {
+        // Original chat function
+        const response = await supabase.functions.invoke('chat', {
+          body: {
+            userInput: input,
+            currentPhase: session.currentStep,
+            conversationHistory: [], // TEMPORARY: Force empty to test phase advancement
+            sessionContext: {},
+            sessionId: session.id
+          }
+        })
+        data = response.data
+        error = response.error
+      }
+      debug.ai('📥 Function response - data:', data, 'error:', error)
+      debug.log('🔍 DEBUG: data.response =', data?.response)
+      debug.log('🔍 DEBUG: data.content =', data?.content)
+      debug.log('🔍 DEBUG: data.currentPhase =', data?.currentPhase)
+      debug.log('🔍 DEBUG: data.phase =', data?.phase)
+      debug.log('🔍 DEBUG: typeof data =', typeof data)
+      debug.log('🔍 DEBUG: data keys =', data ? Object.keys(data) : 'no data')
 
       if (error) {
         console.error('❌ Assistant API Error:', error)
@@ -667,12 +746,12 @@ export function useReflectionSession(
         throw new Error(`Function Error: ${detailedError}`)
       }
       
-      console.log('✅ Assistant Response:', data)
-      
+      debug.ai('✅ Assistant Response:', data)
+
       // Update thread ID for future messages
       if (data.threadId && !session.threadId) {
         setSession(prev => ({ ...prev, threadId: data.threadId }))
-        
+
         // Save threadId to database (gracefully handle if table doesn't exist)
         try {
           await supabase
@@ -683,15 +762,29 @@ export function useReflectionSession(
           console.warn('⚠️ reflection_sessions table not found (skipping database update):', dbError)
         }
       }
+
+      // Update flowState from chat-v2 response
+      if (useChatV2 && data.flow_state) {
+        setSession(prev => ({ ...prev, flowState: data.flow_state }))
+        debug.ai('🔄 Updated flowState:', { readiness: data.flow_state.readiness, contextKeys: Object.keys(data.flow_state.context) })
+      }
       
       // Handle structured JSON response from new chat function
       const aiContent = data.content || data.response
       const phaseAdvanced = data.phase_advanced || false
-      const nextPhase = data.next_phase || data.current_phase || session.currentStep
+
+      // Convert phase names to numbers for UI (chat-v2 uses names like 'feelings', UI uses numbers like 2)
+      const currentPhaseFromResponse = typeof data.current_phase === 'string'
+        ? getPhaseNumberFromName(data.current_phase)
+        : (data.current_phase || data.currentPhase || session.currentStep)
+
+      const nextPhase = typeof data.current_phase === 'string'
+        ? getPhaseNumberFromName(data.current_phase)
+        : (data.next_phase || data.current_phase || session.currentStep)
 
       const aiResponse = {
         content: aiContent,
-        phase: data.current_phase || data.currentPhase || session.currentStep,
+        phase: currentPhaseFromResponse,
         metadata: {
           ...data.metadata,
           functionUsed: 'chat',
@@ -703,7 +796,7 @@ export function useReflectionSession(
         }
       }
 
-      console.log('✅ STRUCTURED AI RESPONSE:', {
+      debug.ai('✅ STRUCTURED AI RESPONSE:', {
         content: aiContent?.substring(0, 100) + '...',
         phase_advanced: phaseAdvanced,
         current_phase: data.current_phase,
@@ -714,7 +807,7 @@ export function useReflectionSession(
       // Hide typing indicator
       setIsTyping(false)
 
-      console.log('🔍 PHASE ADVANCEMENT CHECK:', {
+      debug.phase('🔍 PHASE ADVANCEMENT CHECK:', {
         phase_advanced: phaseAdvanced,
         current_phase: data.current_phase,
         next_phase: nextPhase,
@@ -748,7 +841,7 @@ export function useReflectionSession(
         ? aiResponse.content.summary?.substring(0, 100) || JSON.stringify(aiResponse.content).substring(0, 100)
         : String(aiResponse.content || 'empty').substring(0, 100)
 
-      console.log('🔍 CALLING checkPhaseCompletion:', {
+      debug.phase('🔍 CALLING checkPhaseCompletion:', {
         input: input.substring(0, 100),
         currentPhase: session.currentStep,
         aiResponse: aiResponsePreview,
@@ -768,7 +861,7 @@ export function useReflectionSession(
       // )
 
       // Log phase analysis (using variables calculated earlier)
-      console.log('🎯 STRUCTURED PHASE ANALYSIS:', {
+      debug.phase('🎯 STRUCTURED PHASE ANALYSIS:', {
         aiResponsePhase: aiResponse.phase,
         sessionCurrentStep: session.currentStep,
         nextPhase,
@@ -781,18 +874,18 @@ export function useReflectionSession(
 
       // Update session state for phase advancement (handled by structured chat function)
       if (phaseAdvanced && nextPhase < 8) {
-        console.log('🔄 UPDATING SESSION STATE for phase advancement:', {
+        debug.phase('🔄 UPDATING SESSION STATE for phase advancement:', {
           from: session.currentStep,
           to: nextPhase,
           sessionId: session.id
         })
-        console.log('🚀 PHASE ADVANCEMENT TRIGGERED:', {
+        debug.phase('🚀 PHASE ADVANCEMENT TRIGGERED:', {
           from: session.currentStep,
           to: nextPhase,
           sessionId: session.id
         })
 
-        console.log('📈 Phase advanced from', session.currentStep, 'to', nextPhase)
+        debug.phase('📈 Phase advanced from', session.currentStep, 'to', nextPhase)
 
         // Update session in database (gracefully handle if table doesn't exist)
         try {
@@ -815,14 +908,14 @@ export function useReflectionSession(
 
         // Generate combined phase header + opening content (like Phase 1 pattern)
         // ONLY when phase actually advanced
-        console.log('🔍 Phase advancement check:', {
+        debug.phase('🔍 Phase advancement check:', {
           hasTitle: !!data.phase_data?.title,
           phaseAdvanced: data.phase_advanced,
           title: data.phase_data?.title
         })
 
         if (data.phase_data?.title && data.phase_advanced) {
-          console.log('✅ Generating combined phase header + opening for Phase', nextPhase)
+          debug.phase('✅ Generating combined phase header + opening for Phase', nextPhase)
 
           // Show phase transition indicator
           setIsPhaseTransitioning(true)
@@ -830,10 +923,20 @@ export function useReflectionSession(
           // Generate phase opening content first
           setTimeout(async () => {
             try {
+              // Build contextual phase opening request based on user's journey so far
+              // Use allMessages (current state) instead of stale messages variable
+              const recentUserMessages = allMessages
+                .filter(m => m.role === 'user')
+                .slice(-2)
+                .map(m => m.content)
+                .join(' ')
+
+              const contextualRequest = `Based on what the user has shared (${recentUserMessages.substring(0, 150)}...), provide a warm, personalized opening for Phase ${nextPhase} that connects to their specific situation and invites them to explore this phase's focus.`
+
               const openingResponse = await generateAIResponse(
-                "Please provide the opening prompt for this phase.",
+                contextualRequest,
                 nextPhase,
-                messages.slice(-5), // Recent context
+                allMessages.slice(-5), // Recent context including current exchange
                 { sessionId: session.id }
               )
 
@@ -852,7 +955,7 @@ export function useReflectionSession(
                   }
                 }
 
-                console.log('📋 Adding combined phase message:', {
+                debug.phase('📋 Adding combined phase message:', {
                   phase: nextPhase,
                   headerTitle: data.phase_data.title,
                   hasContent: !!openingResponse.content

@@ -5,6 +5,7 @@ import { GestureHandlerRootView, TouchableOpacity } from 'react-native-gesture-h
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist'
 import { supabase } from '../../lib/supabase'
 import ds from '../../styles/design-system'
+import debug from '../../lib/debugLogger'
 
 interface FAQItem {
   id: string
@@ -171,7 +172,7 @@ export default function FAQManager() {
   }
 
   const handleDelete = async (item: FAQItem) => {
-    console.log('Delete button clicked for item:', item.id)
+    debug.log('Delete button clicked for item:', item.id)
 
     const confirmDelete = Platform.OS === 'web'
       ? window.confirm('Are you sure you want to delete this FAQ item?')
@@ -187,12 +188,12 @@ export default function FAQManager() {
         })
 
     if (!confirmDelete) {
-      console.log('Delete cancelled')
+      debug.log('Delete cancelled')
       return
     }
 
     try {
-      console.log('Delete confirmed, starting soft delete...')
+      debug.log('Delete confirmed, starting soft delete...')
       setLoading(true)
       // Soft delete by setting deleted_at timestamp
       const { error } = await supabase
@@ -205,7 +206,7 @@ export default function FAQManager() {
         throw error
       }
 
-      console.log('Delete successful')
+      debug.log('Delete successful')
       if (Platform.OS === 'web') {
         alert('FAQ item deleted successfully')
       } else {
@@ -447,7 +448,7 @@ export default function FAQManager() {
               <TouchableOpacity
                 style={[styles.actionButton, styles.deleteButton]}
                 onPress={() => {
-                  console.log('TouchableOpacity pressed')
+                  debug.log('TouchableOpacity pressed')
                   handleDelete(item)
                 }}
               >

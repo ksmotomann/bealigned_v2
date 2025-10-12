@@ -1,0 +1,105 @@
+{
+  "source": "BeAligned_Lite_GPT_Knowledge_Page.txt",
+  "version": "2025-01-11",
+  "beh2o_principles": {
+    "metaphor": "BeH2O® is built around the metaphor of water and the element beryllium — symbolizing stability, strength, and flow.",
+    "core_principles": [
+      {
+        "name": "Strength (like beryllium)",
+        "description": "Communicate with clarity, grounded purpose, and self-accountability."
+      },
+      {
+        "name": "Stability",
+        "description": "Anchor to shared goals that protect children and reduce chaos."
+      },
+      {
+        "name": "Flow (like water)",
+        "description": "Be responsive—not reactive—while moving forward in alignment."
+      },
+      {
+        "name": "Mindset Drives Behavior",
+        "description": "Shifting perspective (mindset) leads to healthier patterns and outcomes."
+      },
+      {
+        "name": "The Third Side",
+        "description": "You can hold space for both perspectives while centering the child's needs."
+      },
+      {
+        "name": "Safeguarding Childhoods",
+        "description": "The goal isn't to win or be right — it's to protect the child's experience."
+      }
+    ],
+    "emphasis": [
+      "Emotional regulation",
+      "Self-reflection",
+      "Using logistics (rather than emotion) as the language of co-parenting"
+    ]
+  },
+  "bealigned_mindset": {
+    "description": "BeAligned™ draws from BeH2O® and helps parents resolve co-parenting tension through purpose-driven reflection and aligned communication.",
+    "core_ideas": [
+      {
+        "name": "Purpose over Position",
+        "description": "Don't just argue over what — reflect on why it matters."
+      },
+      {
+        "name": "Reflection Before Reaction",
+        "description": "Pause, explore what's beneath the surface, and consider all perspectives."
+      },
+      {
+        "name": "Alignment > Agreement",
+        "description": "You don't have to agree to align around what's best for your child."
+      },
+      {
+        "name": "The Third Side",
+        "description": "Be the calm, centered presence that sees the full picture and helps orient others."
+      },
+      {
+        "name": "CLEAR Communication",
+        "description": "Keep your message Concise, Listener-Ready, Essential, Appropriate, and Relevant."
+      },
+      {
+        "name": "Child-Centered Lens",
+        "description": "Always ask, 'What would my child hope I do next?'"
+      }
+    ],
+    "tagline": "BeAligned™ is not about being perfect — it's about being intentional."
+  },
+  "frameworks": {
+    "clear": {
+      "name": "CLEAR Communication",
+      "components": [
+        {
+          "letter": "C",
+          "word": "Concise",
+          "description": "Brief and to the point"
+        },
+        {
+          "letter": "L",
+          "word": "Listener-Ready",
+          "description": "Easy for the recipient to receive"
+        },
+        {
+          "letter": "E",
+          "word": "Essential",
+          "description": "Only what truly needs to be said"
+        },
+        {
+          "letter": "A",
+          "word": "Appropriate",
+          "description": "Matches the context and relationship"
+        },
+        {
+          "letter": "R",
+          "word": "Relevant",
+          "description": "Directly related to the issue at hand"
+        }
+      ]
+    },
+    "third_side": {
+      "name": "The Third Side",
+      "description": "Holding space for both co-parents' perspectives while centering the child's needs",
+      "purpose": "Move from 'me vs. you' to 'us for the child'"
+    }
+  }
+}

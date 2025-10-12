@@ -133,8 +133,6 @@ export function usePhasePromptsEnhanced(): UsePhasePromptsReturn {
     setError(null)
 
     try {
-      console.log('🔍 Loading enhanced phase prompts from database...')
-
       const { data: enhancedData, error: dbError } = await supabase
         .from('phase_prompts')
         .select('*')
@@ -151,21 +149,17 @@ export function usePhasePromptsEnhanced(): UsePhasePromptsReturn {
         return
       }
 
-      console.log(`✅ Loaded ${enhancedData.length} enhanced phases from database`)
       setEnhancedPhases(enhancedData)
 
       // Transform for legacy compatibility
       const legacyPhases = transformEnhancedToLegacy(enhancedData)
       setPhases(legacyPhases)
 
-      console.log('✅ Enhanced phase prompts successfully loaded')
-
     } catch (err) {
       console.error('❌ Failed to load enhanced phases from database:', err)
       setError(err instanceof Error ? err.message : 'Failed to load enhanced phases')
 
       // Fallback to hardcoded phases
-      console.log('🔄 Using fallback phases due to database error')
       setPhases(FALLBACK_PHASES)
       setEnhancedPhases([])
 

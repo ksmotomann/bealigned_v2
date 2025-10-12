@@ -1,8 +1,9 @@
-// Inspired by Jacob Gregory Mann (6/24/2011 - 10/30/2024) and his courage (Joshua 1:9) 
+// Inspired by Jacob Gregory Mann (6/24/2011 - 10/30/2024) and his courage (Joshua 1:9)
 // - helping families be strong and courageous through difficult moments
 
 import { config as appConfig } from './config'
 import { getBeAlignedGPTSystem } from './content'
+import debug from './debugLogger'
 
 interface Message {
   role: 'system' | 'user' | 'assistant'
@@ -35,7 +36,7 @@ export async function generateAIResponse(
   sessionContext: Record<string, any> = {}
 ): Promise<AIResponse> {
   try {
-    console.log('🎯 Using vector-based AI response generation')
+    debug.log('🎯 Using vector-based AI response generation')
     
     // Use the new vector-based AI Edge Function
     const { supabase } = await import('./supabase')
@@ -58,7 +59,7 @@ export async function generateAIResponse(
       throw new Error(`Edge Function error: ${error.message}`)
     }
 
-    console.log('✅ Vector-based AI response generated', {
+    debug.log('✅ Vector-based AI response generated', {
       phase: data.metadata?.phase,
       relevantChunks: data.metadata?.relevantChunks,
       contentPieces: data.metadata?.contentPieces,
@@ -88,7 +89,7 @@ export async function generateAIResponse(
 
     // Fallback to direct API call if Edge Function fails but with structured responses
     try {
-      console.log('🔄 Falling back to direct OpenAI API')
+      debug.log('🔄 Falling back to direct OpenAI API')
       
       // Use structured fallback to prevent phase header generation
       const systemContent = `You are Trina, a warm co-parenting coach using the BeH2O methodology.

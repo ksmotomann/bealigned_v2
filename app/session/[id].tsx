@@ -45,7 +45,7 @@ export default function SessionDetail() {
       setSession(sessionData)
 
       const { data: messagesData, error: messagesError } = await supabase
-        .from('chat_messages')
+        .from('reflection_messages')
         .select('*')
         .eq('session_id', id)
         .order('created_at', { ascending: true })

@@ -51,9 +51,9 @@ serve(async (req) => {
       throw new Error('Session not found')
     }
 
-    // Fetch chat messages separately
+    // Fetch reflection messages separately
     const { data: chatMessages, error: messagesError } = await supabaseClient
-      .from('chat_messages')
+      .from('reflection_messages')
       .select('*')
       .eq('session_id', sessionId)
       .order('created_at', { ascending: true })

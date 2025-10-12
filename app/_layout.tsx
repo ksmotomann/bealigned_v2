@@ -9,6 +9,7 @@ import { SEOProvider } from '../context/SEOContext'
 import { AdminProvider } from '../contexts/AdminContext'
 import LegalAcknowledgmentModal from '../components/LegalAcknowledgmentModal'
 import AppTourModal from '../components/AppTourModal'
+import debug from '../lib/debugLogger'
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null)
@@ -42,7 +43,7 @@ export default function RootLayout() {
       if (currentOrigin.includes('bealigned.vercel.app') &&
           (referrer.includes('bealigned.app') || window.location.pathname === '/login')) {
         setIsProxyContext(true)
-        console.log('🔄 Proxy context detected - disabling automatic redirects')
+        debug.log('🔄 Proxy context detected - disabling automatic redirects')
       }
     }
   }, [])
@@ -117,7 +118,7 @@ export default function RootLayout() {
 
     // Skip automatic redirects if we're in a proxy context
     if (isProxyContext) {
-      console.log('🔄 Skipping auto-redirect due to proxy context')
+      debug.log('🔄 Skipping auto-redirect due to proxy context')
       return
     }
 

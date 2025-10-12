@@ -5,6 +5,7 @@
  */
 
 import { supabase } from './supabase'
+import debug from './debugLogger'
 
 export interface FeedbackInput {
   sessionId: string
@@ -39,7 +40,7 @@ export async function processFeedback(feedback: FeedbackInput): Promise<{
   immediateActions: any[]
 }> {
   try {
-    console.log('🎯 Processing unified feedback:', {
+    debug.log('🎯 Processing unified feedback:', {
       type: feedback.feedbackType,
       source: feedback.sourceType,
       phase: feedback.messageContext?.phase

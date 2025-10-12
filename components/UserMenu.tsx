@@ -57,12 +57,6 @@ export default function UserMenu({ user }: UserMenuProps) {
       const isAdmin = (profileData?.user_type === 'admin' || profileData?.user_type === 'super_admin') ||
                      (user?.email && adminEmails.includes(user.email))
       setIsActualAdmin(isAdmin)
-
-      console.log('Profile loaded:', {
-        email: user?.email,
-        profile: profileData,
-        isAdmin
-      })
     } catch (error) {
       console.error('Error loading profile:', error)
       setIsActualAdmin(false)

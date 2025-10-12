@@ -1,12 +1,13 @@
 /**
  * AI-Generated Welcome Message Service
- * 
- * Instead of using static prompts, this service uses AI to generate personalized 
+ *
+ * Instead of using static prompts, this service uses AI to generate personalized
  * welcome messages based on tone categories and user preferences.
  */
 
 import { WELCOME_PROMPTS } from './welcomePrompts'
 import { generateAIResponse } from './aiServiceKnowledgeBased'
+import debug from './debugLogger'
 
 export type WelcomeTone = 'reflective' | 'validating' | 'sorting' | 'direct' | 'mixed'
 
@@ -27,13 +28,13 @@ export interface UserProfile {
 export async function generateAIWelcomeMessage(
   userProfile: UserProfile = {}
 ): Promise<string> {
-  console.log('🎯 generateAIWelcomeMessage called with profile:', userProfile)
-  
+  debug.log('🎯 generateAIWelcomeMessage called with profile:', userProfile)
+
   try {
     // Use Supabase Edge Function instead of direct API calls
     const { supabase } = await import('./supabase')
-    
-    console.log('🚀 Calling Supabase Edge Function for AI welcome generation')
+
+    debug.log('🚀 Calling Supabase Edge Function for AI welcome generation')
     
     const { data, error } = await supabase.functions.invoke('generate-ai-welcome', {
       body: { userProfile }
@@ -48,12 +49,12 @@ export async function generateAIWelcomeMessage(
       throw new Error('No welcome message returned from Edge Function')
     }
 
-    console.log('✅ AI welcome message generated via Edge Function:', {
+    debug.log('✅ AI welcome message generated via Edge Function:', {
       message: data.welcomeMessage.substring(0, 50) + '...',
       toneCategory: data.toneCategory,
       generatedBy: data.generatedBy
     })
-    
+
     return data.welcomeMessage
 
   } catch (error) {
@@ -63,7 +64,7 @@ export async function generateAIWelcomeMessage(
       userProfile
     })
     // Fallback to static random prompt if AI generation fails
-    console.log('📝 Falling back to static welcome message')
+    debug.log('📝 Falling back to static welcome message')
     return getStaticFallbackWelcome(userProfile)
   }
 }
@@ -119,13 +120,13 @@ function getToneDescription(tone: WelcomeTone): string {
  */
 function getStaticFallbackWelcome(userProfile: UserProfile): string {
   const toneCategory = determineToneCategory(userProfile)
-  console.log('📝 Using static fallback with tone:', toneCategory)
-  
+  debug.log('📝 Using static fallback with tone:', toneCategory)
+
   const categoryPrompts = WELCOME_PROMPTS[toneCategory] || WELCOME_PROMPTS.validating
   const randomIndex = Math.floor(Math.random() * categoryPrompts.length)
   const selectedPrompt = categoryPrompts[randomIndex]
-  
-  console.log('✅ Selected static prompt:', selectedPrompt.substring(0, 50) + '...')
+
+  debug.log('✅ Selected static prompt:', selectedPrompt.substring(0, 50) + '...')
   return selectedPrompt
 }
 
