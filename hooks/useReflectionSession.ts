@@ -744,7 +744,7 @@ export function useReflectionSession(
       }
 
       // Update flowState from chat-v2 response
-      if (useChatV2 && data.flow_state) {
+      if (data.flow_state) {
         setSession(prev => ({ ...prev, flowState: data.flow_state }))
         debug.ai('🔄 Updated flowState:', { readiness: data.flow_state.readiness, contextKeys: Object.keys(data.flow_state.context) })
       }
