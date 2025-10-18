@@ -459,3 +459,39 @@ export function extractLastFeeling(flowState: any): string | undefined {
 
   return undefined;
 }
+
+/**
+ * Strip phase headings from AI-generated text
+ *
+ * The UI PhaseMarker shows labels from PHASE_META, so the AI should never
+ * print phase headings or labels in the response text.
+ *
+ * This function removes any accidentally generated headings.
+ *
+ * @param text - Content that may contain phase headings
+ * @returns Content with headings stripped
+ */
+export function stripPhaseHeadings(text: string): string {
+  if (!text) return text;
+
+  let cleaned = text;
+
+  // Remove markdown headings starting with "Phase"
+  cleaned = cleaned.replace(/^#+\s*phase.*$/gmi, '');
+
+  // Remove emoji-prefixed phase headings
+  cleaned = cleaned.replace(/^[🌿🌊🌞🥿👶🧭🕊️].*phase.*$/gmi, '');
+
+  // Remove common phase heading patterns
+  cleaned = cleaned.replace(/^Phase \d+[:\s·•].*$/gmi, '');
+
+  // Remove "Perspective" specifically (legacy Phase 4 label)
+  cleaned = cleaned.replace(/^#+\s*Perspective.*$/gmi, '');
+  cleaned = cleaned.replace(/^Perspective[:\s·•].*$/gmi, '');
+
+  // Clean up extra whitespace left behind
+  cleaned = cleaned.replace(/\n\n\n+/g, '\n\n');
+  cleaned = cleaned.trim();
+
+  return cleaned;
+}

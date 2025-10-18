@@ -37,6 +37,30 @@ export function normalizeEmotion(primary: string): string {
 }
 
 /**
+ * Detect coparent pronoun for session persistence
+ *
+ * Returns pronoun only if clearly specified in user utterance.
+ * Returns null if not specified, allowing fallback to neutral.
+ *
+ * @param utterance - User's utterance
+ * @returns "he" | "she" | null
+ */
+export function detectCoparentPronoun(utterance: string): "he" | "she" | null {
+  if (!utterance) return null;
+
+  const u = utterance.toLowerCase();
+
+  // Check for masculine pronouns
+  if (/\b(he|him|his)\b/.test(u)) return "he";
+
+  // Check for feminine pronouns
+  if (/\b(she|her|hers)\b/.test(u)) return "she";
+
+  // Not specified - return null
+  return null;
+}
+
+/**
  * Infer coparent pronoun from user text
  *
  * Lightweight pronoun inference based on usage in conversation:

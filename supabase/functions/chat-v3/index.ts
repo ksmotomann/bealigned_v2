@@ -40,6 +40,7 @@ import {
   type ComposerContext
 } from '../shared/flow/composer.ts'
 import { composeSystemPrompt as composeGovernancePrompt } from '../shared/governance/systemPrompt.ts'
+import { canonicalPhaseKey } from '../shared/flow/phaseMeta.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,6 +109,24 @@ function calculateScore(item: any, ctx: { phase: string; userSaidClosure?: boole
     if (item.kind === 'clear_frame') s += 0.05    // Only after a seed exists
     if (item.kind === 'contain') s += 0.04
     if (item.kind === 'collect') s += 0.06        // When vars missing
+  }
+
+  // Pronoun mirroring boosts - match user's pronoun preference
+  const text = (ctx.lastUserText || "").toLowerCase()
+  const hasHe = /\b(he|him|his)\b/.test(text)
+  const hasShe = /\b(she|her|hers)\b/.test(text)
+
+  if (hasHe && item.tags?.includes('pronoun:he')) s += 0.10
+  if (hasShe && item.tags?.includes('pronoun:she')) s += 0.10
+
+  if (!hasHe && !hasShe && item.tags?.includes('pronoun:unknown')) {
+    s += 0.05  // gentle preference for neutral when unspecified
+  }
+
+  // Phase 4 normalization: prefer 'shoes' content, penalize legacy 'perspective'
+  if (ctx.phase === 'shoes' || ctx.phase === 'perspective') {
+    if (item.phase?.toLowerCase() === 'shoes') s += 0.10
+    if (item.phase?.toLowerCase() === 'perspective') s -= 0.10  // legacy penalty
   }
 
   return s
@@ -258,6 +277,12 @@ function filterAndBoostResults(
       console.log(`🛑 Boundary containment boost applied: ${r.id.substring(0, 8)}...`)
     }
 
+    // NEW: Closure-and-ready bridge boost - prioritize transition to meaning when user says "no" after depth
+    if (userInput && userInput.trim().toLowerCase() === 'no' && r.tags && r.tags.includes('closure_and_ready')) {
+      bonus += 0.15
+      console.log(`🌉 Closure-and-ready bridge boost applied: ${r.id.substring(0, 8)}...`)
+    }
+
     // NEW: Emotional intensity containment boost
     if (emotionalIntensity >= 0.75 && r.tags && r.tags.includes('containment')) {
       bonus += 0.10
@@ -343,6 +368,11 @@ serve(async (req) => {
     const phaseKey = currentPhase.startsWith('phase_')
       ? currentPhase.replace('phase_', ['issue', 'feelings', 'why', 'perspective', 'options', 'choose', 'message'][parseInt(currentPhase.split('_')[1]) - 1] || 'issue')
       : currentPhase
+
+    // Telemetry: Warn if non-canonical phase key detected
+    if (phaseKey && phaseKey !== canonicalPhaseKey(phaseKey)) {
+      console.warn(`⚠️  Non-canonical phase key detected: '${phaseKey}' → canonical: '${canonicalPhaseKey(phaseKey)}'`)
+    }
 
     const phaseCfg = flowCfg[phaseKey]
 
@@ -711,6 +741,13 @@ serve(async (req) => {
       const nextPhase = phaseAdvanced ? phaseCfg.next_phase : phaseKey
       const phase_changed = prevPhase && prevPhase !== nextPhase
 
+      // Phase jump detection: Log if phase change happens within first 2 turns
+      const turnCount = flowState?.conversationHistory?.length || 0
+      const isEarlyPhaseJump = phase_changed && turnCount <= 2
+      if (isEarlyPhaseJump) {
+        console.log(`⚡ Early phase jump detected (data-driven): ${phaseKey} → ${nextPhase} at turn ${turnCount}`)
+      }
+
       const response = {
         content: composed.content,
         phase: phaseKey,
@@ -753,7 +790,14 @@ serve(async (req) => {
           snippets_used: composed.snippets_used,
           user_said_closure: userSaidClosure,
           feeling_named: feelingNamed,
-          child_impact_nudged: needsNudge
+          child_impact_nudged: needsNudge,
+          ...(isEarlyPhaseJump ? {
+            phase_jump: {
+              from: phaseKey,
+              to: nextPhase,
+              turn_count: turnCount
+            }
+          } : {})
         }
       })
 
@@ -838,6 +882,13 @@ serve(async (req) => {
     const nextPhase = phaseAdvanced ? phaseCfg.next_phase : phaseKey
     const phase_changed = phaseAdvanced && prevPhase !== nextPhase
 
+    // Phase jump detection: Log if phase change happens within first 2 turns
+    const turnCount = flowState?.conversationHistory?.length || 0
+    const isEarlyPhaseJump = phase_changed && turnCount <= 2
+    if (isEarlyPhaseJump) {
+      console.log(`⚡ Early phase jump detected: ${phaseKey} → ${nextPhase} at turn ${turnCount}`)
+    }
+
     console.log(`📊 Readiness: ${readiness.toFixed(2)} | Threshold: ${phaseCfg.min_readiness_to_advance} | Reprompts: ${repromptCount}/${phaseCfg.max_reprompts}`)
     console.log(`${phaseAdvanced ? '✅ Advancing' : '⏸️ Staying'} | Next: ${nextPhase}`)
 
@@ -892,7 +943,14 @@ serve(async (req) => {
           max_reprompts: phaseCfg.max_reprompts
         },
         user_said_closure: userSaidClosure || false,
-        feeling_named: feelingNamed || false
+        feeling_named: feelingNamed || false,
+        ...(isEarlyPhaseJump ? {
+          phase_jump: {
+            from: phaseKey,
+            to: nextPhase,
+            turn_count: turnCount
+          }
+        } : {})
       }
     })
 
